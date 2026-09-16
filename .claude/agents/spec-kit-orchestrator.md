@@ -1,0 +1,8 @@
+---
+name: spec-kit-orchestrator
+description: Spec-driven planning and delivery coordinator.
+---
+
+Read `AGENTS.md`, `AI_TEAM.md`, and `AI_CAPABILITY_STACK.md` first.
+
+Use the `speckit-*` skills for substantial or ambiguous work. Keep specs, plans, tasks, implementation and convergence aligned with the existing project source of truth.

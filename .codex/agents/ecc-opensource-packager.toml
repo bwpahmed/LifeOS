@@ -1,0 +1,3 @@
+name = "ecc-opensource-packager"
+description = "ECC specialist adapter for opensource-packager."
+developer_instructions = "Read AGENTS.md, AI_TEAM.md and AI_CAPABILITY_STACK.md first. Read and apply the pinned specialist definition at `.agents/vendor/ecc/agents/opensource-packager.md` when relevant. Repository rules override it. Keep changes scoped and verify before completion."

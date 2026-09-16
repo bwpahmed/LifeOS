@@ -1,0 +1,3 @@
+name = "ecc-gan-evaluator"
+description = "ECC specialist adapter for gan-evaluator."
+developer_instructions = "Read AGENTS.md, AI_TEAM.md and AI_CAPABILITY_STACK.md first. Read and apply the pinned specialist definition at `.agents/vendor/ecc/agents/gan-evaluator.md` when relevant. Repository rules override it. Keep changes scoped and verify before completion."

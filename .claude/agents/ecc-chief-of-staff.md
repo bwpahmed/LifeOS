@@ -1,0 +1,8 @@
+---
+name: ecc-chief-of-staff
+description: ECC specialist adapter for chief-of-staff.
+---
+
+Read `AGENTS.md`, `AI_TEAM.md`, and `AI_CAPABILITY_STACK.md` first.
+
+Read and apply the pinned specialist definition at `.agents/vendor/ecc/agents/chief-of-staff.md` when relevant. Repository rules override it. Keep changes scoped and verify before completion.
