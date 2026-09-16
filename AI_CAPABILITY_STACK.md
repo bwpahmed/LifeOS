@@ -28,6 +28,11 @@ Project-level `memory-*` adapters may use an authorized AgentMemory runtime. The
 ### Awesome Harness Engineering — harness patterns
 Use `harness-engineering` for long-running/complex agent work, context design, verification loops, planning artifacts, permissions and human-in-the-loop design.
 
+### Claude SEO — public-web SEO capability (installed, no automatic schedule)
+LifeOS includes a pinned project-local `AgriciDaniel/claude-seo` pack so SEO skills/agents are available if/when LifeOS has a real public landing/site URL. Because LifeOS is primarily a private personal/family application, SEO is not part of normal engineering tasks and no recurring SEO audit is enabled by default.
+
+Use it only for a real public URL/surface. Audit first and keep SEO work away from private/authenticated routes, Supabase/RLS, user data and unrelated app logic unless the current task explicitly requires implementation. See `CLAUDE_SEO.md`.
+
 ### AEO — external promotion capability (disabled by default)
 AEO is external promotion tooling. It is not part of normal LifeOS engineering work.
 
@@ -47,6 +52,7 @@ Rules:
 Core pack pins:
 - `addyosmani/agent-skills` — `6ca0cd7db39b41b1c37e26d335c507ee92382c6d`
 - `msitarzewski/agency-agents` — `6d29a9b08785a0e49ffc9818bbdd381164c2df5f`
+- `AgriciDaniel/claude-seo` — `92795530b4cc92c6bf7a2435b82c15b003e71181` — `v2.3.1`, MIT
 
 Capability pins:
 - `subconscious-systems/AEO` — `13ea5800a8ff041dd64157950a9e763c51278543` — external pointer only
