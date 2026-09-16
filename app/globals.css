@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #07101d;
+  --panel: #101c2d;
+  --line: rgba(255, 255, 255, 0.075);
+  --text: #eef4ff;
+  --muted: #8fa0b9;
+  --blue: #69a7ff;
+  --green: #4bd2a0;
+  --red: #ff6f7d;
+  --amber: #ffbd69;
+}
+
+html {
+  background: var(--bg);
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(circle at 75% -10%, rgba(78, 123, 203, 0.12), transparent 36%), var(--bg);
+  color: var(--text);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  min-height: 100vh;
+}
+
+/* Preserved LifeOS design language: dark, clean, premium, minimal */
+.panel {
+  background: linear-gradient(155deg, rgba(20, 34, 56, 0.94), rgba(13, 25, 42, 0.96));
+  border: 1px solid var(--line);
+  border-radius: 20px;
+}
