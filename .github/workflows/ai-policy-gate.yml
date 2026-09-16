@@ -1,0 +1,16 @@
+name: AI Policy Gate
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-ai-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify canonical AI policy and adapters
+        run: node scripts/verify-ai-policy.mjs
