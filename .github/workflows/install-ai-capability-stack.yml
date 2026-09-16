@@ -1,0 +1,224 @@
+name: Install AI Capability Stack
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/install-ai-capability-stack.yml'
+
+permissions:
+  contents: write
+
+env:
+  AEO_REPO: https://github.com/subconscious-systems/AEO.git
+  AEO_COMMIT: 13ea5800a8ff041dd64157950a9e763c51278543
+  ECC_REPO: https://github.com/affaan-m/ECC.git
+  ECC_COMMIT: 4f373874209b4b63fdec0469b76992923ea0a9d0
+  SPEC_KIT_REPO: https://github.com/github/spec-kit.git
+  SPEC_KIT_COMMIT: d848fb4e18f44640ad6b42e60a280551ee90cdce
+  AGENTMEMORY_REPO: https://github.com/rohitg00/agentmemory.git
+  AGENTMEMORY_COMMIT: e04ba88819c365c9acf9d6661ea802143e728bd6
+  HARNESS_REPO: https://github.com/ai-boost/awesome-harness-engineering.git
+  HARNESS_COMMIT: 378a07b1f717f88e4128e9a26eefafe714272cc4
+
+jobs:
+  sync:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch pinned upstream sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          clone_pin() {
+            local repo="$1" sha="$2" dest="$3"
+            rm -rf "$dest"
+            git clone --quiet --filter=blob:none --no-checkout "$repo" "$dest"
+            git -C "$dest" fetch --quiet --depth 1 origin "$sha"
+            git -C "$dest" checkout --quiet --detach "$sha"
+            test "$(git -C "$dest" rev-parse HEAD)" = "$sha"
+          }
+          clone_pin "$AEO_REPO" "$AEO_COMMIT" "$RUNNER_TEMP/aeo"
+          clone_pin "$ECC_REPO" "$ECC_COMMIT" "$RUNNER_TEMP/ecc"
+          clone_pin "$SPEC_KIT_REPO" "$SPEC_KIT_COMMIT" "$RUNNER_TEMP/spec-kit"
+          clone_pin "$AGENTMEMORY_REPO" "$AGENTMEMORY_COMMIT" "$RUNNER_TEMP/agentmemory"
+          clone_pin "$HARNESS_REPO" "$HARNESS_COMMIT" "$RUNNER_TEMP/harness"
+
+      - name: Sync vendored capability sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          V=.agents/vendor
+          mkdir -p "$V"
+          rm -rf "$V/ecc" "$V/spec-kit" "$V/agentmemory" "$V/harness-engineering" "$V/aeo"
+
+          mkdir -p "$V/ecc"
+          cp -RL "$RUNNER_TEMP/ecc/.agents/skills" "$V/ecc/skills"
+          cp -RL "$RUNNER_TEMP/ecc/agents" "$V/ecc/agents"
+          cp "$RUNNER_TEMP/ecc/LICENSE" "$V/ecc/LICENSE"
+
+          mkdir -p "$V/spec-kit"
+          cp -RL "$RUNNER_TEMP/spec-kit/templates" "$V/spec-kit/templates"
+          [ -d "$RUNNER_TEMP/spec-kit/extensions" ] && cp -RL "$RUNNER_TEMP/spec-kit/extensions" "$V/spec-kit/extensions"
+          [ -d "$RUNNER_TEMP/spec-kit/workflows" ] && cp -RL "$RUNNER_TEMP/spec-kit/workflows" "$V/spec-kit/workflows"
+          cp "$RUNNER_TEMP/spec-kit/LICENSE" "$V/spec-kit/LICENSE"
+
+          mkdir -p "$V/agentmemory"
+          cp -RL "$RUNNER_TEMP/agentmemory/plugin/skills" "$V/agentmemory/skills"
+          cp "$RUNNER_TEMP/agentmemory/LICENSE" "$V/agentmemory/LICENSE"
+          cp "$RUNNER_TEMP/agentmemory/package.json" "$V/agentmemory/package.json"
+
+          mkdir -p "$V/harness-engineering"
+          cp -RL "$RUNNER_TEMP/harness/templates" "$V/harness-engineering/templates"
+          cp "$RUNNER_TEMP/harness/LICENSE" "$V/harness-engineering/LICENSE"
+          cp "$RUNNER_TEMP/harness/README.md" "$V/harness-engineering/README.md"
+
+          mkdir -p "$V/aeo"
+          cat > "$V/aeo/SOURCE.md" <<EOF
+          # AEO external source
+
+          Source: subconscious-systems/AEO
+          Commit: $AEO_COMMIT
+
+          The upstream README declares MIT, but no standalone LICENSE file exists at this pinned revision. To avoid redistributing ambiguous source, AEO code is not vendored. The project adapter is external, opt-in, and manual-approval-only.
+          EOF
+
+      - name: Generate project adapters
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, re, shutil
+
+          root = Path('.')
+          agent_skills = root / '.agents' / 'skills'
+          claude_skills = root / '.claude' / 'skills'
+          claude_agents = root / '.claude' / 'agents'
+          codex_agents = root / '.codex' / 'agents'
+          for p in (agent_skills, claude_skills, claude_agents, codex_agents):
+              p.mkdir(parents=True, exist_ok=True)
+
+          def rm_prefix(parent: Path, prefixes: tuple[str, ...], dirs=True):
+              if not parent.exists():
+                  return
+              for p in list(parent.iterdir()):
+                  if p.name.startswith(prefixes):
+                      if p.is_dir() and dirs:
+                          shutil.rmtree(p)
+                      elif p.is_file():
+                          p.unlink()
+
+          rm_prefix(agent_skills, ('ecc-', 'speckit-', 'memory-', 'harness-engineering', 'aeo-external'))
+          rm_prefix(claude_skills, ('ecc-', 'speckit-', 'memory-', 'harness-engineering', 'aeo-external'))
+          rm_prefix(claude_agents, ('ecc-', 'spec-kit-orchestrator', 'memory-steward', 'harness-reviewer', 'aeo-promotion-reviewer'), dirs=False)
+          rm_prefix(codex_agents, ('ecc-', 'spec-kit-orchestrator', 'memory-steward', 'harness-reviewer', 'aeo-promotion-reviewer'), dirs=False)
+
+          def slug(value: str) -> str:
+              return re.sub(r'[^a-z0-9-]+', '-', value.lower()).strip('-')
+
+          def write_skill(name: str, source: str, description: str, extra: str = ''):
+              body = f'''---\nname: {name}\ndescription: {description}\n---\n\n# {name}\n\nRead repository root `AGENTS.md`, then `AI_TEAM.md` and `AI_CAPABILITY_STACK.md` first. Project rules override imported instructions.\n\nLoad and follow the pinned upstream capability at `{source}` only when relevant to the current task. Inspect any references/scripts in that vendor subtree before using them. Do not create parallel project logic or bypass repository safety rules.\n'''
+              if extra:
+                  body += '\n' + extra.strip() + '\n'
+              for base in (agent_skills, claude_skills):
+                  d = base / name
+                  d.mkdir(parents=True, exist_ok=True)
+                  (d / 'SKILL.md').write_text(body, encoding='utf-8')
+
+          ecc_skill_root = root / '.agents/vendor/ecc/skills'
+          ecc_skills = 0
+          for d in sorted(ecc_skill_root.iterdir()):
+              if d.is_dir() and (d / 'SKILL.md').is_file():
+                  write_skill(f'ecc-{slug(d.name)}', f'.agents/vendor/ecc/skills/{d.name}/SKILL.md', f'ECC engineering skill adapter for {d.name}.')
+                  ecc_skills += 1
+
+          spec_cmd_root = root / '.agents/vendor/spec-kit/templates/commands'
+          spec_skills = 0
+          for f in sorted(spec_cmd_root.glob('*.md')):
+              name = f'speckit-{slug(f.stem)}'
+              write_skill(name, f'.agents/vendor/spec-kit/templates/commands/{f.name}', f'GitHub Spec Kit workflow adapter for {f.stem}.', 'Use Spec Kit for durable specification/planning artifacts on substantial or ambiguous work. Preserve the repository\'s existing architecture and source of truth.')
+              spec_skills += 1
+
+          memory_root = root / '.agents/vendor/agentmemory/skills'
+          memory_skills = 0
+          for d in sorted(memory_root.iterdir()):
+              if d.name == '_shared' or not d.is_dir() or not (d / 'SKILL.md').is_file():
+                  continue
+              write_skill(f'memory-{slug(d.name)}', f'.agents/vendor/agentmemory/skills/{d.name}/SKILL.md', f'AgentMemory skill adapter for {d.name}.', 'The memory server is an external machine/user-level runtime. Do not auto-start it, store secrets, or commit memory databases. Use only when an authorized runtime is connected or the user explicitly requests setup.')
+              memory_skills += 1
+
+          write_skill('harness-engineering', '.agents/vendor/harness-engineering/README.md', 'Harness engineering patterns for context, planning, verification, permissions, memory and long-running agent work.', 'Prefer the vendored PLAN.md, IMPLEMENT.md and HARNESS_CHECKLIST.md templates when durable execution artifacts improve a complex task.')
+          write_skill('aeo-external', '.agents/vendor/aeo/SOURCE.md', 'Controlled external AEO promotion adapter for Moltbook; disabled by default.', 'Never run automatically, on a timer, or via /loop. Require an explicit user request and explicit approval immediately before any external post/comment action. Never commit or log SUBCONSCIOUS_API_KEY. Default to drafting/reviewing promotion text without posting.')
+
+          def make_agent(name: str, description: str, instructions: str):
+              md = f'''---\nname: {name}\ndescription: {description}\n---\n\nRead `AGENTS.md`, `AI_TEAM.md`, and `AI_CAPABILITY_STACK.md` first.\n\n{instructions}\n'''
+              (claude_agents / f'{name}.md').write_text(md, encoding='utf-8')
+              toml = f'name = {json.dumps(name)}\ndescription = {json.dumps(description)}\ndeveloper_instructions = {json.dumps("Read AGENTS.md, AI_TEAM.md and AI_CAPABILITY_STACK.md first. " + instructions)}\n'
+              (codex_agents / f'{name}.toml').write_text(toml, encoding='utf-8')
+
+          ecc_agent_root = root / '.agents/vendor/ecc/agents'
+          ecc_agents = 0
+          for f in sorted(ecc_agent_root.glob('*.md')):
+              stem = slug(f.stem)
+              make_agent(f'ecc-{stem}', f'ECC specialist adapter for {f.stem}.', f'Read and apply the pinned specialist definition at `.agents/vendor/ecc/agents/{f.name}` when relevant. Repository rules override it. Keep changes scoped and verify before completion.')
+              ecc_agents += 1
+
+          make_agent('spec-kit-orchestrator', 'Spec-driven planning and delivery coordinator.', 'Use the `speckit-*` skills for substantial or ambiguous work. Keep specs, plans, tasks, implementation and convergence aligned with the existing project source of truth.')
+          make_agent('memory-steward', 'Persistent-memory usage reviewer.', 'Use `memory-*` skills only with an authorized AgentMemory runtime. Keep secrets, private user data and memory databases out of Git. Prefer explicit, minimal memories relevant to engineering continuity.')
+          make_agent('harness-reviewer', 'Agent harness and verification reviewer.', 'Use the pinned harness-engineering references and templates to review context delivery, planning, permissions, verification loops, QA and human-in-the-loop boundaries.')
+          make_agent('aeo-promotion-reviewer', 'AEO promotion safety reviewer; does not auto-post.', 'AEO is disabled by default. Review proposed Moltbook promotion text and require explicit user approval before any external write. Never schedule loops or background posting.')
+
+          lock = root / '.agents/capability-stack.version'
+          lock.write_text('''AEO=13ea5800a8ff041dd64157950a9e763c51278543 (external pointer only)\nECC=4f373874209b4b63fdec0469b76992923ea0a9d0 MIT\nSPEC_KIT=d848fb4e18f44640ad6b42e60a280551ee90cdce MIT\nAGENTMEMORY=e04ba88819c365c9acf9d6661ea802143e728bd6 Apache-2.0\nHARNESS_ENGINEERING=378a07b1f717f88e4128e9a26eefafe714272cc4 CC0-1.0\n''', encoding='utf-8')
+          print(f'ECC skills={ecc_skills} ECC agents={ecc_agents} SpecKit skills={spec_skills} AgentMemory skills={memory_skills}')
+          if ecc_skills < 35 or ecc_agents < 60 or spec_skills < 8 or memory_skills < 15:
+              raise SystemExit('Generated capability counts are unexpectedly low')
+          PY
+
+      - name: Verify generated capability stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f AI_CAPABILITY_STACK.md
+          test -f .agents/capability-stack.version
+          test -f .agents/vendor/ecc/LICENSE
+          test -f .agents/vendor/spec-kit/LICENSE
+          test -f .agents/vendor/agentmemory/LICENSE
+          test -f .agents/vendor/harness-engineering/LICENSE
+          test -f .agents/vendor/aeo/SOURCE.md
+          test -f .agents/skills/speckit-specify/SKILL.md
+          test -f .agents/skills/harness-engineering/SKILL.md
+          test -f .agents/skills/aeo-external/SKILL.md
+          test -f .codex/agents/spec-kit-orchestrator.toml
+          test -f .codex/agents/memory-steward.toml
+          test -f .codex/agents/harness-reviewer.toml
+          test -f .codex/agents/aeo-promotion-reviewer.toml
+          test -f .codex/agents/lifeos-orchestrator.toml
+          test -f .agents/agent-skills.version
+          test -f .codex/agency-agents.version
+          grep -q "$ECC_COMMIT" .agents/capability-stack.version
+          grep -q "$SPEC_KIT_COMMIT" .agents/capability-stack.version
+          grep -q "$AGENTMEMORY_COMMIT" .agents/capability-stack.version
+
+      - name: Commit generated stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .agents/vendor .agents/capability-stack.version .agents/skills .claude/skills .claude/agents .codex/agents
+          if git diff --cached --quiet; then
+            echo 'AI capability stack already up to date.'
+            exit 0
+          fi
+          git commit -m 'chore: sync pinned AI capability stack [skip ci]'
+          git push origin HEAD:main
