@@ -1,0 +1,176 @@
+name: Install Claude SEO Pack
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/install-claude-seo-pack.yml'
+
+permissions:
+  contents: write
+
+env:
+  CLAUDE_SEO_REPO: https://github.com/AgriciDaniel/claude-seo.git
+  CLAUDE_SEO_COMMIT: 92795530b4cc92c6bf7a2435b82c15b003e71181
+  CLAUDE_SEO_VERSION: 2.3.1
+
+jobs:
+  sync:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch pinned upstream
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "$RUNNER_TEMP/claude-seo-src"
+          git clone "$CLAUDE_SEO_REPO" "$RUNNER_TEMP/claude-seo-src"
+          git -C "$RUNNER_TEMP/claude-seo-src" checkout --detach "$CLAUDE_SEO_COMMIT"
+          test "$(git -C "$RUNNER_TEMP/claude-seo-src" rev-parse HEAD)" = "$CLAUDE_SEO_COMMIT"
+
+      - name: Install project skills agents and runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          SRC="$RUNNER_TEMP/claude-seo-src"
+
+          mkdir -p .claude/skills .claude/agents .agents/skills .agents/agents .agents/vendor .codex/agents
+          find .claude/skills -mindepth 1 -maxdepth 1 -name 'seo*' -exec rm -rf {} + 2>/dev/null || true
+          find .agents/skills -mindepth 1 -maxdepth 1 -name 'seo*' -exec rm -rf {} + 2>/dev/null || true
+          find .claude/agents -maxdepth 1 -type f -name 'seo-*.md' -delete 2>/dev/null || true
+          find .agents/agents -maxdepth 1 -type f -name 'seo-*.md' -delete 2>/dev/null || true
+          find .codex/agents -maxdepth 1 -type f -name 'seo-*.toml' -delete 2>/dev/null || true
+          rm -rf .agents/vendor/claude-seo
+
+          cp -R "$SRC/skills/." .claude/skills/
+          cp -R "$SRC/skills/." .agents/skills/
+          cp "$SRC"/agents/seo-*.md .claude/agents/
+          cp "$SRC"/agents/seo-*.md .agents/agents/
+
+          for skill in "$SRC"/extensions/*/skills/*; do
+            [ -d "$skill" ] || continue
+            name="$(basename "$skill")"
+            rm -rf ".claude/skills/$name" ".agents/skills/$name"
+            cp -R "$skill" ".claude/skills/$name"
+            cp -R "$skill" ".agents/skills/$name"
+          done
+          for agent in "$SRC"/extensions/*/agents/seo-*.md; do
+            [ -f "$agent" ] || continue
+            cp "$agent" .claude/agents/
+            cp "$agent" .agents/agents/
+          done
+
+          mkdir -p .agents/vendor/claude-seo
+          for item in scripts schema data pdf extensions skills agents; do
+            [ -e "$SRC/$item" ] && cp -R "$SRC/$item" .agents/vendor/claude-seo/
+          done
+          for file in requirements.txt pyproject.toml README.md LICENSE; do
+            [ -f "$SRC/$file" ] && cp "$SRC/$file" .agents/vendor/claude-seo/
+          done
+          cp "$SRC/.claude-plugin/plugin.json" .agents/vendor/claude-seo/runtime-plugin.json
+          chmod +x .agents/vendor/claude-seo/scripts/claude-seo
+
+          cat > .agents/vendor/claude-seo/.gitignore <<'EOF'
+          .venv/
+          ms-playwright/
+          runtime-state.json
+          runtime-setup.lock
+          *.lock
+          __pycache__/
+          EOF
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          commit = "92795530b4cc92c6bf7a2435b82c15b003e71181"
+          token = "${CLAUDE_PLUGIN_ROOT}"
+          replacement = "$(git rev-parse --show-toplevel)/.agents/vendor/claude-seo"
+          roots = [Path('.claude/skills'), Path('.claude/agents'), Path('.agents/skills'), Path('.agents/agents')]
+          for root in roots:
+              if not root.exists():
+                  continue
+              for path in root.rglob('*.md'):
+                  text = path.read_text(encoding='utf-8')
+                  text = text.replace(token, replacement)
+                  path.write_text(text, encoding='utf-8')
+
+          out = Path('.codex/agents')
+          out.mkdir(parents=True, exist_ok=True)
+          for path in sorted(Path('.agents/agents').glob('seo-*.md')):
+              text = path.read_text(encoding='utf-8')
+              name = path.stem
+              description = f"Claude SEO specialist imported from AgriciDaniel/claude-seo ({commit[:7]})."
+              body = text
+              if text.startswith('---\n'):
+                  parts = text.split('---\n', 2)
+                  if len(parts) == 3:
+                      front, body = parts[1], parts[2]
+                      for line in front.splitlines():
+                          if line.startswith('name:'):
+                              name = line.split(':', 1)[1].strip()
+                          elif line.startswith('description:'):
+                              description = line.split(':', 1)[1].strip()
+              instructions = (
+                  "Follow the repository root AGENTS.md first; it overrides this imported specialist. "
+                  "Use the repo-local Claude SEO skills/runtime for SEO work. Do not deploy, mutate production, "
+                  "or edit app code during audit-only tasks unless the user's current request explicitly asks for implementation.\n\n"
+                  + body.strip()
+              )
+              toml = (
+                  f"name = {json.dumps(name)}\n"
+                  f"description = {json.dumps(description)}\n"
+                  f"developer_instructions = {json.dumps(instructions)}\n"
+              )
+              (out / f"{path.stem}.toml").write_text(toml, encoding='utf-8')
+          PY
+
+          cat > .agents/claude-seo.version <<EOF
+          source=AgriciDaniel/claude-seo
+          commit=$CLAUDE_SEO_COMMIT
+          version=$CLAUDE_SEO_VERSION
+          license=MIT
+          EOF
+
+      - name: Verify generated pack and existing core agents
+        shell: bash
+        run: |
+          set -euo pipefail
+          skills="$(find .claude/skills -mindepth 1 -maxdepth 1 -type d -name 'seo*' | wc -l)"
+          agents="$(find .claude/agents -maxdepth 1 -type f -name 'seo-*.md' | wc -l)"
+          codex_agents="$(find .codex/agents -maxdepth 1 -type f -name 'seo-*.toml' | wc -l)"
+          echo "Claude SEO skills: $skills"
+          echo "Claude SEO agents: $agents"
+          echo "Codex SEO agents: $codex_agents"
+          test "$skills" -ge 25
+          test "$agents" -ge 18
+          test "$codex_agents" -ge 18
+          test -x .agents/vendor/claude-seo/scripts/claude-seo
+          test -f .codex/agents/lifeos-orchestrator.toml
+          test -f .codex/agents/spec-kit-orchestrator.toml
+          test -f .agents/agent-skills.version
+          test -f .agents/capability-stack.version
+          test -f .codex/agency-agents.version
+          grep -q "$CLAUDE_SEO_COMMIT" .agents/claude-seo.version
+
+      - name: Commit generated pack
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .claude/skills .claude/agents .agents/skills .agents/agents .agents/vendor/claude-seo .agents/claude-seo.version .codex/agents
+          if git diff --cached --quiet; then
+            echo 'Claude SEO pack already up to date.'
+            exit 0
+          fi
+          git commit -m 'chore: sync pinned Claude SEO skills and agents [skip ci]'
+          git push origin HEAD:main
