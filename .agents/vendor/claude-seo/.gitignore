@@ -1,0 +1,6 @@
+.venv/
+ms-playwright/
+runtime-state.json
+runtime-setup.lock
+*.lock
+__pycache__/
