@@ -1,0 +1,135 @@
+name: Install AI Agent Packs
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/install-ai-agent-packs.yml'
+
+permissions:
+  contents: write
+
+env:
+  AGENT_SKILLS_REPO: https://github.com/addyosmani/agent-skills.git
+  AGENT_SKILLS_SHA: 6ca0cd7db39b41b1c37e26d335c507ee92382c6d
+  AGENCY_AGENTS_REPO: https://github.com/msitarzewski/agency-agents.git
+  AGENCY_AGENTS_SHA: 6d29a9b08785a0e49ffc9818bbdd381164c2df5f
+
+jobs:
+  sync:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout LifeOS
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch pinned upstream packs
+        shell: bash
+        run: |
+          set -euo pipefail
+          clone_pin() {
+            local repo="$1" sha="$2" dest="$3"
+            rm -rf "$dest"
+            git clone --quiet --filter=blob:none --no-checkout "$repo" "$dest"
+            git -C "$dest" fetch --quiet --depth 1 origin "$sha"
+            git -C "$dest" checkout --quiet --detach "$sha"
+            test "$(git -C "$dest" rev-parse HEAD)" = "$sha"
+          }
+          clone_pin "$AGENT_SKILLS_REPO" "$AGENT_SKILLS_SHA" "$RUNNER_TEMP/agent-skills"
+          clone_pin "$AGENCY_AGENTS_REPO" "$AGENCY_AGENTS_SHA" "$RUNNER_TEMP/agency-agents"
+
+      - name: Sync addyosmani agent skills without deleting other packs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .agents/skills .agents/references .agents/vendor/agent-skills
+
+          MANIFEST=.agents/agent-skills.manifest
+          if [ -f "$MANIFEST" ]; then
+            while IFS= read -r name; do
+              [ -n "$name" ] && rm -rf ".agents/skills/$name"
+            done < "$MANIFEST"
+          fi
+
+          rm -rf .agents/references .agents/vendor/agent-skills
+          mkdir -p .agents/references .agents/vendor/agent-skills
+          cp -R "$RUNNER_TEMP/agent-skills/references/." .agents/references/
+          cp "$RUNNER_TEMP/agent-skills/LICENSE" .agents/vendor/agent-skills/LICENSE
+
+          : > "$MANIFEST"
+          for src in "$RUNNER_TEMP/agent-skills"/skills/*; do
+            [ -d "$src" ] || continue
+            name="$(basename "$src")"
+            rm -rf ".agents/skills/$name"
+            cp -R "$src" ".agents/skills/$name"
+            printf '%s\n' "$name" >> "$MANIFEST"
+          done
+          sort -u -o "$MANIFEST" "$MANIFEST"
+          printf '%s\n' "$AGENT_SKILLS_SHA" > .agents/agent-skills.version
+
+      - name: Convert and sync Agency Agents for Codex without deleting other agents
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/agency-installed"
+          rm -rf "$OUT"
+          mkdir -p "$OUT" .codex/agents .agents/vendor/agency-agents
+
+          cd "$RUNNER_TEMP/agency-agents"
+          ./scripts/convert.sh --tool codex
+          ./scripts/install.sh --no-interactive --tool codex --path "$OUT"
+          cd "$GITHUB_WORKSPACE"
+
+          MANIFEST=.codex/agency-agents.manifest
+          if [ -f "$MANIFEST" ]; then
+            while IFS= read -r rel; do
+              [ -n "$rel" ] && rm -f ".codex/agents/$rel"
+            done < "$MANIFEST"
+          fi
+
+          : > "$MANIFEST"
+          while IFS= read -r file; do
+            rel="${file#"$OUT"/}"
+            mkdir -p ".codex/agents/$(dirname "$rel")"
+            cp "$file" ".codex/agents/$rel"
+            printf '%s\n' "$rel" >> "$MANIFEST"
+          done < <(find "$OUT" -type f -name '*.toml' | sort)
+
+          rm -rf .agents/vendor/agency-agents
+          mkdir -p .agents/vendor/agency-agents
+          cp "$RUNNER_TEMP/agency-agents/LICENSE" .agents/vendor/agency-agents/LICENSE
+          sort -u -o "$MANIFEST" "$MANIFEST"
+          printf '%s\n' "$AGENCY_AGENTS_SHA" > .codex/agency-agents.version
+
+      - name: Verify installation
+        shell: bash
+        run: |
+          set -euo pipefail
+          SKILL_COUNT="$(wc -l < .agents/agent-skills.manifest | tr -d ' ')"
+          AGENT_COUNT="$(wc -l < .codex/agency-agents.manifest | tr -d ' ')"
+          echo "Managed agent skills: $SKILL_COUNT"
+          echo "Managed Agency Codex agents: $AGENT_COUNT"
+          test "$SKILL_COUNT" -gt 0
+          test "$AGENT_COUNT" -gt 0
+          test -f .codex/agents/lifeos-orchestrator.toml
+          grep -q "$AGENT_SKILLS_SHA" .agents/agent-skills.version
+          grep -q "$AGENCY_AGENTS_SHA" .codex/agency-agents.version
+
+      - name: Commit installed project files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .agents .codex
+          if git diff --cached --quiet; then
+            echo 'AI agent packs already up to date.'
+            exit 0
+          fi
+          git commit -m 'chore: sync pinned AI agent packs [skip ci]'
+          git push origin HEAD:main
