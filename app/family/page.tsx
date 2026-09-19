@@ -5,6 +5,7 @@ import Link from "next/link";
 import { BackHome, Panel } from "@/components/ui";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { currentWorkspace } from "@/lib/supabase/workspace";
+import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
 import { todayInTZ } from "@/lib/timezone";
 
 type Member={id:string;name:string;relation:string|null};
@@ -25,7 +26,7 @@ export default function FamilyPage(){
       sb.from("baby_records").select("id,date,type,title,value").eq("workspace_id",ctx.workspaceId).order("date",{ascending:false}).limit(30)
     ]);if(m.error)throw m.error;if(t.error)throw t.error;if(b.error)throw b.error;setMembers((m.data||[]) as Member[]);setTasks((t.data||[]) as FamilyTask[]);setBaby((b.data||[]) as BabyRecord[]);
   }catch(e){setError(e instanceof Error?e.message:"Could not load family data");}},[]);
-  useEffect(()=>{void load();},[load]);
+  useEffect(()=>{void load();},[load]);useRealtimeRefresh(["family_members","family_tasks","baby_records"],load,Boolean(workspaceId));
 
   async function addMember(e:FormEvent){e.preventDefault();if(!workspaceId||!memberName.trim())return;const sb=supabaseBrowser();const{error:x}=await sb.from("family_members").insert({workspace_id:workspaceId,created_by:userId,name:memberName.trim(),relation});if(x)setError(x.message);else{setMemberName("");await load();}}
   async function addTask(e:FormEvent){e.preventDefault();if(!workspaceId||!taskTitle.trim())return;const sb=supabaseBrowser();const{error:x}=await sb.from("family_tasks").insert({workspace_id:workspaceId,created_by:userId,title:taskTitle.trim(),member_id:memberId||null,due_date:due||null,responsible:"Me",status:"Pending"});if(x)setError(x.message);else{setTaskTitle("");await load();}}
