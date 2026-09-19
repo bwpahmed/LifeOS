@@ -1,19 +1,42 @@
 import { NextResponse } from "next/server";
+import { coachAnswer, type AIContext } from "@/lib/ai/service";
 
-// POST /api/ai/coach { question, context } — deterministic factual summary fallback.
-// Live provider wiring point (server-only keys). Never invents finances/health/deadlines:
-// answers only from provided structured context, with record cites.
+const EMPTY_CONTEXT: AIContext = {
+  today_tasks: [],
+  overdue_tasks: [],
+  money_due: [],
+  active_goals: [],
+  upcoming_family: [],
+  migration_blockers: [],
+};
+
 export async function POST(req: Request) {
   const { question, context } = (await req.json().catch(() => ({}))) as {
-    question?: string; context?: { money_due?: { name: string; remaining: number }[]; overdue_tasks?: { title: string }[] };
+    question?: string;
+    context?: Partial<AIContext>;
   };
-  if (!question) return NextResponse.json({ error: "Empty question" }, { status: 400 });
-  const money = (context?.money_due || []).map((m) => `${m.name}: AED ${m.remaining}`).join("; ");
-  const overdue = (context?.overdue_tasks || []).map((t) => t.title).join("; ");
-  const answer = [
-    money ? `Outstanding: ${money}.` : "No money-due context provided.",
-    overdue ? `Overdue: ${overdue}.` : "No overdue context provided.",
-    "This is a deterministic fallback — connect OPENAI_API_KEY/OPENROUTER_API_KEY for full coaching.",
-  ].join(" ");
-  return NextResponse.json({ answer, label: "Deterministic fallback (no invented data)", provider: "deterministic" });
+
+  if (!question || question.trim().length < 2) {
+    return NextResponse.json({ error: "Empty question" }, { status: 400 });
+  }
+
+  const safeContext: AIContext = {
+    ...EMPTY_CONTEXT,
+    ...context,
+    today_tasks: Array.isArray(context?.today_tasks) ? context!.today_tasks! : [],
+    overdue_tasks: Array.isArray(context?.overdue_tasks) ? context!.overdue_tasks! : [],
+    money_due: Array.isArray(context?.money_due) ? context!.money_due! : [],
+    active_goals: Array.isArray(context?.active_goals) ? context!.active_goals! : [],
+    upcoming_family: Array.isArray(context?.upcoming_family) ? context!.upcoming_family! : [],
+    migration_blockers: Array.isArray(context?.migration_blockers) ? context!.migration_blockers! : [],
+  };
+
+  const result = await coachAnswer(question.trim(), safeContext, process.env);
+  return NextResponse.json({
+    answer: result.answer,
+    provider: result.provider,
+    live: result.live,
+    label: result.live ? `Live AI coach via ${result.provider}` : "Deterministic factual fallback",
+    ...(result.error ? { providerError: result.error } : {}),
+  });
 }
