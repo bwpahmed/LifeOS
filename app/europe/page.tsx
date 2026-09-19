@@ -5,6 +5,7 @@ import Link from "next/link";
 import { BackHome, Panel } from "@/components/ui";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { currentWorkspace } from "@/lib/supabase/workspace";
+import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
 
 type Country={id:string;country:string;route:string|null;status:string;progress:number|null;notes:string|null};
 type Doc={id:string;country_id:string|null;name:string;owner:string|null;status:string;expiry_date:string|null;needs_attestation:boolean};
@@ -17,7 +18,7 @@ export default function EuropePage(){
     const[c,d]=await Promise.all([sb.from("migration_countries").select("id,country,route,status,progress,notes").eq("workspace_id",ctx.workspaceId).order("created_at"),sb.from("migration_documents").select("id,country_id,name,owner,status,expiry_date,needs_attestation").eq("workspace_id",ctx.workspaceId).order("created_at")]);
     if(c.error)throw c.error;if(d.error)throw d.error;setCountries((c.data||[]) as Country[]);setDocs((d.data||[]) as Doc[]);
   }catch(e){setError(e instanceof Error?e.message:"Could not load relocation data");}},[]);
-  useEffect(()=>{void load();},[load]);
+  useEffect(()=>{void load();},[load]);useRealtimeRefresh(["migration_countries","migration_documents"],load,Boolean(workspaceId));
 
   const ready=useMemo(()=>docs.filter(d=>d.status==="Ready").length,[docs]);
   async function addCountry(e:FormEvent){e.preventDefault();if(!workspaceId||!country.trim())return;const sb=supabaseBrowser();const{error:x}=await sb.from("migration_countries").insert({workspace_id:workspaceId,created_by:userId,country:country.trim(),route,status:"Research",progress:0});if(x)setError(x.message);else{setCountry("");await load();}}
