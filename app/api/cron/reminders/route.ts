@@ -82,13 +82,13 @@ export async function GET(request: Request) {
   }
 
   const admin = supabaseAdmin();
-  const { data: subscriptions, error: subError } = await admin
-    .from("push_subscriptions")
+  const { data: memberUsers, error: memberUsersError } = await admin
+    .from("workspace_members")
     .select("user_id")
     .limit(5000);
-  if (subError) return NextResponse.json({ error: subError.message }, { status: 500 });
+  if (memberUsersError) return NextResponse.json({ error: memberUsersError.message }, { status: 500 });
 
-  const users = [...new Set((subscriptions || []).map((s) => s.user_id))];
+  const users = Array.from(new Set((memberUsers || []).map((m) => String(m.user_id))));
   let created = 0, pushed = 0, checkedUsers = 0;
 
   for (const userId of users) {
