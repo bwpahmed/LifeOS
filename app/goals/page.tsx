@@ -5,6 +5,7 @@ import Link from "next/link";
 import { BackHome, Panel } from "@/components/ui";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { currentWorkspace } from "@/lib/supabase/workspace";
+import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
 import { todayInTZ } from "@/lib/timezone";
 
 type Goal={id:string;name:string;area:string|null;deadline:string|null;status:string;progress:number|null;why:string|null};
@@ -14,7 +15,7 @@ export default function GoalsPage(){
   const[name,setName]=useState("");const[area,setArea]=useState("Personal");const[deadline,setDeadline]=useState(()=>{const d=new Date(todayInTZ()+"T12:00:00");d.setDate(d.getDate()+90);return d.toISOString().slice(0,10);});const[error,setError]=useState("");
 
   const load=useCallback(async()=>{try{const sb=supabaseBrowser();const ctx=await currentWorkspace(sb);if(!ctx){setWorkspaceId("");return;}setWorkspaceId(ctx.workspaceId);setUserId(ctx.user.id);const{data,error:q}=await sb.from("goals").select("id,name,area,deadline,status,progress,why").eq("workspace_id",ctx.workspaceId).order("deadline",{ascending:true,nullsFirst:false});if(q)throw q;setGoals((data||[]) as Goal[]);}catch(e){setError(e instanceof Error?e.message:"Could not load goals");}},[]);
-  useEffect(()=>{void load();},[load]);
+  useEffect(()=>{void load();},[load]);useRealtimeRefresh(["goals"],load,Boolean(workspaceId));
 
   async function add(e:FormEvent){e.preventDefault();if(!workspaceId||!name.trim())return;const sb=supabaseBrowser();const{error:q}=await sb.from("goals").insert({workspace_id:workspaceId,created_by:userId,name:name.trim(),area,target:100,unit:"%",deadline,status:"On Track",progress:0,privacy:"family"});if(q)setError(q.message);else{setName("");await load();}}
   async function progress(g:Goal){const raw=window.prompt("Progress 0–100",String(g.progress||0));if(raw==null)return;const n=Math.max(0,Math.min(100,Number(raw)));if(!Number.isFinite(n))return;const status=n>=100?"Completed":g.status==="Completed"?"On Track":g.status;const sb=supabaseBrowser();const{error:q}=await sb.from("goals").update({progress:n,status,updated_at:new Date().toISOString()}).eq("id",g.id);if(q)setError(q.message);else await load();}
