@@ -74,6 +74,49 @@ async function deliver(admin: ReturnType<typeof supabaseAdmin>, opts: {
   return { created: 1, pushed };
 }
 
+async function redeliverSnoozed(admin: ReturnType<typeof supabaseAdmin>, userId: string) {
+  const now = new Date().toISOString();
+  const { data: due } = await admin
+    .from("notifications")
+    .select("id,title,body,ref_table,ref_id,snoozed_until")
+    .eq("user_id", userId)
+    .is("read_at", null)
+    .not("snoozed_until", "is", null)
+    .lte("snoozed_until", now)
+    .limit(50);
+  if (!due?.length) return 0;
+
+  const { data: subs } = await admin
+    .from("push_subscriptions")
+    .select("id,endpoint,keys")
+    .eq("user_id", userId);
+
+  let pushed = 0;
+  for (const n of due) {
+    const url =
+      n.ref_table === "tasks" ? "/today"
+      : n.ref_table === "receivables" ? "/money"
+      : n.ref_table === "family_tasks" ? "/family"
+      : n.ref_table === "migration_documents" ? "/europe"
+      : "/notifications";
+    for (const sub of subs || []) {
+      try {
+        const result = await sendWebPush({
+          endpoint: sub.endpoint,
+          keys: sub.keys as PushKeys,
+          payload: { title: n.title, body: n.body, url, tag: `notification-${n.id}` },
+        });
+        if (result.ok) pushed += 1;
+        if (result.status === 404 || result.status === 410) {
+          await admin.from("push_subscriptions").delete().eq("id", sub.id);
+        }
+      } catch {}
+    }
+    await admin.from("notifications").update({ snoozed_until: null }).eq("id", n.id);
+  }
+  return pushed;
+}
+
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret) return NextResponse.json({ error: "CRON_SECRET is not configured" }, { status: 503 });
@@ -93,6 +136,7 @@ export async function GET(request: Request) {
 
   for (const userId of users) {
     checkedUsers += 1;
+    pushed += await redeliverSnoozed(admin, userId);
     const [{ data: profile }, { data: preferences }, { data: memberships, error: memberError }] = await Promise.all([
       admin.from("profiles").select("timezone").eq("id", userId).maybeSingle(),
       admin.from("notification_preferences").select("quiet_start,quiet_end,allow_critical_in_quiet").eq("user_id", userId).maybeSingle(),
@@ -143,7 +187,7 @@ export async function GET(request: Request) {
       created += r.created; pushed += r.pushed;
     }
 
-    if (local.hour === 9 && !quiet) {
+    if (local.hour >= 9 && local.hour <= 18 && !quiet) {
       for (const rec of money || []) {
         const r = await deliver(admin, {
           userId, workspaceId: rec.workspace_id, title: "LifeOS money follow-up",
