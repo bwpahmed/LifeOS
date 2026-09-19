@@ -1,6 +1,8 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
+type CookieToSet = { name: string; value: string; options: CookieOptions };
+
 export function supabaseServer() {
   const store = cookies();
   return createServerClient(
@@ -9,7 +11,7 @@ export function supabaseServer() {
     {
       cookies: {
         getAll: () => store.getAll(),
-        setAll: (items) => {
+        setAll: (items: CookieToSet[]) => {
           try {
             items.forEach(({ name, value, options }) => store.set(name, value, options));
           } catch {
