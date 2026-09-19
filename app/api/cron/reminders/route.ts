@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { sendWebPush, type PushKeys } from "@/lib/push";
+import { isInQuietHours } from "@/lib/timezone";
 
 function localParts(tz: string) {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -92,13 +93,17 @@ export async function GET(request: Request) {
 
   for (const userId of users) {
     checkedUsers += 1;
-    const [{ data: profile }, { data: memberships, error: memberError }] = await Promise.all([
+    const [{ data: profile }, { data: preferences }, { data: memberships, error: memberError }] = await Promise.all([
       admin.from("profiles").select("timezone").eq("id", userId).maybeSingle(),
+      admin.from("notification_preferences").select("quiet_start,quiet_end,allow_critical_in_quiet").eq("user_id", userId).maybeSingle(),
       admin.from("workspace_members").select("workspace_id").eq("user_id", userId),
     ]);
     if (memberError) continue;
     const tz = profile?.timezone || "Asia/Dubai";
     const local = localParts(tz);
+    const hm = `${String(local.hour).padStart(2, "0")}:${String(local.minute).padStart(2, "0")}`;
+    const quiet = isInQuietHours(hm, preferences?.quiet_start || "22:30", preferences?.quiet_end || "07:00");
+    const allowCritical = Boolean(preferences?.allow_critical_in_quiet);
     const workspaceIds = (memberships || []).map((m) => m.workspace_id);
     if (!workspaceIds.length) continue;
 
@@ -128,15 +133,17 @@ export async function GET(request: Request) {
     for (const task of tasks || []) {
       const reminderHour = Number(String(task.reminder_time || "09:00").slice(0, 2));
       if (local.hour !== reminderHour) continue;
+      const severity = Number(task.importance || 3) >= 5 ? "critical" : Number(task.importance || 3) >= 4 ? "important" : "normal";
+      if (quiet && !(severity === "critical" && allowCritical)) continue;
       const r = await deliver(admin, {
         userId, workspaceId: task.workspace_id, title: "LifeOS task reminder",
-        body: privateBody(task.area || "", task.name), severity: Number(task.importance || 3) >= 5 ? "critical" : Number(task.importance || 3) >= 4 ? "important" : "normal",
+        body: privateBody(task.area || "", task.name), severity,
         refTable: "tasks", refId: task.id, url: "/today", dedupeHours: 2,
       });
       created += r.created; pushed += r.pushed;
     }
 
-    if (local.hour === 9) {
+    if (local.hour === 9 && !quiet) {
       for (const rec of money || []) {
         const r = await deliver(admin, {
           userId, workspaceId: rec.workspace_id, title: "LifeOS money follow-up",
@@ -147,7 +154,7 @@ export async function GET(request: Request) {
       }
     }
 
-    if (local.hour === 8) {
+    if (local.hour === 8 && !quiet) {
       for (const item of family || []) {
         const r = await deliver(admin, {
           userId, workspaceId: item.workspace_id, title: "LifeOS family reminder",
@@ -158,7 +165,7 @@ export async function GET(request: Request) {
       }
     }
 
-    if (local.hour === 9) {
+    if (local.hour === 9 && !quiet) {
       const todayMs = new Date(local.date + "T12:00:00Z").getTime();
       for (const doc of docs || []) {
         if (!doc.expiry_date) continue;
