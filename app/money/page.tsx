@@ -6,6 +6,7 @@ import { BackHome, Panel } from "@/components/ui";
 import { remaining, type PaymentTx } from "@/lib/money";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { currentWorkspace } from "@/lib/supabase/workspace";
+import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
 import { todayInTZ } from "@/lib/timezone";
 
 type PaymentRow = { id: string; amount: number; date: string; method: string | null; note: string | null };
@@ -64,7 +65,7 @@ export default function MoneyPage() {
     }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void load(); }, [load]);useRealtimeRefresh(["receivables","receivable_payments","receivable_followups"],load,Boolean(workspaceId));
 
   const calcRemaining = (r: ReceivableRow) =>
     remaining(Number(r.total || 0), (r.receivable_payments || []).map((p) => ({ amount: Number(p.amount), date: p.date } satisfies PaymentTx)));
