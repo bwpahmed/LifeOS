@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { coachAnswer, type AIContext } from "@/lib/ai/service";
+import { supabaseServer } from "@/lib/supabase/server";
 
 const EMPTY_CONTEXT: AIContext = {
   today_tasks: [],
@@ -11,6 +12,10 @@ const EMPTY_CONTEXT: AIContext = {
 };
 
 export async function POST(req: Request) {
+  const supabase = supabaseServer();
+  const { data: auth, error: authError } = await supabase.auth.getUser();
+  if (authError || !auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { question, context } = (await req.json().catch(() => ({}))) as {
     question?: string;
     context?: Partial<AIContext>;
