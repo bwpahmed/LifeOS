@@ -8,10 +8,10 @@ const UNLOCK_KEY="lifeos_private_unlocked_v1";
 
 function b64url(bytes:ArrayBuffer|Uint8Array){
  const arr=bytes instanceof Uint8Array?bytes:new Uint8Array(bytes);
- let s="";for(const b of arr)s+=String.fromCharCode(b);
+ let s="";for(const b of Array.from(arr))s+=String.fromCharCode(b);
  return btoa(s).replace(/=/g,"").replace(/\+/g,"-").replace(/\//g,"_");
 }
-function fromB64url(s:string){const raw=atob(s.replace(/-/g,"+").replace(/_/g,"/")+"=".repeat((4-s.length%4)%4));return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));}
+function fromB64url(s:string){const raw=atob(s.replace(/-/g,"+").replace(/_/g,"/")+"=".repeat((4-s.length%4)%4));return Uint8Array.from(Array.from(raw).map(c=>c.charCodeAt(0)));}
 async function hashPin(pin:string){const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(`LifeOS:${pin}`));return b64url(digest);}
 
 export function PrivacyGate({children}:{children:ReactNode}){
