@@ -65,6 +65,32 @@ grant execute on function public.is_workspace_writer(uuid) to authenticated;
 grant execute on function public.is_workspace_admin(uuid) to authenticated;
 grant execute on function public.can_access_module(uuid,text) to authenticated;
 
+
+create or replace function public.can_access_private_row(
+  ws uuid, owner_id uuid, privacy_level text, area_name text
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $
+  select exists (
+    select 1 from public.workspace_members m
+    where m.workspace_id = ws
+      and m.user_id = auth.uid()
+      and (
+        coalesce(privacy_level,'family') <> 'private'
+        or owner_id = auth.uid()
+        or m.role in ('owner','admin')
+        or (area_name = 'Health' and 'health' = any(m.modules))
+        or (area_name = 'Self-control' and 'self_control' = any(m.modules))
+      )
+  );
+$;
+
+grant execute on function public.can_access_private_row(uuid,uuid,text,text) to authenticated;
+
 create or replace function public.handle_new_lifeos_user()
 returns trigger
 language plpgsql
@@ -184,6 +210,28 @@ begin
     execute format('create policy "workspace delete" on public.%I for delete using (public.is_workspace_writer(workspace_id))', t);
   end loop;
 end $$;
+
+
+-- Row-level privacy for generic hierarchy tables that can contain sensitive Health/Self-control items.
+do $
+declare
+  t text;
+begin
+  foreach t in array array['goals','projects','tasks','habits'] loop
+    execute format('drop policy if exists "workspace select" on public.%I', t);
+    execute format('drop policy if exists "workspace insert" on public.%I', t);
+    execute format('drop policy if exists "workspace update" on public.%I', t);
+    execute format('drop policy if exists "workspace delete" on public.%I', t);
+    execute format('drop policy if exists "private row select" on public.%I', t);
+    execute format('drop policy if exists "private row insert" on public.%I', t);
+    execute format('drop policy if exists "private row update" on public.%I', t);
+    execute format('drop policy if exists "private row delete" on public.%I', t);
+    execute format('create policy "private row select" on public.%I for select using (public.can_access_private_row(workspace_id,created_by,privacy,area))', t);
+    execute format('create policy "private row insert" on public.%I for insert with check (public.is_workspace_writer(workspace_id) and public.can_access_private_row(workspace_id,created_by,privacy,area))', t);
+    execute format('create policy "private row update" on public.%I for update using (public.is_workspace_writer(workspace_id) and public.can_access_private_row(workspace_id,created_by,privacy,area)) with check (public.is_workspace_writer(workspace_id) and public.can_access_private_row(workspace_id,created_by,privacy,area))', t);
+    execute format('create policy "private row delete" on public.%I for delete using (public.is_workspace_writer(workspace_id) and public.can_access_private_row(workspace_id,created_by,privacy,area))', t);
+  end loop;
+end $;
 
 -- Private modules require owner/admin or an explicit module grant.
 do $$
