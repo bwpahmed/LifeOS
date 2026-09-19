@@ -57,7 +57,8 @@ export async function replayQueue(client: SupabaseClient) {
         const result = await client.from(op.table).delete().eq("id", op.row.id);
         error = result.error;
       } else {
-        const result = await client.from(op.table).upsert(op.row, { onConflict: "id" });
+        const conflict = op.table === "habit_logs" ? "habit_id,date" : "id";
+        const result = await client.from(op.table).upsert(op.row, { onConflict: conflict });
         error = result.error;
       }
       if (error) throw new Error(error.message || "Sync failed");
