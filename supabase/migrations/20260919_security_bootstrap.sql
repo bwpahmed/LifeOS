@@ -403,4 +403,197 @@ begin
   end loop;
 end $;
 
+
+-- Workspace invitations and explicit module-level access.
+create table if not exists public.workspace_invitations (
+  id uuid primary key default uuid_generate_v4(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  email text not null,
+  role text not null default 'member',
+  modules text[] not null default '{}',
+  token uuid not null unique default uuid_generate_v4(),
+  expires_at timestamptz not null default (now() + interval '7 days'),
+  accepted_at timestamptz,
+  accepted_by uuid references auth.users(id) on delete set null,
+  created_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+alter table public.workspace_invitations enable row level security;
+
+drop policy if exists "workspace invitations admin select" on public.workspace_invitations;
+drop policy if exists "workspace invitations admin insert" on public.workspace_invitations;
+drop policy if exists "workspace invitations admin update" on public.workspace_invitations;
+drop policy if exists "workspace invitations admin delete" on public.workspace_invitations;
+create policy "workspace invitations admin select" on public.workspace_invitations for select
+using (public.is_workspace_admin(workspace_id));
+create policy "workspace invitations admin insert" on public.workspace_invitations for insert
+with check (public.is_workspace_admin(workspace_id) and created_by = auth.uid());
+create policy "workspace invitations admin update" on public.workspace_invitations for update
+using (public.is_workspace_admin(workspace_id)) with check (public.is_workspace_admin(workspace_id));
+create policy "workspace invitations admin delete" on public.workspace_invitations for delete
+using (public.is_workspace_admin(workspace_id));
+
+-- Preserve the old broad member behavior for existing members; new invites use explicit grants.
+update public.workspace_members
+set modules = array['tasks','money','family','baby','calendar','europe','business']
+where role in ('member','viewer') and coalesce(array_length(modules,1),0)=0;
+
+-- Module-aware hierarchy rows. Health and Self-control rows require their own grants.
+do $$
+declare
+  t text;
+begin
+  foreach t in array array['goals','projects','tasks','habits'] loop
+    execute format('drop policy if exists "private row select" on public.%I', t);
+    execute format('drop policy if exists "private row insert" on public.%I', t);
+    execute format('drop policy if exists "private row update" on public.%I', t);
+    execute format('drop policy if exists "private row delete" on public.%I', t);
+    execute format(
+      'create policy "private row select" on public.%I for select using (
+        public.can_access_module(workspace_id, case when area = ''Health'' then ''health'' when area = ''Self-control'' then ''self_control'' else ''tasks'' end)
+        and public.can_access_private_row(workspace_id,created_by,privacy,area)
+      )', t
+    );
+    execute format(
+      'create policy "private row insert" on public.%I for insert with check (
+        public.is_workspace_writer(workspace_id)
+        and public.can_access_module(workspace_id, case when area = ''Health'' then ''health'' when area = ''Self-control'' then ''self_control'' else ''tasks'' end)
+        and public.can_access_private_row(workspace_id,created_by,privacy,area)
+      )', t
+    );
+    execute format(
+      'create policy "private row update" on public.%I for update using (
+        public.is_workspace_writer(workspace_id)
+        and public.can_access_module(workspace_id, case when area = ''Health'' then ''health'' when area = ''Self-control'' then ''self_control'' else ''tasks'' end)
+        and public.can_access_private_row(workspace_id,created_by,privacy,area)
+      ) with check (
+        public.is_workspace_writer(workspace_id)
+        and public.can_access_module(workspace_id, case when area = ''Health'' then ''health'' when area = ''Self-control'' then ''self_control'' else ''tasks'' end)
+        and public.can_access_private_row(workspace_id,created_by,privacy,area)
+      )', t
+    );
+    execute format(
+      'create policy "private row delete" on public.%I for delete using (
+        public.is_workspace_writer(workspace_id)
+        and public.can_access_module(workspace_id, case when area = ''Health'' then ''health'' when area = ''Self-control'' then ''self_control'' else ''tasks'' end)
+        and public.can_access_private_row(workspace_id,created_by,privacy,area)
+      )', t
+    );
+  end loop;
+end $$;
+
+-- Module-level policies for non-private workspace tables.
+do $$
+declare
+  tables text[] := array[
+    'life_areas','focus_sessions','contacts','receivables','family_members','family_tasks',
+    'baby_records','migration_countries','migration_documents','migration_tasks','calendar_items',
+    'daily_reviews','weekly_reviews','monthly_reviews','automation_rules','activity_log','ai_conversations'
+  ];
+  modules text[] := array[
+    'tasks','tasks','money','money','family','family',
+    'baby','europe','europe','europe','calendar',
+    'tasks','tasks','tasks','tasks','tasks','tasks'
+  ];
+  i int;
+  t text;
+  m text;
+begin
+  for i in 1..array_length(tables,1) loop
+    t := tables[i]; m := modules[i];
+    execute format('drop policy if exists "workspace select" on public.%I', t);
+    execute format('drop policy if exists "workspace insert" on public.%I', t);
+    execute format('drop policy if exists "workspace update" on public.%I', t);
+    execute format('drop policy if exists "workspace delete" on public.%I', t);
+    execute format('drop policy if exists "module select" on public.%I', t);
+    execute format('drop policy if exists "module insert" on public.%I', t);
+    execute format('drop policy if exists "module update" on public.%I', t);
+    execute format('drop policy if exists "module delete" on public.%I', t);
+    execute format('create policy "module select" on public.%I for select using (public.can_access_module(workspace_id,%L))', t, m);
+    execute format('create policy "module insert" on public.%I for insert with check (public.is_workspace_writer(workspace_id) and public.can_access_module(workspace_id,%L))', t, m);
+    execute format('create policy "module update" on public.%I for update using (public.is_workspace_writer(workspace_id) and public.can_access_module(workspace_id,%L)) with check (public.is_workspace_writer(workspace_id) and public.can_access_module(workspace_id,%L))', t, m, m);
+    execute format('create policy "module delete" on public.%I for delete using (public.is_workspace_writer(workspace_id) and public.can_access_module(workspace_id,%L))', t, m);
+  end loop;
+end $$;
+
+-- Generic attachments are owner/admin only unless a dedicated parent policy exists.
+drop policy if exists "workspace select" on public.attachments;
+drop policy if exists "workspace insert" on public.attachments;
+drop policy if exists "workspace update" on public.attachments;
+drop policy if exists "workspace delete" on public.attachments;
+drop policy if exists "attachment owner select" on public.attachments;
+drop policy if exists "attachment owner insert" on public.attachments;
+drop policy if exists "attachment owner update" on public.attachments;
+drop policy if exists "attachment owner delete" on public.attachments;
+create policy "attachment owner select" on public.attachments for select
+using (created_by = auth.uid() or public.is_workspace_admin(workspace_id));
+create policy "attachment owner insert" on public.attachments for insert
+with check ((created_by = auth.uid() or public.is_workspace_admin(workspace_id)) and public.is_workspace_writer(workspace_id));
+create policy "attachment owner update" on public.attachments for update
+using ((created_by = auth.uid() or public.is_workspace_admin(workspace_id)) and public.is_workspace_writer(workspace_id))
+with check ((created_by = auth.uid() or public.is_workspace_admin(workspace_id)) and public.is_workspace_writer(workspace_id));
+create policy "attachment owner delete" on public.attachments for delete
+using ((created_by = auth.uid() or public.is_workspace_admin(workspace_id)) and public.is_workspace_writer(workspace_id));
+
+-- Tighten child tables so direct queries cannot bypass module grants.
+drop policy if exists "goal milestone access" on public.goal_milestones;
+create policy "goal milestone access" on public.goal_milestones for all
+using (exists(select 1 from public.goals g where g.id=goal_id and public.can_access_module(g.workspace_id,case when g.area='Health' then 'health' when g.area='Self-control' then 'self_control' else 'tasks' end)))
+with check (exists(select 1 from public.goals g where g.id=goal_id and public.is_workspace_writer(g.workspace_id) and public.can_access_module(g.workspace_id,case when g.area='Health' then 'health' when g.area='Self-control' then 'self_control' else 'tasks' end)));
+
+drop policy if exists "goal update access" on public.goal_updates;
+create policy "goal update access" on public.goal_updates for all
+using (exists(select 1 from public.goals g where g.id=goal_id and public.can_access_module(g.workspace_id,case when g.area='Health' then 'health' when g.area='Self-control' then 'self_control' else 'tasks' end)))
+with check (exists(select 1 from public.goals g where g.id=goal_id and public.is_workspace_writer(g.workspace_id) and public.can_access_module(g.workspace_id,case when g.area='Health' then 'health' when g.area='Self-control' then 'self_control' else 'tasks' end)));
+
+drop policy if exists "project member access" on public.project_members;
+create policy "project member access" on public.project_members for all
+using (exists(select 1 from public.projects p where p.id=project_id and public.can_access_module(p.workspace_id,case when p.area='Health' then 'health' when p.area='Self-control' then 'self_control' else 'tasks' end)))
+with check (exists(select 1 from public.projects p where p.id=project_id and public.is_workspace_admin(p.workspace_id)));
+
+drop policy if exists "task dependency access" on public.task_dependencies;
+create policy "task dependency access" on public.task_dependencies for all
+using (exists(select 1 from public.tasks t where t.id=task_id and public.can_access_module(t.workspace_id,case when t.area='Health' then 'health' when t.area='Self-control' then 'self_control' else 'tasks' end)))
+with check (exists(select 1 from public.tasks t where t.id=task_id and public.is_workspace_writer(t.workspace_id) and public.can_access_module(t.workspace_id,case when t.area='Health' then 'health' when t.area='Self-control' then 'self_control' else 'tasks' end)));
+
+drop policy if exists "task comment access" on public.task_comments;
+create policy "task comment access" on public.task_comments for all
+using (exists(select 1 from public.tasks t where t.id=task_id and public.can_access_module(t.workspace_id,case when t.area='Health' then 'health' when t.area='Self-control' then 'self_control' else 'tasks' end)))
+with check (exists(select 1 from public.tasks t where t.id=task_id and public.is_workspace_writer(t.workspace_id) and public.can_access_module(t.workspace_id,case when t.area='Health' then 'health' when t.area='Self-control' then 'self_control' else 'tasks' end)));
+
+drop policy if exists "task activity access" on public.task_activity;
+create policy "task activity access" on public.task_activity for all
+using (exists(select 1 from public.tasks t where t.id=task_id and public.can_access_module(t.workspace_id,case when t.area='Health' then 'health' when t.area='Self-control' then 'self_control' else 'tasks' end)))
+with check (exists(select 1 from public.tasks t where t.id=task_id and public.is_workspace_writer(t.workspace_id) and public.can_access_module(t.workspace_id,case when t.area='Health' then 'health' when t.area='Self-control' then 'self_control' else 'tasks' end)));
+
+drop policy if exists "habit log access" on public.habit_logs;
+create policy "habit log access" on public.habit_logs for all
+using (exists(select 1 from public.habits h where h.id=habit_id and public.can_access_module(h.workspace_id,case when h.area='Health' then 'health' when h.area='Self-control' then 'self_control' else 'tasks' end)))
+with check (exists(select 1 from public.habits h where h.id=habit_id and public.is_workspace_writer(h.workspace_id) and public.can_access_module(h.workspace_id,case when h.area='Health' then 'health' when h.area='Self-control' then 'self_control' else 'tasks' end)));
+
+do $$
+declare
+  t text;
+begin
+  foreach t in array array['receivable_payments','receivable_followups','receivable_documents'] loop
+    execute format('drop policy if exists "receivable child access" on public.%I', t);
+    execute format('create policy "receivable child access" on public.%I for all using (exists(select 1 from public.receivables r where r.id=receivable_id and public.can_access_module(r.workspace_id,''money''))) with check (exists(select 1 from public.receivables r where r.id=receivable_id and public.is_workspace_writer(r.workspace_id) and public.can_access_module(r.workspace_id,''money'')))', t);
+  end loop;
+end $$;
+
+drop policy if exists "migration route access" on public.migration_routes;
+create policy "migration route access" on public.migration_routes for all
+using (exists(select 1 from public.migration_countries c where c.id=country_id and public.can_access_module(c.workspace_id,'europe')))
+with check (exists(select 1 from public.migration_countries c where c.id=country_id and public.is_workspace_writer(c.workspace_id) and public.can_access_module(c.workspace_id,'europe')));
+
+drop policy if exists "automation run access" on public.automation_runs;
+create policy "automation run access" on public.automation_runs for all
+using (exists(select 1 from public.automation_rules r where r.id=rule_id and public.can_access_module(r.workspace_id,'tasks')))
+with check (exists(select 1 from public.automation_rules r where r.id=rule_id and public.is_workspace_writer(r.workspace_id) and public.can_access_module(r.workspace_id,'tasks')));
+
+drop policy if exists "ai suggestion access" on public.ai_suggestions;
+create policy "ai suggestion access" on public.ai_suggestions for all
+using (exists(select 1 from public.ai_conversations c where c.id=conversation_id and public.can_access_module(c.workspace_id,'tasks')))
+with check (exists(select 1 from public.ai_conversations c where c.id=conversation_id and public.is_workspace_writer(c.workspace_id) and public.can_access_module(c.workspace_id,'tasks')));
+
 commit;
