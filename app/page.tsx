@@ -3,10 +3,14 @@ import Link from "next/link";
 const modules = [
   ["Today", "Must Win + live priority plan", "/today"],
   ["Tasks", "Cloud task system", "/tasks"],
+  ["Matrix", "Do / Schedule / Delegate", "/matrix"],
+  ["Waiting For", "Oldest follow-ups first", "/waiting"],
   ["Habits", "Consistency & recovery", "/habits"],
   ["Focus", "Persistent deep-work timer", "/focus"],
   ["Money", "Receivables & follow-ups", "/money"],
+  ["Business", "Operations command center", "/business"],
   ["Health", "Private health tracking", "/health"],
+  ["Health Vault", "Private reports & documents", "/health-vault"],
   ["Hair", "Private photo comparison", "/hair"],
   ["Self-Control", "Trigger & response analytics", "/self-control"],
   ["Family", "Family & baby records", "/family"],
@@ -23,6 +27,7 @@ const modules = [
   ["AI Coach", "Data-grounded planning", "/coach"],
   ["Quick Add", "AI / deterministic capture", "/quick-add"],
   ["Settings", "Import & configuration", "/settings"],
+  ["Privacy", "PIN / device lock", "/privacy"],
 ];
 
 export default function Home() {
