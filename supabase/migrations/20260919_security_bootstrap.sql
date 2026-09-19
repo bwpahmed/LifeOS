@@ -292,4 +292,32 @@ drop policy if exists "own sync queue" on public.sync_queue;
 create policy "own sync queue" on public.sync_queue for all
 using (user_id=auth.uid()) with check (user_id=auth.uid());
 
+
+-- Private user-scoped storage for sensitive health/hair imports.
+insert into storage.buckets (id, name, public)
+values ('lifeos-private', 'lifeos-private', false)
+on conflict (id) do update set public = false;
+
+drop policy if exists "lifeos private storage select" on storage.objects;
+drop policy if exists "lifeos private storage insert" on storage.objects;
+drop policy if exists "lifeos private storage update" on storage.objects;
+drop policy if exists "lifeos private storage delete" on storage.objects;
+
+create policy "lifeos private storage select" on storage.objects
+for select to authenticated
+using (bucket_id = 'lifeos-private' and (storage.foldername(name))[1] = auth.uid()::text);
+
+create policy "lifeos private storage insert" on storage.objects
+for insert to authenticated
+with check (bucket_id = 'lifeos-private' and (storage.foldername(name))[1] = auth.uid()::text);
+
+create policy "lifeos private storage update" on storage.objects
+for update to authenticated
+using (bucket_id = 'lifeos-private' and (storage.foldername(name))[1] = auth.uid()::text)
+with check (bucket_id = 'lifeos-private' and (storage.foldername(name))[1] = auth.uid()::text);
+
+create policy "lifeos private storage delete" on storage.objects
+for delete to authenticated
+using (bucket_id = 'lifeos-private' and (storage.foldername(name))[1] = auth.uid()::text);
+
 commit;
