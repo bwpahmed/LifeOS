@@ -76,8 +76,10 @@ export function deterministicParse(input: string, todayISO: string): ParsedCaptu
       ? "High"
       : "Medium";
 
-  const personMatch = q.match(/(?:call|contact|ask|follow(?:\s*up)?|ko)\s+([A-Z][a-zA-Z]+)/i);
-  const person = personMatch?.[1] || (q.match(/(mustafa|accountant|partner)/i) || [])[1] || "";
+  const urduPerson = q.match(/\b([A-Z][a-zA-Z]{1,50})\s+ko\b/);
+  const knownPerson = q.match(/\b(mustafa|accountant|partner)\b/i);
+  const actionPerson = q.match(/\b(?:call|contact|ask|follow(?:\s*up)?)\s+([A-Z][a-zA-Z]{1,50})\b/i);
+  const person = urduPerson?.[1] || knownPerson?.[1] || actionPerson?.[1] || "";
 
   return {
     type: life_area === "Money" ? "payment_followup" : "task",
