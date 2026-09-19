@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { PrivacyGate } from "@/components/privacy-gate";
 import Link from "next/link";
 import { BackHome, Panel } from "@/components/ui";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -9,7 +10,7 @@ import { todayInTZ } from "@/lib/timezone";
 
 type Photo={id:string;date:string;label:string|null;path:string;url?:string};
 
-export default function HairPage(){
+function HairContent(){
   const[workspaceId,setWorkspaceId]=useState("");const[userId,setUserId]=useState("");const[photos,setPhotos]=useState<Photo[]>([]);const[error,setError]=useState("");const[label,setLabel]=useState("Front");const[file,setFile]=useState<File|null>(null);const[left,setLeft]=useState("");const[right,setRight]=useState("");const[uploading,setUploading]=useState(false);
   const load=useCallback(async()=>{try{const sb=supabaseBrowser();const ctx=await currentWorkspace(sb);if(!ctx){setWorkspaceId("");return;}setWorkspaceId(ctx.workspaceId);setUserId(ctx.user.id);const{data,error:q}=await sb.from("hair_photos").select("id,date,label,path").eq("workspace_id",ctx.workspaceId).order("date",{ascending:false}).limit(100);if(q)throw q;const rows=(data||[]) as Photo[];const signed=await Promise.all(rows.map(async p=>{const{data:s}=await sb.storage.from("lifeos-private").createSignedUrl(p.path,3600);return{...p,url:s?.signedUrl};}));setPhotos(signed);if(signed[0]&&!left)setLeft(signed[0].id);if(signed[1]&&!right)setRight(signed[1].id);}catch(e){setError(e instanceof Error?e.message:"Could not load hair photos");}},[left,right]);
   useEffect(()=>{void load();},[load]);
@@ -25,3 +26,6 @@ export default function HairPage(){
     </div>}
   </main>;
 }
+
+
+export default function HairPage(){return <PrivacyGate><HairContent/></PrivacyGate>;}
