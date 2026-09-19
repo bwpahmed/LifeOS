@@ -10,7 +10,7 @@ type Result={id:string;kind:string;title:string;sub:string;href:string};
 
 export default function SearchPage(){
  const[q,setQ]=useState("");const[rows,setRows]=useState<Result[]>([]);const[loading,setLoading]=useState(false);const[error,setError]=useState("");
- async function search(e:FormEvent){e.preventDefault();const term=q.trim();if(term.length<2)return;setLoading(true);setError("");try{const sb=supabaseBrowser();const ctx=await currentWorkspace(sb);if(!ctx)throw new Error("Sign in first.");const like=`%${term.replace(/[%_]/g,"")} %`.replace(" %","%");
+ async function search(e:FormEvent){e.preventDefault();const term=q.trim();if(term.length<2)return;setLoading(true);setError("");try{const sb=supabaseBrowser();const ctx=await currentWorkspace(sb);if(!ctx)throw new Error("Sign in first.");const like=`%${term.replace(/[%_]/g,"")}%`;
    const[t,r,g,p,f,c,j]=await Promise.all([
     sb.from("tasks").select("id,name,area,status").eq("workspace_id",ctx.workspaceId).ilike("name",like).limit(20),
     sb.from("receivables").select("id,name,company,status").eq("workspace_id",ctx.workspaceId).or(`name.ilike.${like},company.ilike.${like}`).limit(20),
