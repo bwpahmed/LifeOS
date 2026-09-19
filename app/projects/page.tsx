@@ -5,6 +5,7 @@ import Link from "next/link";
 import { BackHome, Panel } from "@/components/ui";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { currentWorkspace } from "@/lib/supabase/workspace";
+import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
 import { todayInTZ } from "@/lib/timezone";
 
 type Project={id:string;name:string;area:string|null;deadline:string|null;status:string;owner:string|null;goal_id:string|null};
@@ -15,7 +16,7 @@ export default function ProjectsPage(){
   const[name,setName]=useState("");const[area,setArea]=useState("Business");const[goalId,setGoalId]=useState("");const[deadline,setDeadline]=useState(()=>{const d=new Date(todayInTZ()+"T12:00:00");d.setDate(d.getDate()+30);return d.toISOString().slice(0,10);});const[error,setError]=useState("");
 
   const load=useCallback(async()=>{try{const sb=supabaseBrowser();const ctx=await currentWorkspace(sb);if(!ctx){setWorkspaceId("");return;}setWorkspaceId(ctx.workspaceId);setUserId(ctx.user.id);const[p,g]=await Promise.all([sb.from("projects").select("id,name,area,deadline,status,owner,goal_id").eq("workspace_id",ctx.workspaceId).order("deadline",{ascending:true,nullsFirst:false}),sb.from("goals").select("id,name").eq("workspace_id",ctx.workspaceId)]);if(p.error)throw p.error;if(g.error)throw g.error;setProjects((p.data||[]) as Project[]);setGoals((g.data||[]) as Goal[]);}catch(e){setError(e instanceof Error?e.message:"Could not load projects");}},[]);
-  useEffect(()=>{void load();},[load]);
+  useEffect(()=>{void load();},[load]);useRealtimeRefresh(["projects"],load,Boolean(workspaceId));
   async function add(e:FormEvent){e.preventDefault();if(!workspaceId||!name.trim())return;const sb=supabaseBrowser();const{error:q}=await sb.from("projects").insert({workspace_id:workspaceId,created_by:userId,name:name.trim(),area,goal_id:goalId||null,deadline,owner:"Me",status:"Active",privacy:"family"});if(q)setError(q.message);else{setName("");await load();}}
   async function setStatus(id:string,status:string){const sb=supabaseBrowser();const{error:q}=await sb.from("projects").update({status,updated_at:new Date().toISOString()}).eq("id",id);if(q)setError(q.message);else await load();}
 
