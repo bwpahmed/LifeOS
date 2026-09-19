@@ -3,7 +3,7 @@ import { priorityScore, whyPriority } from "./priority";
 import { applyPayment, remaining, escalation } from "./money";
 import { nextOccurrence } from "./recurrence";
 import { previewLegacyImport, dedupe } from "./legacy-import";
-import { habitConsistency, goalProgressFromTasks } from "./habits";
+import { habitConsistency, habitConsistencyForFrequency, habitPeriodStreak, recoveryScore, goalProgressFromTasks } from "./habits";
 import { canSeeModule } from "./permissions";
 import { serverWins } from "./sync-queue";
 import { deterministicParse, validateParsed } from "./ai/service";
@@ -51,6 +51,12 @@ describe("legacy import", () => {
 describe("habits/goals/permissions/sync", () => {
   it("one miss does not zero consistency", () => {
     expect(habitConsistency({ "2026-09-14": 1, "2026-09-15": 1 }, ["2026-09-14", "2026-09-15", "2026-09-16"])).toBe(67);
+  });
+  it("weekly target uses periods instead of pretending every day is expected", () => {
+    const days = ["2026-09-07","2026-09-08","2026-09-09","2026-09-10","2026-09-11","2026-09-12","2026-09-13","2026-09-14","2026-09-15","2026-09-16"];
+    expect(habitConsistencyForFrequency({ "2026-09-07": 1, "2026-09-09": 1, "2026-09-14": 1 }, days, "X times per week", 2)).toBe(75);
+    expect(habitPeriodStreak({ "2026-09-07": 1, "2026-09-09": 1, "2026-09-14": 1 }, days, "X times per week", 2)).toBe(1);
+    expect(recoveryScore({ "2026-09-07": 1 }, ["2026-09-07","2026-09-08","2026-09-09"], "Daily", 1)).toBe(0);
   });
   it("goal progress derives from tasks", () => {
     expect(goalProgressFromTasks(1, 4)).toBe(25);
