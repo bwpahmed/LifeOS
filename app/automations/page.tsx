@@ -1,0 +1,42 @@
+"use client";
+
+import { FormEvent, useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { BackHome, Panel } from "@/components/ui";
+import { supabaseBrowser } from "@/lib/supabase/client";
+import { currentWorkspace } from "@/lib/supabase/workspace";
+import { todayInTZ } from "@/lib/timezone";
+
+type Rule={id:string;name:string;trigger:string;action:string;enabled:boolean;conditions:Record<string,unknown>|null};
+const templates=[
+ {name:"Overdue tasks → Today",trigger:"task_overdue",action:"move_to_today"},
+ {name:"Money due → High follow-up",trigger:"money_overdue",action:"prioritize_followup"},
+ {name:"Goal stalled 7 days → Recovery task",trigger:"goal_stalled_7d",action:"create_recovery_task"},
+ {name:"Habit missed 3 days → Recovery task",trigger:"habit_missed_3d",action:"create_recovery_task"}
+];
+
+export default function AutomationsPage(){
+ const[workspaceId,setWorkspaceId]=useState("");const[userId,setUserId]=useState("");const[rules,setRules]=useState<Rule[]>([]);const[name,setName]=useState(templates[0].name);const[trigger,setTrigger]=useState(templates[0].trigger);const[action,setAction]=useState(templates[0].action);const[error,setError]=useState("");const[msg,setMsg]=useState("");
+ const load=useCallback(async()=>{try{const sb=supabaseBrowser();const ctx=await currentWorkspace(sb);if(!ctx){setWorkspaceId("");return;}setWorkspaceId(ctx.workspaceId);setUserId(ctx.user.id);const{data,error:q}=await sb.from("automation_rules").select("id,name,trigger,action,enabled,conditions").eq("workspace_id",ctx.workspaceId).order("created_at");if(q)throw q;setRules((data||[]) as Rule[]);}catch(e){setError(e instanceof Error?e.message:"Could not load automations");}},[]);useEffect(()=>{void load();},[load]);
+ async function add(e:FormEvent){e.preventDefault();const sb=supabaseBrowser();const{error:q}=await sb.from("automation_rules").insert({workspace_id:workspaceId,created_by:userId,name,trigger,action,enabled:true,conditions:{}});if(q)setError(q.message);else await load();}
+ async function toggle(r:Rule){const sb=supabaseBrowser();const{error:q}=await sb.from("automation_rules").update({enabled:!r.enabled}).eq("id",r.id);if(q)setError(q.message);else await load();}
+ async function run(){setMsg("");setError("");try{const sb=supabaseBrowser();const today=todayInTZ();let changes=0;
+   for(const r of rules.filter(x=>x.enabled)){
+    let c=0;
+    if(r.trigger==="task_overdue"&&r.action==="move_to_today"){const q=await sb.from("tasks").update({status:"Today",importance:4,updated_at:new Date().toISOString()}).eq("workspace_id",workspaceId).lt("deadline",today).not("status","in",'("Completed","Cancelled","Blocked","Waiting")').select("id");if(q.error)throw q.error;c=q.data?.length||0;}
+    if(r.trigger==="money_overdue"&&r.action==="prioritize_followup"){const q=await sb.from("receivables").update({next_followup:today,priority:"High",updated_at:new Date().toISOString()}).eq("workspace_id",workspaceId).lt("due_date",today).neq("status","Paid").select("id");if(q.error)throw q.error;c=q.data?.length||0;}
+    if(r.trigger==="goal_stalled_7d"&&r.action==="create_recovery_task"){const cutoff=new Date(Date.now()-7*86400000).toISOString();const q=await sb.from("goals").select("id,name,area").eq("workspace_id",workspaceId).lt("updated_at",cutoff).not("status","in",'("Completed","Paused")');if(q.error)throw q.error;for(const g of q.data||[]){const title=`Restart goal: ${g.name}`;const ex=await sb.from("tasks").select("id").eq("workspace_id",workspaceId).eq("name",title).not("status","in",'("Completed","Cancelled")').limit(1);if(!ex.data?.length){const ins=await sb.from("tasks").insert({workspace_id:workspaceId,created_by:userId,name:title,area:g.area||"Personal",goal_id:g.id,status:"Today",importance:4,deadline:today,start_date:today,recurrence:{kind:"none"}});if(ins.error)throw ins.error;c++;}}}
+    if(r.trigger==="habit_missed_3d"&&r.action==="create_recovery_task"){const from=new Date(today+"T12:00:00");from.setDate(from.getDate()-2);const fromISO=from.toISOString().slice(0,10);const h=await sb.from("habits").select("id,name,area").eq("workspace_id",workspaceId);if(h.error)throw h.error;for(const habit of h.data||[]){const l=await sb.from("habit_logs").select("id").eq("habit_id",habit.id).gte("date",fromISO).lte("date",today).limit(1);if(l.error)throw l.error;if(!l.data?.length){const title=`Recover habit: ${habit.name}`;const ex=await sb.from("tasks").select("id").eq("workspace_id",workspaceId).eq("name",title).not("status","in",'("Completed","Cancelled")').limit(1);if(!ex.data?.length){const ins=await sb.from("tasks").insert({workspace_id:workspaceId,created_by:userId,name:title,area:habit.area||"Personal",status:"Today",importance:3,deadline:today,start_date:today,recurrence:{kind:"none"}});if(ins.error)throw ins.error;c++;}}}}
+    const ar=await sb.from("automation_runs").insert({rule_id:r.id,changes:c});if(ar.error)throw ar.error;changes+=c;
+   }
+   setMsg(`Automations complete: ${changes} changes. No hidden AI changes were made.`);
+ }catch(e){setError(e instanceof Error?e.message:"Automation run failed");}}
+ function pickTemplate(v:string){const t=templates[Number(v)];if(t){setName(t.name);setTrigger(t.trigger);setAction(t.action);}}
+
+ return <main className="pt-6"><BackHome/><p className="mt-2 text-[11px] tracking-widest text-slate-400">AUTOMATIONS</p><h1 className="text-2xl font-bold">Explicit rules, visible changes</h1>{error&&<p className="mt-3 text-sm text-red-300">{error}</p>}{msg&&<p className="mt-3 text-sm text-emerald-300">{msg}</p>}
+ {!workspaceId?<p className="panel mt-4 p-5 text-sm">Sign in first. <Link href="/login" className="text-[#8ab6ff]">Login →</Link></p>:<div className="mt-4 grid gap-4 md:grid-cols-[.75fr_1.25fr]">
+  <Panel title="Add rule"><form onSubmit={add} className="space-y-2"><select onChange={e=>pickTemplate(e.target.value)} className="w-full rounded-lg border border-white/10 bg-[#0a1524] p-2">{templates.map((t,i)=><option key={t.trigger} value={i}>{t.name}</option>)}</select><input value={name} onChange={e=>setName(e.target.value)} className="w-full rounded-lg border border-white/10 bg-[#0a1524] p-2"/><input value={trigger} onChange={e=>setTrigger(e.target.value)} className="w-full rounded-lg border border-white/10 bg-[#0a1524] p-2"/><input value={action} onChange={e=>setAction(e.target.value)} className="w-full rounded-lg border border-white/10 bg-[#0a1524] p-2"/><button className="w-full rounded-lg bg-[#77adff] p-2 font-bold text-[#06101f]">Save rule</button></form></Panel>
+  <Panel title="Rules" kicker="RUNS ONLY ENABLED RULES"><div className="space-y-2">{rules.map(r=><div key={r.id} className="flex items-center justify-between gap-3 rounded-lg border border-white/10 p-3"><div><b>{r.name}</b><p className="text-xs text-slate-500">{r.trigger} → {r.action}</p></div><button onClick={()=>toggle(r)} className={`rounded-lg px-2 py-1 text-xs ${r.enabled?"bg-emerald-300/20 text-emerald-200":"border border-white/10"}`}>{r.enabled?"Enabled":"Disabled"}</button></div>)}</div><button onClick={run} disabled={!rules.some(r=>r.enabled)} className="mt-4 w-full rounded-lg border border-white/10 p-2 font-bold disabled:opacity-40">Run enabled automations now</button></Panel>
+ </div>}
+ </main>;
+}
