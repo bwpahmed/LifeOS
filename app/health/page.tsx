@@ -6,6 +6,7 @@ import Link from "next/link";
 import { BackHome, Panel } from "@/components/ui";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { currentWorkspace } from "@/lib/supabase/workspace";
+import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
 import { todayInTZ } from "@/lib/timezone";
 
 type HealthEntry = { id:string; date:string; sleep:number|null; energy:number|null; mood:number|null; stress:number|null; steps:number|null; weight:number|null; waist:number|null; notes:string|null };
@@ -41,7 +42,7 @@ function HealthContent() {
       setEntries((e.data||[]) as HealthEntry[]);setLabs((l.data||[]) as Lab[]);
     }catch(err){setError(err instanceof Error?err.message:"Could not load health data");}
   },[]);
-  useEffect(()=>{void load();},[load]);
+  useEffect(()=>{void load();},[load]);useRealtimeRefresh(["health_entries","lab_results"],load,Boolean(workspaceId));
 
   async function saveDaily(e:FormEvent){
     e.preventDefault();if(!workspaceId||!userId)return;
