@@ -29,7 +29,7 @@ function hkdfExpand(prk: Buffer, info: Buffer, length: number): Buffer {
   let t = Buffer.alloc(0);
   let counter = 1;
   while (out.length < length) {
-    t = hmac(prk, Buffer.concat([t, info, Buffer.from([counter])]));
+    t = Buffer.from(hmac(prk, Buffer.concat([t, info, Buffer.from([counter])])));
     out = Buffer.concat([out, t]);
     counter += 1;
   }
