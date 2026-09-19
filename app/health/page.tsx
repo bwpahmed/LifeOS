@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { PrivacyGate } from "@/components/privacy-gate";
 import Link from "next/link";
 import { BackHome, Panel } from "@/components/ui";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -10,7 +11,7 @@ import { todayInTZ } from "@/lib/timezone";
 type HealthEntry = { id:string; date:string; sleep:number|null; energy:number|null; mood:number|null; stress:number|null; steps:number|null; weight:number|null; waist:number|null; notes:string|null };
 type Lab = { id:string; test_name:string; date:string; result:string|null; unit:string|null; ref_range:string|null };
 
-export default function HealthPage() {
+function HealthContent() {
   const [workspaceId,setWorkspaceId]=useState("");
   const [userId,setUserId]=useState("");
   const [entries,setEntries]=useState<HealthEntry[]>([]);
@@ -91,3 +92,6 @@ export default function HealthPage() {
     </div>}
   </main>;
 }
+
+
+export default function HealthPage(){return <PrivacyGate><HealthContent/></PrivacyGate>;}
