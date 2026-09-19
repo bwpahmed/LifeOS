@@ -163,6 +163,7 @@ async function chat(
       ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
     }),
     cache: "no-store",
+    signal: AbortSignal.timeout(20000),
   });
 
   if (!response.ok) {
