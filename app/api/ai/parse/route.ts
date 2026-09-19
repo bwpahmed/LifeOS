@@ -3,7 +3,7 @@ import { parseCapture } from "@/lib/ai/service";
 import { supabaseServer } from "@/lib/supabase/server";
 
 export async function POST(req: Request) {
-  const supabase = supabaseServer();
+  const supabase = await supabaseServer();
   const { data: auth, error: authError } = await supabase.auth.getUser();
   if (authError || !auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
