@@ -342,9 +342,9 @@ declare
 begin
   foreach t in array array[
     'tasks','habits','habit_logs','receivables','receivable_payments','receivable_followups',
-    'goals','projects','family_tasks','baby_records','health_entries','lab_results','hair_photos',
-    'urge_logs','migration_countries','migration_documents','focus_sessions','journal_entries',
-    'notifications','automation_rules'
+    'goals','goal_milestones','projects','family_tasks','baby_records','health_entries','health_documents','lab_results','hair_photos',
+    'urge_logs','migration_countries','migration_routes','migration_documents','focus_sessions','journal_entries',
+    'notifications','automation_rules','receivable_documents'
   ] loop
     if not exists (
       select 1 from pg_publication_tables
