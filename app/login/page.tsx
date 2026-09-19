@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { BackHome, Panel } from "@/components/ui";
 
@@ -8,6 +8,12 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
+  const [nextPath, setNextPath] = useState("/");
+
+  useEffect(() => {
+    const next = new URLSearchParams(location.search).get("next");
+    if (next && next.startsWith("/")) setNextPath(next);
+  }, []);
 
   async function magicLink() {
     setLoading(true);
@@ -16,7 +22,7 @@ export default function LoginPage() {
       const sb = supabaseBrowser();
       const { error } = await sb.auth.signInWithOtp({
         email,
-        options: { emailRedirectTo: `${location.origin}/auth/callback` },
+        options: { emailRedirectTo: `${location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}` },
       });
       if (error) throw error;
       setMsg("Magic link sent. Check your email.");
