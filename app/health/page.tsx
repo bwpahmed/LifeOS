@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { PrivacyGate } from "@/components/privacy-gate";
 import Link from "next/link";
 import { BackHome, Panel } from "@/components/ui";
@@ -9,90 +9,35 @@ import { currentWorkspace } from "@/lib/supabase/workspace";
 import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
 import { todayInTZ } from "@/lib/timezone";
 
-type HealthEntry = { id:string; date:string; sleep:number|null; energy:number|null; mood:number|null; stress:number|null; steps:number|null; weight:number|null; waist:number|null; notes:string|null };
-type Lab = { id:string; test_name:string; date:string; result:string|null; unit:string|null; ref_range:string|null };
+type HealthEntry={id:string;date:string;sleep:number|null;energy:number|null;mood:number|null;stress:number|null;steps:number|null;weight:number|null;waist:number|null;exercise:string|null;protein:string|null;notes:string|null};
+type Lab={id:string;test_name:string;date:string;result:string|null;unit:string|null;ref_range:string|null;doctor_notes:string|null};
 
-function HealthContent() {
-  const [workspaceId,setWorkspaceId]=useState("");
-  const [userId,setUserId]=useState("");
-  const [entries,setEntries]=useState<HealthEntry[]>([]);
-  const [labs,setLabs]=useState<Lab[]>([]);
-  const [error,setError]=useState("");
-  const [sleep,setSleep]=useState(7);
-  const [energy,setEnergy]=useState(7);
-  const [mood,setMood]=useState(7);
-  const [stress,setStress]=useState(4);
-  const [steps,setSteps]=useState(0);
-  const [weight,setWeight]=useState<number|undefined>();
-  const [testName,setTestName]=useState("");
-  const [result,setResult]=useState("");
-  const [unit,setUnit]=useState("");
+function avg(values:(number|null)[]){const v=values.filter((x):x is number=>typeof x==="number"&&Number.isFinite(x));return v.length?v.reduce((a,b)=>a+b,0)/v.length:null;}
+function Trend({values,label}:{values:(number|null)[];label:string}){const clean=values.map(v=>v==null?null:Number(v));const numeric=clean.filter((v):v is number=>v!=null&&Number.isFinite(v));if(numeric.length<2)return <div className="rounded-lg border border-white/10 p-3 text-xs text-slate-500">{label}: not enough data</div>;const min=Math.min(...numeric),max=Math.max(...numeric),span=max-min||1;const pts=clean.map((v,i)=>v==null?null:[i/(clean.length-1)*100,38-((v-min)/span)*34] as [number,number]).filter((x):x is [number,number]=>x!==null);return <div className="rounded-lg border border-white/10 p-3"><div className="flex justify-between text-xs"><b>{label}</b><span className="text-slate-500">avg {avg(numeric)?.toFixed(1)}</span></div><svg viewBox="0 0 100 40" className="mt-2 h-16 w-full text-[#8ab6ff]" preserveAspectRatio="none"><polyline fill="none" stroke="currentColor" strokeWidth="1.5" vectorEffect="non-scaling-stroke" points={pts.map(([x,y])=>`${x},${y}`).join(" ")}/></svg></div>;}
 
-  const load=useCallback(async()=>{
-    try{
-      const sb=supabaseBrowser();
-      const ctx=await currentWorkspace(sb);
-      if(!ctx){setWorkspaceId("");return;}
-      setWorkspaceId(ctx.workspaceId);setUserId(ctx.user.id);
-      const [e,l]=await Promise.all([
-        sb.from("health_entries").select("id,date,sleep,energy,mood,stress,steps,weight,waist,notes").eq("workspace_id",ctx.workspaceId).order("date",{ascending:false}).limit(30),
-        sb.from("lab_results").select("id,test_name,date,result,unit,ref_range").eq("workspace_id",ctx.workspaceId).order("date",{ascending:false}).limit(50)
-      ]);
-      if(e.error) throw e.error;if(l.error) throw l.error;
-      setEntries((e.data||[]) as HealthEntry[]);setLabs((l.data||[]) as Lab[]);
-    }catch(err){setError(err instanceof Error?err.message:"Could not load health data");}
-  },[]);
-  useEffect(()=>{void load();},[load]);useRealtimeRefresh(["health_entries","lab_results"],load,Boolean(workspaceId));
+function HealthContent(){
+ const[workspaceId,setWorkspaceId]=useState("");const[userId,setUserId]=useState("");const[entries,setEntries]=useState<HealthEntry[]>([]);const[labs,setLabs]=useState<Lab[]>([]);const[error,setError]=useState("");
+ const[sleep,setSleep]=useState(7);const[energy,setEnergy]=useState(7);const[mood,setMood]=useState(7);const[stress,setStress]=useState(4);const[steps,setSteps]=useState(0);const[weight,setWeight]=useState<number|undefined>();const[waist,setWaist]=useState<number|undefined>();const[exercise,setExercise]=useState("");const[protein,setProtein]=useState("");const[notes,setNotes]=useState("");
+ const[testName,setTestName]=useState("");const[result,setResult]=useState("");const[unit,setUnit]=useState("");const[refRange,setRefRange]=useState("");const[doctorNotes,setDoctorNotes]=useState("");const[range,setRange]=useState(90);
 
-  async function saveDaily(e:FormEvent){
-    e.preventDefault();if(!workspaceId||!userId)return;
-    const sb=supabaseBrowser();const date=todayInTZ();
-    const existing=entries.find(x=>x.date===date);
-    const payload={workspace_id:workspaceId,created_by:userId,date,sleep,energy,mood,stress,steps,weight:weight??null,privacy:"private"};
-    const q=existing?sb.from("health_entries").update(payload).eq("id",existing.id):sb.from("health_entries").insert(payload);
-    const {error:saveError}=await q;if(saveError)setError(saveError.message);else await load();
-  }
+ const load=useCallback(async()=>{try{const sb=supabaseBrowser();const ctx=await currentWorkspace(sb);if(!ctx){setWorkspaceId("");return;}setWorkspaceId(ctx.workspaceId);setUserId(ctx.user.id);const[e,l]=await Promise.all([sb.from("health_entries").select("id,date,sleep,energy,mood,stress,steps,weight,waist,exercise,protein,notes").eq("workspace_id",ctx.workspaceId).order("date",{ascending:false}).limit(365),sb.from("lab_results").select("id,test_name,date,result,unit,ref_range,doctor_notes").eq("workspace_id",ctx.workspaceId).order("date",{ascending:false}).limit(100)]);if(e.error)throw e.error;if(l.error)throw l.error;const health=(e.data||[]) as HealthEntry[];setEntries(health);setLabs((l.data||[]) as Lab[]);const today=health.find(x=>x.date===todayInTZ());if(today){setSleep(Number(today.sleep??7));setEnergy(Number(today.energy??7));setMood(Number(today.mood??7));setStress(Number(today.stress??4));setSteps(Number(today.steps??0));setWeight(today.weight??undefined);setWaist(today.waist??undefined);setExercise(today.exercise||"");setProtein(today.protein||"");setNotes(today.notes||"");}}catch(e){setError(e instanceof Error?e.message:"Could not load health data");}},[]);
+ useEffect(()=>{void load();},[load]);useRealtimeRefresh(["health_entries","lab_results"],load,Boolean(workspaceId));
 
-  async function addLab(e:FormEvent){
-    e.preventDefault();if(!workspaceId||!userId||!testName.trim()||!result.trim())return;
-    const sb=supabaseBrowser();
-    const {error:saveError}=await sb.from("lab_results").insert({workspace_id:workspaceId,created_by:userId,test_name:testName.trim(),date:todayInTZ(),result:result.trim(),unit:unit.trim()||null,privacy:"private"});
-    if(saveError)setError(saveError.message);else{setTestName("");setResult("");setUnit("");await load();}
-  }
+ async function saveDaily(e:FormEvent){e.preventDefault();if(!workspaceId||!userId)return;const sb=supabaseBrowser();const date=todayInTZ();const existing=entries.find(x=>x.date===date);const payload={workspace_id:workspaceId,created_by:userId,date,sleep,energy,mood,stress,steps,weight:weight??null,waist:waist??null,exercise:exercise.trim()||null,protein:protein.trim()||null,notes:notes.trim()||null,privacy:"private"};const q=existing?await sb.from("health_entries").update(payload).eq("id",existing.id):await sb.from("health_entries").insert(payload);if(q.error)setError(q.error.message);else await load();}
+ async function addLab(e:FormEvent){e.preventDefault();if(!workspaceId||!userId||!testName.trim()||!result.trim())return;const sb=supabaseBrowser();const{error:q}=await sb.from("lab_results").insert({workspace_id:workspaceId,created_by:userId,test_name:testName.trim(),date:todayInTZ(),result:result.trim(),unit:unit.trim()||null,ref_range:refRange.trim()||null,doctor_notes:doctorNotes.trim()||null,privacy:"private"});if(q)setError(q.message);else{setTestName("");setResult("");setUnit("");setRefRange("");setDoctorNotes("");await load();}}
 
-  return <main className="pt-6">
-    <BackHome/><p className="mt-2 text-[11px] tracking-widest text-slate-400">HEALTH COMMAND CENTER</p><h1 className="text-2xl font-bold">Track useful signals</h1>
-    {error&&<p className="mt-3 rounded-xl border border-red-400/20 bg-red-400/10 p-3 text-sm text-red-200">{error}</p>}
-    {!workspaceId?<p className="panel mt-4 p-5 text-sm">Sign in to use private health tracking. <Link href="/login" className="text-[#8ab6ff]">Login →</Link></p>:
-    <div className="mt-4 grid gap-4 md:grid-cols-2">
-      <Panel title="Daily health" kicker={todayInTZ()}>
-        <form onSubmit={saveDaily} className="grid grid-cols-2 gap-3">
-          <label className="text-xs text-slate-400">Sleep hours<input type="number" step=".1" min="0" max="16" value={sleep} onChange={e=>setSleep(Number(e.target.value))} className="mt-1 w-full rounded-lg border border-white/10 bg-[#0a1524] p-2 text-white"/></label>
-          <label className="text-xs text-slate-400">Energy 1–10<input type="number" min="1" max="10" value={energy} onChange={e=>setEnergy(Number(e.target.value))} className="mt-1 w-full rounded-lg border border-white/10 bg-[#0a1524] p-2 text-white"/></label>
-          <label className="text-xs text-slate-400">Mood 1–10<input type="number" min="1" max="10" value={mood} onChange={e=>setMood(Number(e.target.value))} className="mt-1 w-full rounded-lg border border-white/10 bg-[#0a1524] p-2 text-white"/></label>
-          <label className="text-xs text-slate-400">Stress 1–10<input type="number" min="1" max="10" value={stress} onChange={e=>setStress(Number(e.target.value))} className="mt-1 w-full rounded-lg border border-white/10 bg-[#0a1524] p-2 text-white"/></label>
-          <label className="text-xs text-slate-400">Steps<input type="number" min="0" value={steps} onChange={e=>setSteps(Number(e.target.value))} className="mt-1 w-full rounded-lg border border-white/10 bg-[#0a1524] p-2 text-white"/></label>
-          <label className="text-xs text-slate-400">Weight<input type="number" step=".1" min="0" value={weight??""} onChange={e=>setWeight(e.target.value?Number(e.target.value):undefined)} className="mt-1 w-full rounded-lg border border-white/10 bg-[#0a1524] p-2 text-white"/></label>
-          <button className="col-span-2 rounded-lg bg-[#77adff] p-2 font-bold text-[#06101f]">Save today</button>
-        </form>
-      </Panel>
-      <Panel title="Lab result" kicker="PRIVATE">
-        <form onSubmit={addLab} className="space-y-3">
-          <input required value={testName} onChange={e=>setTestName(e.target.value)} placeholder="Test name" className="w-full rounded-lg border border-white/10 bg-[#0a1524] p-2"/>
-          <div className="grid grid-cols-2 gap-3"><input required value={result} onChange={e=>setResult(e.target.value)} placeholder="Result" className="rounded-lg border border-white/10 bg-[#0a1524] p-2"/><input value={unit} onChange={e=>setUnit(e.target.value)} placeholder="Unit" className="rounded-lg border border-white/10 bg-[#0a1524] p-2"/></div>
-          <button className="w-full rounded-lg border border-white/10 p-2">Add lab result</button>
-        </form>
-        <div className="mt-4 space-y-2">{labs.slice(0,8).map(l=><div key={l.id} className="rounded-lg border border-white/10 p-2 text-sm"><b>{l.test_name}</b><span className="float-right text-slate-300">{l.result} {l.unit||""}</span><p className="text-xs text-slate-500">{l.date}</p></div>)}</div>
-      </Panel>
-      <Panel title="Recent trend" kicker="LAST ENTRIES">
-        <div className="space-y-2">{entries.slice(0,10).map(x=><div key={x.id} className="grid grid-cols-5 gap-2 rounded-lg border border-white/10 p-2 text-xs"><b>{x.date}</b><span>{x.sleep??"—"}h sleep</span><span>E {x.energy??"—"}</span><span>M {x.mood??"—"}</span><span>{x.steps??0} steps</span></div>)}</div>
-      </Panel>
-      <Panel title="Hair & self-control" kicker="NEXT SAFE SLICE">
-        <p className="text-sm text-slate-400">Database + privacy policies are ready for hair photos and urge logs. Their full upload/analytics UI is intentionally not faked here; it remains a separate implementation slice.</p>
-      </Panel>
-    </div>}
-  </main>;
+ const visible=useMemo(()=>{const cutoff=new Date(todayInTZ()+"T12:00:00");cutoff.setDate(cutoff.getDate()-range+1);const iso=cutoff.toISOString().slice(0,10);return entries.filter(e=>e.date>=iso).sort((a,b)=>a.date.localeCompare(b.date));},[entries,range]);
+ const latest=entries[0];
+ const summary=useMemo(()=>({sleep:avg(visible.map(x=>x.sleep)),energy:avg(visible.map(x=>x.energy)),stress:avg(visible.map(x=>x.stress)),steps:avg(visible.map(x=>x.steps))}),[visible]);
+
+ return <main className="pt-6"><BackHome/><div className="mt-2 flex flex-wrap items-end justify-between gap-3"><div><p className="text-[11px] tracking-widest text-slate-400">HEALTH COMMAND CENTER</p><h1 className="text-2xl font-bold">Track useful signals</h1></div><div className="flex gap-2"><Link href="/hair" className="rounded border border-white/10 px-2 py-1 text-xs">Hair</Link><Link href="/self-control" className="rounded border border-white/10 px-2 py-1 text-xs">Self-control</Link><Link href="/health-vault" className="rounded border border-white/10 px-2 py-1 text-xs">Vault</Link></div></div>{error&&<p className="mt-3 rounded-xl border border-red-400/20 bg-red-400/10 p-3 text-sm text-red-200">{error}</p>}
+ {!workspaceId?<p className="panel mt-4 p-5 text-sm">Sign in to use private health tracking. <Link href="/login" className="text-[#8ab6ff]">Login →</Link></p>:<div className="mt-4 grid gap-4 md:grid-cols-2">
+ <Panel title="Daily health" kicker={todayInTZ()}><form onSubmit={saveDaily} className="grid grid-cols-2 gap-3"><label className="text-xs text-slate-400">Sleep hours<input type="number" step=".1" min="0" max="16" value={sleep} onChange={e=>setSleep(Number(e.target.value))} className="mt-1 w-full rounded-lg border border-white/10 bg-[#0a1524] p-2 text-white"/></label><label className="text-xs text-slate-400">Energy 1–10<input type="number" min="1" max="10" value={energy} onChange={e=>setEnergy(Number(e.target.value))} className="mt-1 w-full rounded-lg border border-white/10 bg-[#0a1524] p-2 text-white"/></label><label className="text-xs text-slate-400">Mood 1–10<input type="number" min="1" max="10" value={mood} onChange={e=>setMood(Number(e.target.value))} className="mt-1 w-full rounded-lg border border-white/10 bg-[#0a1524] p-2 text-white"/></label><label className="text-xs text-slate-400">Stress 1–10<input type="number" min="1" max="10" value={stress} onChange={e=>setStress(Number(e.target.value))} className="mt-1 w-full rounded-lg border border-white/10 bg-[#0a1524] p-2 text-white"/></label><label className="text-xs text-slate-400">Steps<input type="number" min="0" value={steps} onChange={e=>setSteps(Number(e.target.value))} className="mt-1 w-full rounded-lg border border-white/10 bg-[#0a1524] p-2 text-white"/></label><label className="text-xs text-slate-400">Weight<input type="number" step=".1" min="0" value={weight??""} onChange={e=>setWeight(e.target.value?Number(e.target.value):undefined)} className="mt-1 w-full rounded-lg border border-white/10 bg-[#0a1524] p-2 text-white"/></label><label className="text-xs text-slate-400">Waist<input type="number" step=".1" min="0" value={waist??""} onChange={e=>setWaist(e.target.value?Number(e.target.value):undefined)} className="mt-1 w-full rounded-lg border border-white/10 bg-[#0a1524] p-2 text-white"/></label><label className="text-xs text-slate-400">Protein / nutrition<input value={protein} onChange={e=>setProtein(e.target.value)} placeholder="e.g. target met" className="mt-1 w-full rounded-lg border border-white/10 bg-[#0a1524] p-2 text-white"/></label><label className="col-span-2 text-xs text-slate-400">Workout / exercise<input value={exercise} onChange={e=>setExercise(e.target.value)} placeholder="Walk, gym, rest…" className="mt-1 w-full rounded-lg border border-white/10 bg-[#0a1524] p-2 text-white"/></label><label className="col-span-2 text-xs text-slate-400">Notes<textarea value={notes} onChange={e=>setNotes(e.target.value)} className="mt-1 w-full rounded-lg border border-white/10 bg-[#0a1524] p-2 text-white"/></label><button className="col-span-2 rounded-lg bg-[#77adff] p-2 font-bold text-[#06101f]">Save today</button></form></Panel>
+ <Panel title="Lab record" kicker="PRIVATE · NO DIAGNOSIS"><form onSubmit={addLab} className="space-y-2"><input required value={testName} onChange={e=>setTestName(e.target.value)} placeholder="Test name" className="w-full rounded-lg border border-white/10 bg-[#0a1524] p-2"/><div className="grid grid-cols-2 gap-2"><input required value={result} onChange={e=>setResult(e.target.value)} placeholder="Result" className="rounded-lg border border-white/10 bg-[#0a1524] p-2"/><input value={unit} onChange={e=>setUnit(e.target.value)} placeholder="Unit" className="rounded-lg border border-white/10 bg-[#0a1524] p-2"/></div><input value={refRange} onChange={e=>setRefRange(e.target.value)} placeholder="Reference range" className="w-full rounded-lg border border-white/10 bg-[#0a1524] p-2"/><textarea value={doctorNotes} onChange={e=>setDoctorNotes(e.target.value)} placeholder="Doctor notes / context" className="w-full rounded-lg border border-white/10 bg-[#0a1524] p-2"/><button className="w-full rounded-lg border border-white/10 p-2">Add lab result</button></form><div className="mt-4 max-h-64 space-y-2 overflow-auto">{labs.slice(0,15).map(l=><div key={l.id} className="rounded-lg border border-white/10 p-2 text-sm"><b>{l.test_name}</b><span className="float-right text-slate-300">{l.result} {l.unit||""}</span><p className="text-xs text-slate-500">{l.date}{l.ref_range?` · ref ${l.ref_range}`:""}</p></div>)}</div></Panel>
+ <Panel title="Health trends" kicker="TRACKING, NOT MEDICAL INTERPRETATION"><div className="mb-3 flex items-center justify-between"><p className="text-xs text-slate-400">{visible.length} logged days</p><select value={range} onChange={e=>setRange(Number(e.target.value))} className="rounded-lg border border-white/10 bg-[#0a1524] p-1 text-xs"><option value={30}>30 days</option><option value={90}>90 days</option><option value={180}>180 days</option><option value={365}>1 year</option></select></div><div className="grid grid-cols-2 gap-2"><Trend label="Sleep" values={visible.map(x=>x.sleep)}/><Trend label="Energy" values={visible.map(x=>x.energy)}/><Trend label="Stress" values={visible.map(x=>x.stress)}/><Trend label="Weight" values={visible.map(x=>x.weight)}/><Trend label="Waist" values={visible.map(x=>x.waist)}/><Trend label="Steps" values={visible.map(x=>x.steps)}/></div></Panel>
+ <Panel title="Snapshot" kicker="CURRENT WINDOW"><div className="grid grid-cols-2 gap-2 text-sm"><div className="rounded-lg border border-white/10 p-3"><span className="text-xs text-slate-500">Avg sleep</span><b className="block">{summary.sleep?.toFixed(1)??"—"} h</b></div><div className="rounded-lg border border-white/10 p-3"><span className="text-xs text-slate-500">Avg energy</span><b className="block">{summary.energy?.toFixed(1)??"—"}/10</b></div><div className="rounded-lg border border-white/10 p-3"><span className="text-xs text-slate-500">Avg stress</span><b className="block">{summary.stress?.toFixed(1)??"—"}/10</b></div><div className="rounded-lg border border-white/10 p-3"><span className="text-xs text-slate-500">Avg steps</span><b className="block">{summary.steps?Math.round(summary.steps).toLocaleString():"—"}</b></div></div>{latest&&<p className="mt-3 text-xs text-slate-500">Latest entry: {latest.date}</p>}<p className="mt-3 text-xs text-slate-500">LifeOS stores observations and trends. It does not diagnose conditions or interpret lab results as medical advice.</p></Panel>
+ </div>}
+ </main>;
 }
-
 
 export default function HealthPage(){return <PrivacyGate><HealthContent/></PrivacyGate>;}
