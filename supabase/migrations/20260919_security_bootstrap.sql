@@ -171,7 +171,7 @@ begin
   foreach t in array array[
     'life_areas','goals','projects','tasks','habits','focus_sessions','contacts','receivables',
     'family_members','family_tasks','baby_records','migration_countries','migration_documents','migration_tasks',
-    'calendar_items','daily_reviews','weekly_reviews','monthly_reviews','automation_rules','notifications',
+    'calendar_items','daily_reviews','weekly_reviews','monthly_reviews','automation_rules',
     'attachments','activity_log','ai_conversations'
   ] loop
     execute format('drop policy if exists "workspace select" on public.%I', t);
@@ -275,6 +275,20 @@ drop policy if exists "ai suggestion access" on public.ai_suggestions;
 create policy "ai suggestion access" on public.ai_suggestions for all
 using (exists(select 1 from public.ai_conversations c where c.id=conversation_id and public.is_workspace_member(c.workspace_id)))
 with check (exists(select 1 from public.ai_conversations c where c.id=conversation_id and public.is_workspace_writer(c.workspace_id)));
+
+drop policy if exists "workspace select" on public.notifications;
+drop policy if exists "workspace insert" on public.notifications;
+drop policy if exists "workspace update" on public.notifications;
+drop policy if exists "workspace delete" on public.notifications;
+drop policy if exists "own notifications select" on public.notifications;
+drop policy if exists "own notifications update" on public.notifications;
+drop policy if exists "own notifications delete" on public.notifications;
+create policy "own notifications select" on public.notifications for select
+using (user_id = auth.uid());
+create policy "own notifications update" on public.notifications for update
+using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "own notifications delete" on public.notifications for delete
+using (user_id = auth.uid());
 
 drop policy if exists "own notification preferences" on public.notification_preferences;
 create policy "own notification preferences" on public.notification_preferences for all
