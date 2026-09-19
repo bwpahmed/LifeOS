@@ -12,14 +12,15 @@ type NotificationRow={id:string;title:string;body:string;severity:string;read_at
 function decodeKey(input:string){
   const s=input.replace(/-/g,"+").replace(/_/g,"/");
   const raw=atob(s+"=".repeat((4-s.length%4)%4));
-  return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));
+  return Uint8Array.from(Array.from(raw).map(c=>c.charCodeAt(0)));
 }
 
 export default function NotificationsPage(){
   const[rows,setRows]=useState<NotificationRow[]>([]);const[error,setError]=useState("");const[msg,setMsg]=useState("");const[supported,setSupported]=useState(false);const[subscribed,setSubscribed]=useState(false);const[signedIn,setSignedIn]=useState<boolean|null>(null);
 
   const load=useCallback(async()=>{try{const sb=supabaseBrowser();const ctx=await currentWorkspace(sb);if(!ctx){setSignedIn(false);return;}setSignedIn(true);const{data,error:q}=await sb.from("notifications").select("id,title,body,severity,read_at,snoozed_until,created_at").eq("user_id",ctx.user.id).order("created_at",{ascending:false}).limit(100);if(q)throw q;setRows((data||[]) as NotificationRow[]);}catch(e){setError(e instanceof Error?e.message:"Could not load notifications");}},[]);
-  useEffect(()=>{void load();useRealtimeRefresh(["notifications"],load,Boolean(workspaceId));const ok="serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window;setSupported(ok);if(ok)navigator.serviceWorker.ready.then(r=>r.pushManager.getSubscription()).then(s=>setSubscribed(Boolean(s))).catch(()=>{});},[load]);
+  useRealtimeRefresh(["notifications"],load,signedIn===true);
+  useEffect(()=>{void load();const ok="serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window;setSupported(ok);if(ok)navigator.serviceWorker.ready.then(r=>r.pushManager.getSubscription()).then(s=>setSubscribed(Boolean(s))).catch(()=>{});},[load]);
 
   async function enablePush(){setError("");setMsg("");try{if(!supported)throw new Error("Push notifications are not supported on this browser.");const permission=await Notification.requestPermission();if(permission!=="granted")throw new Error("Notification permission was not granted.");const keyResponse=await fetch("/api/push/vapid-public");const keyData=await keyResponse.json();if(!keyResponse.ok||!keyData.publicKey)throw new Error("Server push keys are not configured.");const reg=await navigator.serviceWorker.ready;let sub=await reg.pushManager.getSubscription();if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:decodeKey(keyData.publicKey)});const json=sub.toJSON();const r=await fetch("/api/push/subscribe",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({endpoint:sub.endpoint,keys:json.keys})});const j=await r.json();if(!r.ok)throw new Error(j.error||"Could not save subscription");setSubscribed(true);setMsg("Background push enabled on this device.");}catch(e){setError(e instanceof Error?e.message:"Push setup failed");}}
   async function disablePush(){try{const reg=await navigator.serviceWorker.ready;const sub=await reg.pushManager.getSubscription();if(sub){await fetch("/api/push/subscribe",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({endpoint:sub.endpoint})});await sub.unsubscribe();}setSubscribed(false);setMsg("Push disabled on this device.");}catch(e){setError(e instanceof Error?e.message:"Could not disable push");}}
