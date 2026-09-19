@@ -432,5 +432,26 @@ create policy "lifeos private storage delete" on storage.objects
 for delete to authenticated
 using (bucket_id = 'lifeos-private' and (storage.foldername(name))[1] = auth.uid()::text);
 
+
+-- Realtime publication for multi-device LifeOS refresh.
+do $$
+declare
+  t text;
+begin
+  foreach t in array array[
+    'tasks','habits','habit_logs','receivables','receivable_payments','receivable_followups',
+    'goals','projects','family_tasks','baby_records','health_entries','lab_results','hair_photos',
+    'urge_logs','migration_countries','migration_documents','focus_sessions','journal_entries',
+    'notifications','automation_rules'
+  ] loop
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end $$;
+
 commit;
-\n
+
