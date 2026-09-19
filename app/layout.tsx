@@ -29,7 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <a className="text-center text-xs text-slate-300" href="/">Home</a>
           <a className="text-center text-xs text-slate-300" href="/today">Today</a>
           <a className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-brand text-xl font-black text-[#06101f]" href="/quick-add" aria-label="Quick add">+</a>
-          <a className="text-center text-xs text-slate-300" href="/money">Money</a>
+          <a className="text-center text-xs text-slate-300" href="/progress">Progress</a>
           <a className="text-center text-xs text-slate-300" href="/settings">More</a>
         </nav>
       </body>
