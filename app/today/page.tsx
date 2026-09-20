@@ -15,7 +15,7 @@ type TaskRow={id:string;name:string;area:string|null;status:TaskStatus;importanc
 type Checkin={sleep_hours:number|null;energy:number|null;mood:number|null;sleep_quality:number|null;main_goal:string|null};
 
 export default function TodayPage(){
- const[tasks,setTasks]=useState<TaskRow[]>([]);const[checkin,setCheckin]=useState<Checkin|null>(null);const[signedIn,setSignedIn]=useState<boolean|null>(null);const[error,setError]=useState("");const[msg,setMsg]=useState("");const[offline,setOffline]=useState(false);
+ const[tasks,setTasks]=useState<TaskRow[]>([]);const[checkin,setCheckin]=useState<Checkin|null>(null);const[signedIn,setSignedIn]=useState<boolean|null>(null);const[error,setError]=useState("");const[msg,setMsg]=useState("");const[offline,setOffline]=useState(false);const[aiPlan,setAiPlan]=useState("");const[aiLabel,setAiLabel]=useState("");const[aiLoading,setAiLoading]=useState(false);
  const load=useCallback(async()=>{try{const sb=supabaseBrowser();const ctx=await currentWorkspace(sb);if(!ctx){const cached=loadOfflineCache<TaskRow[]>("today");if(cached){setTasks(cached);setOffline(true);}else setSignedIn(false);return;}setSignedIn(true);const[tq,cq]=await Promise.all([sb.from("tasks").select("id,name,area,status,importance,deadline,financial_value,goal_id,blocked_by,created_at,estimate_min").eq("workspace_id",ctx.workspaceId).not("status","in",'("Completed","Cancelled")').limit(200),sb.from("morning_checkins").select("sleep_hours,energy,mood,sleep_quality,main_goal").eq("workspace_id",ctx.workspaceId).eq("created_by",ctx.user.id).eq("date",todayInTZ()).maybeSingle()]);if(tq.error)throw tq.error;if(cq.error)throw cq.error;const rows=(tq.data||[]) as TaskRow[];setTasks(rows);setCheckin((cq.data||null) as Checkin|null);saveOfflineCache("today",rows);setOffline(false);}catch(e){const cached=loadOfflineCache<TaskRow[]>("today");if(cached){setTasks(cached);setOffline(true);}else setError(e instanceof Error?e.message:"Could not load today plan");}},[]);
  useEffect(()=>{void load();},[load]);useRealtimeRefresh(["tasks","morning_checkins"],load,signedIn===true);
  const plan=useMemo(()=>{const main=(checkin?.main_goal||"").toLowerCase().trim();const limit=Number(checkin?.energy||7)<=4?4:6;return tasks.filter(t=>t.status!=="Waiting"&&t.status!=="Blocked").map(task=>{const base=priorityScore({status:task.status,deadline:task.deadline,importance:task.importance,value:task.financial_value,area:task.area,goalId:task.goal_id,blockedBy:task.blocked_by,createdAt:task.created_at});const boost=main&&task.name.toLowerCase().includes(main)?15:0;return{task,score:Math.min(100,base+boost)};}).sort((a,b)=>b.score-a.score).slice(0,limit);},[tasks,checkin]);
@@ -30,6 +30,7 @@ export default function TodayPage(){
   try{const sb=supabaseBrowser();const ctx=await currentWorkspace(sb);if(!ctx)throw new Error("Sign in first.");const date=todayInTZ();const check=await sb.from("morning_checkins").upsert({workspace_id:ctx.workspaceId,created_by:ctx.user.id,date,sleep_hours:sleepHours,energy,mood,sleep_quality:sleepQuality,main_goal:mainGoal.trim()||null,updated_at:new Date().toISOString()},{onConflict:"workspace_id,created_by,date"});if(check.error)throw check.error;const existing=await sb.from("health_entries").select("id").eq("workspace_id",ctx.workspaceId).eq("date",date).maybeSingle();const h=existing.data?await sb.from("health_entries").update({sleep:sleepHours,energy,mood}).eq("id",existing.data.id):await sb.from("health_entries").insert({workspace_id:ctx.workspaceId,created_by:ctx.user.id,date,sleep:sleepHours,energy,mood,privacy:"private"});if(h.error)throw h.error;setMsg("Morning check-in saved. Today plan adjusted to your energy and main goal.");await load();}catch(e){setError(e instanceof Error?e.message:"Could not save check-in");}
  }
  async function rebuildPlan(){await load();setMsg("Plan rebuilt from current priorities.");}
+ async function buildAiPlan(){setAiLoading(true);setError("");try{const r=await fetch("/api/ai/daily-plan",{method:"POST"});const j=await r.json();if(!r.ok)throw new Error(j.error||"AI planner failed");setAiPlan(j.answer||"");setAiLabel(j.label||"");}catch(e){setError(e instanceof Error?e.message:"AI planner failed");}finally{setAiLoading(false);}}
 
  return <main className="page-root">
    <BackHome/>
@@ -38,6 +39,7 @@ export default function TodayPage(){
      <div className="section-actions">
        <button onClick={morningCheckIn} className="ghost-btn">Morning check-in</button>
        <button onClick={rebuildPlan} className="ghost-btn">Rebuild plan</button>
+       <button onClick={buildAiPlan} disabled={aiLoading} className="ghost-btn">{aiLoading?"Planning…":"AI plan"}</button>
        <Link href="/reviews" className="primary-btn">Night Review</Link>
      </div>
    </div>
@@ -47,6 +49,7 @@ export default function TodayPage(){
    {error&&<p className="mb-4 rounded-xl border border-red-400/20 bg-red-400/10 p-3 text-sm text-red-200">{error}</p>}
    {signedIn===false&&<p className="panel p-5 text-sm">Sign in to build your plan. <Link href="/login" className="text-[#8ab6ff]">Login →</Link></p>}
 
+   {aiPlan&&<div className="panel mb-4 p-4"><span className="label">{aiLabel}</span><p className="mt-2 whitespace-pre-wrap text-sm">{aiPlan}</p><small>Suggestion only. Nothing was moved, completed or saved by AI.</small></div>}
    {checkin&&<div className="panel mb-4 p-3 text-sm"><b>Morning check-in</b><span className="ml-3 text-slate-400">Sleep {checkin.sleep_hours??"—"}h · Energy {checkin.energy??"—"}/10 · Quality {checkin.sleep_quality??"—"}/10{checkin.main_goal?" · Main goal: "+checkin.main_goal:""}</span></div>}
    <div className="timeline">
      {plan.length?plan.map(({task,score},i)=><div key={task.id} className="timeline-item">
