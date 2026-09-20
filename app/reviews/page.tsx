@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { BackHome, Panel } from "@/components/ui";
 import { remaining } from "@/lib/money";
+import { habitConsistencyForFrequency } from "@/lib/habits";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { currentWorkspace } from "@/lib/supabase/workspace";
 import { todayInTZ } from "@/lib/timezone";
@@ -22,11 +23,11 @@ export default function ReviewsPage(){
    sb.from("tasks").select("status,completed_at").eq("workspace_id",ws),
    sb.from("focus_sessions").select("date,minutes").eq("workspace_id",ws).gte("date",from).lte("date",to),
    sb.from("receivables").select("id,total,receivable_payments(amount,date)").eq("workspace_id",ws),
-   sb.from("habits").select("id").eq("workspace_id",ws)
+   sb.from("habits").select("id,frequency,target").eq("workspace_id",ws)
   ]);for(const q of[tasks,focus,recs,habits])if(q.error)throw q.error;
   const taskRows=(tasks.data||[]) as any[];const tasksDone=taskRows.filter(t=>t.status==="Completed"&&t.completed_at&&String(t.completed_at).slice(0,10)>=from&&String(t.completed_at).slice(0,10)<=to).length;const openTasks=taskRows.filter(t=>!["Completed","Cancelled"].includes(t.status)).length;
   let moneyReceived=0,moneyOpen=0;for(const r of (recs.data||[]) as any[]){const tx=(r.receivable_payments||[]) as any[];moneyOpen+=remaining(Number(r.total||0),tx.map(p=>({amount:Number(p.amount||0),date:p.date||today})));moneyReceived+=tx.filter(p=>p.date>=from&&p.date<=to).reduce((a,p)=>a+Number(p.amount||0),0);}
-  const habitIds=(habits.data||[]).map((h:any)=>h.id);let consistency=0;if(habitIds.length){const logs=await sb.from("habit_logs").select("habit_id,date,value").in("habit_id",habitIds).gte("date",from).lte("date",to);if(logs.error)throw logs.error;const days=Math.max(1,Math.round((new Date(to+"T12:00:00").getTime()-new Date(from+"T12:00:00").getTime())/86400000)+1);consistency=Math.round(((logs.data||[]).filter((l:any)=>Number(l.value)>0).length/(habitIds.length*days))*100);}
+  const habitRows=(habits.data||[]) as {id:string;frequency:string;target:number|null}[];let consistency=0;if(habitRows.length){const habitIds=habitRows.map(h=>h.id);const logs=await sb.from("habit_logs").select("habit_id,date,value").in("habit_id",habitIds).gte("date",from).lte("date",to);if(logs.error)throw logs.error;const days:string[]=[];for(let d=new Date(from+"T12:00:00");d<=new Date(to+"T12:00:00");d.setDate(d.getDate()+1))days.push(d.toISOString().slice(0,10));const perHabit=habitRows.map(h=>{const map=Object.fromEntries((logs.data||[]).filter((l:any)=>l.habit_id===h.id).map((l:any)=>[l.date,Number(l.value||0)]));return habitConsistencyForFrequency(map,days,h.frequency||"Daily",Number(h.target||1));});consistency=Math.round(perHabit.reduce((a,b)=>a+b,0)/perHabit.length);}
   return{tasksDone,openTasks,focusMin:(focus.data||[]).reduce((a:any,s:any)=>a+Number(s.minutes||0),0),moneyReceived,moneyOpen,habitConsistency:Math.min(100,consistency)};},[today]);
 
  const load=useCallback(async()=>{try{const sb=supabaseBrowser();const ctx=await currentWorkspace(sb);if(!ctx){setWorkspaceId("");return;}setWorkspaceId(ctx.workspaceId);setUserId(ctx.user.id);const currentFrom=monthStart(today);const prevEnd=addDays(currentFrom,-1);const prevFrom=monthStart(prevEnd);const[m,p]=await Promise.all([compute(currentFrom,today,ctx.workspaceId),compute(prevFrom,prevEnd,ctx.workspaceId)]);setMetrics(m);setPrevious(p);const daily=await sb.from("daily_reviews").select("accomplishment,incomplete,blocker,energy,improve").eq("workspace_id",ctx.workspaceId).eq("date",today).order("created_at",{ascending:false}).limit(1).maybeSingle();if(daily.data){setAccomplishment(daily.data.accomplishment||"");setIncomplete(daily.data.incomplete||"");setBlocker(daily.data.blocker||"");setEnergy(Number(daily.data.energy||7));setImprove(daily.data.improve||"");}}catch(e){setError(e instanceof Error?e.message:"Could not build review");}},[compute,today]);useEffect(()=>{void load();},[load]);
