@@ -20,7 +20,7 @@ export default function TodayPage(){
  useEffect(()=>{void load();},[load]);useRealtimeRefresh(["tasks","morning_checkins"],load,signedIn===true);
  useEffect(()=>{if(!focusTaskId&&tasks.length)setFocusTaskId(tasks[0].id);},[tasks,focusTaskId]);
  useEffect(()=>{if(!focusRunning)return;const timer=setInterval(()=>setFocusRemaining(v=>{if(v<=1){setFocusRunning(false);return 0;}return v-1;}),1000);return()=>clearInterval(timer);},[focusRunning]);
- const plan=useMemo(()=>{const main=(checkin?.main_goal||"").toLowerCase().trim();const limit=Number(checkin?.energy||7)<=4?4:6;return tasks.filter(t=>t.status!=="Waiting"&&t.status!=="Blocked").map(task=>{const base=priorityScore({status:task.status,deadline:task.deadline,importance:task.importance,value:task.financial_value,area:task.area,goalId:task.goal_id,blockedBy:task.blocked_by,createdAt:task.created_at});const boost=main&&task.name.toLowerCase().includes(main)?15:0;return{task,score:Math.min(100,base+boost)};}).sort((a,b)=>b.score-a.score).slice(0,limit);},[tasks,checkin]);
+ const plan=useMemo(()=>{const main=(checkin?.main_goal||"").toLowerCase().trim();const limit=Number(checkin?.energy||7)<=4?4:6;return tasks.filter(t=>t.status!=="Waiting"&&t.status!=="Blocked").map(task=>{const base=priorityScore({status:task.status,deadline:task.deadline,importance:task.importance,value:task.financial_value,area:task.area,goalId:task.goal_id,blockedBy:task.blocked_by,createdAt:task.created_at,estimateMin:task.estimate_min});const boost=main&&task.name.toLowerCase().includes(main)?15:0;return{task,score:Math.min(100,base+boost)};}).sort((a,b)=>b.score-a.score).slice(0,limit);},[tasks,checkin]);
  const recovery=useMemo(()=>tasks.filter(t=>t.status==="Waiting"||t.status==="Blocked"||Boolean(t.deadline&&t.deadline<new Date().toISOString().slice(0,10))).slice(0,6),[tasks]);
  async function complete(id:string){const sb=supabaseBrowser();const{error:q}=await sb.from("tasks").update({status:"Completed",completed_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",id);if(q)setError(q.message);else await load();}
  async function morningCheckIn(){
@@ -62,7 +62,7 @@ export default function TodayPage(){
        <span className="timeline-dot"/>
        <div>
          <strong>{task.name}</strong>
-         <small>{task.estimate_min||30} min · {task.area||"Personal"} · {whyPriority({status:task.status,deadline:task.deadline,importance:task.importance,value:task.financial_value,area:task.area,goalId:task.goal_id,blockedBy:task.blocked_by,createdAt:task.created_at}).slice(0,2).join(" · ")||"Priority engine"}</small>
+         <small>{task.estimate_min||30} min · {task.area||"Personal"} · {whyPriority({status:task.status,deadline:task.deadline,importance:task.importance,value:task.financial_value,area:task.area,goalId:task.goal_id,blockedBy:task.blocked_by,createdAt:task.created_at,estimateMin:task.estimate_min}).slice(0,2).join(" · ")||"Priority engine"}</small>
        </div>
        <span className={`pill ${i===0?"red":"blue"}`}>{score>=85?"Critical":`${score}/100`}</span>
      </div>):<div className="empty-state"><b>No plan needed</b>Add tasks and LifeOS will build the day.</div>}
