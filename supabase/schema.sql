@@ -911,12 +911,7 @@ create table if not exists public.external_connections (
 alter table public.external_connections enable row level security;
 
 drop policy if exists "external connection own select" on public.external_connections;
-drop policy if exists "external connection own insert" on public.external_connections;
-drop policy if exists "external connection own update" on public.external_connections;
-
-create policy "external connection own select" on public.external_connections
-for select to authenticated
-using (user_id = auth.uid() and public.is_workspace_member(workspace_id));
+-- No client SELECT policy: OAuth tokens stay server-only.
 
 create policy "external connection own insert" on public.external_connections
 for insert to authenticated
