@@ -5,6 +5,7 @@ import { useEffect,useState } from "react";
 import { usePathname } from "next/navigation";
 import { WorkspaceSwitcher } from "@/components/workspace-switcher";
 import { InstallPWA } from "@/components/install-pwa";
+import { NotificationButton } from "@/components/notification-button";
 
 const nav = [
   { section: "COMMAND" },
@@ -136,7 +137,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
           <div className="top-actions">
             <Link className="icon-btn" href="/search" title="Search" aria-label="Search">⌕</Link>
-            <Link className="icon-btn" href="/notifications" title="Notifications" aria-label="Notifications">◉</Link>
+            <NotificationButton />
             <Link className="quick-add-btn" href="/quick-add"><span>＋</span> Quick Add</Link>
             <Link className="avatar" href="/settings" title="Settings" aria-label="Settings">ME</Link>
           </div>
