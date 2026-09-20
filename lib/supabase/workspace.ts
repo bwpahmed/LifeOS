@@ -13,19 +13,6 @@ export interface WorkspaceOption extends WorkspaceContext {
   type: string;
 }
 
-const CACHE = "lifeos_workspace_ctx_v1";
-const SELECTED = "lifeos_selected_workspace_v1";
-
-function cached(user: User): WorkspaceContext | null {
-  try {
-    const raw = localStorage.getItem(CACHE);
-    if (!raw) return null;
-    const x = JSON.parse(raw) as { userId: string; workspaceId: string; role: string; modules: string[] };
-    if (x.userId !== user.id || !x.workspaceId) return null;
-    return { user, workspaceId: x.workspaceId, role: x.role || "member", modules: x.modules || [] };
-  } catch { return null; }
-}
-
 async function sessionUser(client: SupabaseClient): Promise<User | null> {
   try {
     const { data, error } = await client.auth.getUser();
@@ -42,19 +29,29 @@ export async function listWorkspaces(
 ): Promise<WorkspaceOption[]> {
   const user = await sessionUser(client);
   if (!user) return [];
+
   const { data: memberships, error } = await client
     .from("workspace_members")
     .select("workspace_id,role,modules")
     .eq("user_id", user.id);
   if (error) throw error;
+
   const ids = (memberships || []).map((m) => String(m.workspace_id));
   if (!ids.length) return [];
+
   const { data: spaces, error: spaceError } = await client
     .from("workspaces")
     .select("id,name,type")
     .in("id", ids);
   if (spaceError) throw spaceError;
-  const names = new Map((spaces || []).map((w) => [String(w.id), { name: String(w.name || "LifeOS"), type: String(w.type || "personal") }]));
+
+  const names = new Map(
+    (spaces || []).map((w) => [
+      String(w.id),
+      { name: String(w.name || "LifeOS"), type: String(w.type || "personal") },
+    ])
+  );
+
   return (memberships || []).map((m) => ({
     user,
     workspaceId: String(m.workspace_id),
@@ -65,11 +62,34 @@ export async function listWorkspaces(
   }));
 }
 
-export function selectWorkspace(workspaceId: string) {
-  try {
-    localStorage.setItem(SELECTED, workspaceId);
-    localStorage.removeItem(CACHE);
-  } catch {}
+export async function selectWorkspace(
+  workspaceId: string,
+  client: SupabaseClient = supabaseBrowser()
+) {
+  const user = await sessionUser(client);
+  if (!user) throw new Error("Sign in first.");
+
+  const { data: existing, error: readError } = await client
+    .from("user_settings")
+    .select("settings")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (readError) throw readError;
+
+  const settings =
+    existing?.settings && typeof existing.settings === "object" && !Array.isArray(existing.settings)
+      ? { ...(existing.settings as Record<string, unknown>) }
+      : {};
+
+  const { error } = await client.from("user_settings").upsert(
+    {
+      user_id: user.id,
+      settings: { ...settings, selected_workspace_id: workspaceId },
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id" }
+  );
+  if (error) throw error;
 }
 
 export async function currentWorkspace(
@@ -78,20 +98,42 @@ export async function currentWorkspace(
   const user = await sessionUser(client);
   if (!user) return null;
 
-  try {
-    const options = await listWorkspaces(client);
-    if (!options.length) return null;
-    let selected = "";
-    try { selected = localStorage.getItem(SELECTED) || ""; } catch {}
-    const ctx = options.find((x) => x.workspaceId === selected) || options[0];
-    try {
-      localStorage.setItem(SELECTED, ctx.workspaceId);
-      localStorage.setItem(CACHE, JSON.stringify({
-        userId: user.id, workspaceId: ctx.workspaceId, role: ctx.role, modules: ctx.modules,
-      }));
-    } catch {}
-    return { user, workspaceId: ctx.workspaceId, role: ctx.role, modules: ctx.modules };
-  } catch {
-    return typeof localStorage !== "undefined" ? cached(user) : null;
+  const options = await listWorkspaces(client);
+  if (!options.length) return null;
+
+  const { data: pref, error: prefError } = await client
+    .from("user_settings")
+    .select("settings")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (prefError) throw prefError;
+
+  const settings =
+    pref?.settings && typeof pref.settings === "object" && !Array.isArray(pref.settings)
+      ? (pref.settings as Record<string, unknown>)
+      : {};
+  const selected = typeof settings.selected_workspace_id === "string"
+    ? settings.selected_workspace_id
+    : "";
+
+  const ctx = options.find((x) => x.workspaceId === selected) || options[0];
+
+  if (selected !== ctx.workspaceId) {
+    const { error } = await client.from("user_settings").upsert(
+      {
+        user_id: user.id,
+        settings: { ...settings, selected_workspace_id: ctx.workspaceId },
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" }
+    );
+    if (error) throw error;
   }
+
+  return {
+    user,
+    workspaceId: ctx.workspaceId,
+    role: ctx.role,
+    modules: ctx.modules,
+  };
 }
