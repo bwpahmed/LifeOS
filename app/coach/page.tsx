@@ -99,7 +99,7 @@ export default function CoachPage() {
       <textarea value={question} onChange={e=>setQuestion(e.target.value)} rows={3} className="w-full rounded-lg border border-white/10 bg-[#0a1524] p-2"/>
       <button onClick={ask} disabled={loading||!context} className="mt-2 rounded-lg bg-[#77adff] px-4 py-2 font-bold text-[#06101f] disabled:opacity-50">{loading?"Thinking…":"Ask coach"}</button>
       {label&&<p className="mt-2 text-xs text-slate-500">{label}</p>}
-      {answer&&<div className="mt-4 whitespace-pre-wrap rounded-xl border border-white/10 bg-white/[.02] p-4 text-sm leading-6">{answer}</div>}
+      {answer&&<><div className="mt-4 whitespace-pre-wrap rounded-xl border border-white/10 bg-white/[.02] p-4 text-sm leading-6">{answer}</div>{context&&context.today_tasks.length>0&&<div className="mt-4 rounded-xl border border-white/10 p-4"><span className="label">WHY THESE PRIORITIES?</span><div className="mt-2 space-y-2">{context.today_tasks.slice(0,3).map((t:any,i:number)=><div key={i} className="priority-item"><span className="priority-number">{i+1}</span><div><strong>{t.title}</strong><small>{t.due?"Due "+t.due+" · ":""}Priority score {t.score}/100</small></div><span className="pill blue">{t.score}</span></div>)}</div></div>}</>}
       {error&&<p className="mt-3 text-sm text-red-300">{error}</p>}
     </Panel>}
   </main>;
