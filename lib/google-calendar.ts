@@ -47,3 +47,33 @@ export function verifyState(token:string){
   if(!crypto.timingSafeEqual(Buffer.from(sig),Buffer.from(expected)))throw new Error("Invalid OAuth state");
   return JSON.parse(Buffer.from(body,"base64url").toString("utf8")) as {userId:string;workspaceId:string;next:string};
 }
+
+
+export type GoogleConnectionRow={
+  id:string;account_email:string|null;access_token_enc:string|null;refresh_token_enc:string|null;
+  token_expires_at:string|null;workspace_id:string;user_id:string
+};
+
+export async function validGoogleAccessToken(
+  connection:GoogleConnectionRow,
+  update:(changes:Record<string,unknown>)=>Promise<void>
+){
+  if(connection.access_token_enc&&connection.token_expires_at&&new Date(connection.token_expires_at).getTime()>Date.now()+60_000){
+    return decryptSecret(connection.access_token_enc);
+  }
+  if(!connection.refresh_token_enc)throw new Error("Google Calendar refresh token is missing. Reconnect Calendar.");
+  const refresh=decryptSecret(connection.refresh_token_enc);
+  const response=await fetch("https://oauth2.googleapis.com/token",{
+    method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},
+    body:new URLSearchParams({
+      client_id:process.env.GOOGLE_CALENDAR_CLIENT_ID||"",
+      client_secret:process.env.GOOGLE_CALENDAR_CLIENT_SECRET||"",
+      refresh_token:refresh,grant_type:"refresh_token"
+    }),cache:"no-store"
+  });
+  const token=await response.json();
+  if(!response.ok||!token.access_token)throw new Error(token.error_description||token.error||"Could not refresh Google Calendar access");
+  const expiresAt=new Date(Date.now()+Number(token.expires_in||3600)*1000).toISOString();
+  await update({access_token_enc:encryptSecret(token.access_token),token_expires_at:expiresAt,updated_at:new Date().toISOString()});
+  return String(token.access_token);
+}
