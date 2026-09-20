@@ -15,13 +15,13 @@ env:
   AEO_REPO: https://github.com/subconscious-systems/AEO.git
   AEO_COMMIT: 13ea5800a8ff041dd64157950a9e763c51278543
   ECC_REPO: https://github.com/affaan-m/ECC.git
-  ECC_COMMIT: 4f373874209b4b63fdec0469b76992923ea0a9d0
+  ECC_COMMIT: 934195f955cf0da847d59fcd6f68856bce112d8b
   SPEC_KIT_REPO: https://github.com/github/spec-kit.git
-  SPEC_KIT_COMMIT: d848fb4e18f44640ad6b42e60a280551ee90cdce
+  SPEC_KIT_COMMIT: d4229c071c7ea3885b43e8a7739847300f618f13
   AGENTMEMORY_REPO: https://github.com/rohitg00/agentmemory.git
   AGENTMEMORY_COMMIT: e04ba88819c365c9acf9d6661ea802143e728bd6
   HARNESS_REPO: https://github.com/ai-boost/awesome-harness-engineering.git
-  HARNESS_COMMIT: 378a07b1f717f88e4128e9a26eefafe714272cc4
+  HARNESS_COMMIT: 3f6c37aed0eb10b1a85a40a91f66e00e6c212766
 
 jobs:
   sync:
@@ -178,7 +178,7 @@ jobs:
           make_agent('aeo-promotion-reviewer', 'AEO promotion safety reviewer; does not auto-post.', 'AEO is disabled by default. Review proposed Moltbook promotion text and require explicit user approval before any external write. Never schedule loops or background posting.')
 
           lock = root / '.agents/capability-stack.version'
-          lock.write_text('''AEO=13ea5800a8ff041dd64157950a9e763c51278543 (external pointer only)\nECC=4f373874209b4b63fdec0469b76992923ea0a9d0 MIT\nSPEC_KIT=d848fb4e18f44640ad6b42e60a280551ee90cdce MIT\nAGENTMEMORY=e04ba88819c365c9acf9d6661ea802143e728bd6 Apache-2.0\nHARNESS_ENGINEERING=378a07b1f717f88e4128e9a26eefafe714272cc4 CC0-1.0\n''', encoding='utf-8')
+          lock.write_text('''AEO=13ea5800a8ff041dd64157950a9e763c51278543 (external pointer only)\nECC=934195f955cf0da847d59fcd6f68856bce112d8b MIT\nSPEC_KIT=d4229c071c7ea3885b43e8a7739847300f618f13 MIT\nAGENTMEMORY=e04ba88819c365c9acf9d6661ea802143e728bd6 Apache-2.0\nHARNESS_ENGINEERING=3f6c37aed0eb10b1a85a40a91f66e00e6c212766 CC0-1.0\n''', encoding='utf-8')
           print(f'ECC skills={ecc_skills} ECC agents={ecc_agents} SpecKit skills={spec_skills} AgentMemory skills={memory_skills}')
           if ecc_skills < 35 or ecc_agents < 60 or spec_skills < 8 or memory_skills < 15:
               raise SystemExit('Generated capability counts are unexpectedly low')
