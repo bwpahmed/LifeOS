@@ -213,7 +213,7 @@ end $$;
 
 
 -- Row-level privacy for generic hierarchy tables that can contain sensitive Health/Self-control items.
-do $
+do $$
 declare
   t text;
 begin
@@ -231,7 +231,7 @@ begin
     execute format('create policy "private row update" on public.%I for update using (public.is_workspace_writer(workspace_id) and public.can_access_private_row(workspace_id,created_by,privacy,area)) with check (public.is_workspace_writer(workspace_id) and public.can_access_private_row(workspace_id,created_by,privacy,area))', t);
     execute format('create policy "private row delete" on public.%I for delete using (public.is_workspace_writer(workspace_id) and public.can_access_private_row(workspace_id,created_by,privacy,area))', t);
   end loop;
-end $;
+end $$;
 
 -- Private modules require owner/admin or an explicit module grant.
 do $$
@@ -384,7 +384,7 @@ using (bucket_id = 'lifeos-private' and (storage.foldername(name))[1] = auth.uid
 
 
 -- Realtime publication for multi-device LifeOS refresh.
-do $
+do $$
 declare
   t text;
 begin
@@ -401,7 +401,7 @@ begin
       execute format('alter publication supabase_realtime add table public.%I', t);
     end if;
   end loop;
-end $;
+end $$;
 
 
 -- Workspace invitations and explicit module-level access.
