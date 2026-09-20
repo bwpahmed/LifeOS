@@ -24,6 +24,8 @@ export interface AIContext {
   active_goals: { name: string; progress: number }[];
   upcoming_family: { title: string; due: string }[];
   migration_blockers: string[];
+  energy?: { score: number | null; sleepHours: number | null; mainGoal: string | null };
+  calendar_items?: { title: string; date: string; kind: string }[];
 }
 
 export interface ParseCaptureResult {
