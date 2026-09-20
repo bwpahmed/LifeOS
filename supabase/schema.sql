@@ -84,7 +84,7 @@ create table monthly_reviews (id uuid primary key default uuid_generate_v4(), wo
 
 create table automation_rules (id uuid primary key default uuid_generate_v4(), workspace_id uuid references workspaces(id) on delete cascade, name text, trigger text, conditions jsonb default '{}', action text, enabled boolean default true, created_by uuid references auth.users, created_at timestamptz default now());
 create table automation_runs (id uuid primary key default uuid_generate_v4(), rule_id uuid references automation_rules(id) on delete cascade, changes int default 0, created_at timestamptz default now());
-create table notifications (id uuid primary key default uuid_generate_v4(), workspace_id uuid references workspaces(id) on delete cascade, user_id uuid references auth.users(id) on delete cascade, title text, body text, severity text default 'normal', ref_table text, ref_id uuid, snoozed_until timestamptz, read_at timestamptz, created_at timestamptz default now());
+create table notifications (id uuid primary key default uuid_generate_v4(), workspace_id uuid references workspaces(id) on delete cascade, user_id uuid references auth.users(id) on delete cascade, title text, body text, severity text default 'normal', ref_table text, ref_id uuid, snoozed_until timestamptz, read_at timestamptz, created_at timestamptz default now(), push_sent_at timestamptz, push_attempted_at timestamptz, push_attempts integer not null default 0, push_error text);
 create table notification_preferences (user_id uuid primary key references auth.users(id) on delete cascade, quiet_start text default '22:30', quiet_end text default '07:00', allow_critical_in_quiet boolean default false, push_endpoint jsonb);
 create table push_subscriptions (id uuid primary key default uuid_generate_v4(), user_id uuid references auth.users(id) on delete cascade, endpoint text unique, keys jsonb, created_at timestamptz default now());
 create table attachments (id uuid primary key default uuid_generate_v4(), workspace_id uuid references workspaces(id) on delete cascade, owner_table text, owner_id uuid, path text, created_by uuid references auth.users, created_at timestamptz default now());
@@ -1478,5 +1478,23 @@ begin
     'select public.generate_due_lifeos_notifications();'
   );
 end $$;
+
+
+create or replace function public.lifeos_vapid_config()
+returns table(public_key text, private_key text, subject text)
+language sql
+security definer
+set search_path = public, vault
+as $$
+  select
+    (select decrypted_secret from vault.decrypted_secrets where name='lifeos_vapid_public' limit 1),
+    (select decrypted_secret from vault.decrypted_secrets where name='lifeos_vapid_private' limit 1),
+    (select decrypted_secret from vault.decrypted_secrets where name='lifeos_vapid_subject' limit 1);
+$$;
+revoke all on function public.lifeos_vapid_config() from public, anon, authenticated;
+grant execute on function public.lifeos_vapid_config() to service_role;
+create index if not exists notifications_push_dispatch_idx
+  on public.notifications(user_id, push_sent_at, created_at desc)
+  where read_at is null;
 
 commit;
