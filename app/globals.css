@@ -311,3 +311,29 @@ button{cursor:pointer}
   .panel{padding:15px}
   .title-block .eyebrow{max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 }
+
+.sticky-info{padding:11px 14px;border:1px solid rgba(255,189,105,.22);background:rgba(255,189,105,.08);border-radius:13px;color:var(--amber);font-size:11px}
+.sticky-form{display:flex;flex-direction:column;gap:9px}
+.sticky-form input,.sticky-form textarea,.sticky-form select,.sticky-note input,.sticky-note textarea{
+  width:100%;border:1px solid var(--line);background:rgba(5,13,24,.18);color:var(--text);border-radius:10px;padding:10px;outline:none
+}
+.sticky-toolbar,.sticky-foot,.sticky-head{display:flex;gap:8px;align-items:center;justify-content:space-between}
+.sticky-toolbar select{max-width:150px}
+.sticky-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.sticky-note{border-radius:18px;padding:14px;border:1px solid var(--line);box-shadow:0 12px 30px rgba(0,0,0,.12)}
+.sticky-note input{font-weight:800;background:transparent;border:0;padding:4px 0}
+.sticky-note textarea{resize:vertical;background:transparent;border:0;padding:8px 0;line-height:1.5}
+.sticky-note small{color:var(--muted);font-size:9px}
+.sticky-yellow{background:linear-gradient(145deg,rgba(255,205,93,.18),rgba(35,28,12,.22))}
+.sticky-blue{background:linear-gradient(145deg,rgba(105,167,255,.17),rgba(13,27,48,.24))}
+.sticky-green{background:linear-gradient(145deg,rgba(75,210,160,.16),rgba(12,36,29,.22))}
+.sticky-pink{background:linear-gradient(145deg,rgba(255,111,125,.14),rgba(40,17,25,.22))}
+.sticky-note.archived{opacity:.55}
+:root[data-theme="light"] .sticky-form input,:root[data-theme="light"] .sticky-form textarea,:root[data-theme="light"] .sticky-form select,
+:root[data-theme="light"] .sticky-note input,:root[data-theme="light"] .sticky-note textarea{background:rgba(255,255,255,.45)!important}
+:root[data-theme="light"] .sticky-yellow{background:#fff6c9}
+:root[data-theme="light"] .sticky-blue{background:#e5f0ff}
+:root[data-theme="light"] .sticky-green{background:#ddf6eb}
+:root[data-theme="light"] .sticky-pink{background:#ffe5e9}
+@media(max-width:1050px){.sticky-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.sticky-grid{grid-template-columns:1fr}}
