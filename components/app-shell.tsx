@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { WorkspaceSwitcher } from "@/components/workspace-switcher";
 import { InstallPWA } from "@/components/install-pwa";
 import { NotificationButton } from "@/components/notification-button";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const nav = [
   { section: "COMMAND" },
@@ -31,6 +32,19 @@ const nav = [
   { href: "/reviews", icon: "↗", label: "Reviews" },
   { href: "/journal", icon: "✎", label: "Journal" },
   { href: "/settings", icon: "⚙", label: "Settings" },
+
+  { section: "ADVANCED" },
+  { href: "/sticky-notes", icon: "▰", label: "Sticky Notes" },
+  { href: "/matrix", icon: "◆", label: "Priority Matrix" },
+  { href: "/waiting", icon: "…", label: "Waiting For" },
+  { href: "/health-vault", icon: "▣", label: "Health Vault" },
+  { href: "/hair", icon: "◌", label: "Hair Recovery" },
+  { href: "/self-control", icon: "◇", label: "Self-Control" },
+  { href: "/progress", icon: "↗", label: "Progress" },
+  { href: "/coach", icon: "✦", label: "AI Coach" },
+  { href: "/notifications", icon: "◉", label: "Notifications" },
+  { href: "/privacy", icon: "⌾", label: "Privacy" },
+  { href: "/access", icon: "♙", label: "Access" },
 ] as const;
 
 const pageTitles: Record<string, string> = {
@@ -64,6 +78,7 @@ const pageTitles: Record<string, string> = {
   "/privacy": "Privacy",
   "/waiting": "Waiting For",
   "/matrix": "Priority Matrix",
+  "/sticky-notes": "Sticky Notes",
 };
 
 function pageTitle(pathname: string) {
@@ -137,6 +152,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
           <div className="top-actions">
             <Link className="icon-btn" href="/search" title="Search" aria-label="Search">⌕</Link>
+            <ThemeToggle />
             <NotificationButton />
             <Link className="quick-add-btn" href="/quick-add"><span>＋</span> Quick Add</Link>
             <Link className="avatar" href="/settings" title="Settings" aria-label="Settings">ME</Link>
