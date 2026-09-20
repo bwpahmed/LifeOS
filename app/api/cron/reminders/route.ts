@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { sendWebPush, type PushKeys } from "@/lib/push";
 import { isInQuietHours } from "@/lib/timezone";
 import { escalation } from "@/lib/money";
+import { createDailyBackup } from "@/lib/server-backup";
 
 function localParts(tz: string) {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -138,7 +139,7 @@ export async function GET(request: Request) {
   if (memberUsersError) return NextResponse.json({ error: memberUsersError.message }, { status: 500 });
 
   const users = Array.from(new Set((memberUsers || []).map((m) => String(m.user_id))));
-  let created = 0, pushed = 0, checkedUsers = 0;
+  let created = 0, pushed = 0, checkedUsers = 0, backups = 0;
 
   for (const userId of users) {
     checkedUsers += 1;
@@ -304,7 +305,9 @@ export async function GET(request: Request) {
         created += r.created; pushed += r.pushed;
       }
     }
+
+    if(dailyMode){for(const workspaceId of workspaceIds){try{await createDailyBackup(admin,userId,String(workspaceId),local.date);backups+=1;}catch{ /* Reminders should still complete if one backup fails. */ }}}
   }
 
-  return NextResponse.json({ ok: true, mode: dailyMode ? "daily" : "hourly", checkedUsers, created, pushed });
+  return NextResponse.json({ ok: true, mode: dailyMode ? "daily" : "hourly", checkedUsers, created, pushed, backups });
 }
