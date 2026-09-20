@@ -120,3 +120,57 @@ The branch is not considered ready unless all pass:
 7. Vercel deployment check
 
 `verify:features` checks the 64 specification areas plus the current extra requirements and rejects unexpected persistent localStorage usage.
+
+
+## Runtime-strengthened verification — 2026-09-20
+
+The parity audit is not based only on string/static checks.
+
+### Live owner CRUD / RLS smoke
+A transaction was run as the configured LifeOS owner and rolled back after verification. It successfully exercised:
+- Waste Guard create/update/read
+- health routine create + completion log
+- water log
+- diet item
+- sleep session
+- task create/update
+- time entry
+- morning check-in
+- permanent Sticky Note create/update plus attempted DELETE
+- calendar item
+- private journal entry
+
+The Sticky Note remained after DELETE because there is intentionally no DELETE RLS policy.
+
+### Negative security smoke
+A separate transaction:
+- proved invalid clock value `99:99` is rejected by database constraints;
+- switched the JWT subject to a non-member fake user;
+- proved that user could not read the owner Waste Guard, Health Planner or Sticky Note rows.
+
+### Reminder smoke
+Transactional scheduler tests proved:
+- a due critical task generates a `critical` notification;
+- a medicine routine generates an `important` notification.
+
+No smoke-test records remain because all verification transactions were rolled back.
+
+### Clock validation
+Production now validates 24-hour HH:MM values for task reminders, health routines, meal times, sleep times, profile planning/review times, quiet hours and DND blocks.
+
+### Current external limitations
+- **Google Calendar website account link:** OAuth/sync code is implemented, but production `external_connections` currently contains no Google Calendar connection. The user still needs Google OAuth credentials configured on the website deployment and must complete Google consent.
+- **Native Android/iOS widget:** a standard PWA cannot expose a true native home-screen widget. LifeOS provides the supported web equivalent: installable PWA, compact `/mobile` Tasks & Notes screen and manifest shortcuts.
+- **Supabase leaked-password protection:** advisor reports this Auth-dashboard setting is disabled. The connected Supabase tool does not expose Auth configuration updates.
+
+### Latest engineering gates
+The current branch must keep all of these green:
+- unit tests, including Waste Guard and Health Planner validation/calculations
+- TypeScript
+- SQL verifier
+- 64-section + screenshot feature coverage verifier
+- Next.js production build
+- AI Policy Gate
+- Vercel deployment status
+
+Do not merge PR #4 without explicit user approval.
