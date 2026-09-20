@@ -510,3 +510,23 @@ button{cursor:pointer}
 .day-picker{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .day-picker button{min-width:38px}
 @media(max-width:480px){.day-picker{gap:5px}.day-picker button{min-width:34px;padding:6px}}
+
+/* MOBILE TOUCH TARGETS */
+@media(max-width:800px){
+  .primary-btn,.ghost-btn,.soft-btn,.danger-btn,.quick-add-btn,.mini-btn,
+  .panel button,.panel a[role="button"]{min-height:44px}
+  .mini-btn{padding:8px 10px;font-size:10px}
+  .priority-item{grid-template-columns:35px minmax(0,1fr) auto}
+  .priority-item strong{font-size:13px;line-height:1.35}
+  .priority-item small{font-size:10px;line-height:1.4}
+  .mobile-note{min-height:120px;padding:14px}
+  .mobile-note b{font-size:13px}
+  .mobile-note p{font-size:11px}
+  .quick-type-grid a,.quick-type-grid button{min-height:52px}
+}
+@media(max-width:480px){
+  .priority-item{gap:8px;padding:10px}
+  .section-heading h2{font-size:22px}
+  .topbar{gap:8px}
+  .icon-btn{width:42px;height:42px}
+}
