@@ -28,7 +28,7 @@ for (const file of files) {
   const lines = sql.split(/\r?\n/);
   const malformed = lines
     .map((line, index) => ({ line: index + 1, text: line.trim() }))
-    .filter((x) => x.text === "do $" || x.text === "end $;");
+    .filter((x) => ["do $","end $;","as $","$;"].includes(x.text));
 
   if (malformed.length) {
     failed = true;
