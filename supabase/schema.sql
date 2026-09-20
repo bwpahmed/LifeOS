@@ -926,5 +926,11 @@ create index if not exists external_connections_user_provider_idx
 on public.external_connections(user_id,provider);
 
 
+
+drop policy if exists "external connection own select" on public.external_connections;
+create policy "external connection own select" on public.external_connections
+for select to authenticated
+using (user_id = auth.uid() and public.is_workspace_member(workspace_id));
+
 commit;
 
