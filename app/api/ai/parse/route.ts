@@ -15,6 +15,9 @@ export async function POST(req: Request) {
   if (!text || text.trim().length < 2) {
     return NextResponse.json({ error: "Empty input" }, { status: 400 });
   }
+  if (text.length > 4000) {
+    return NextResponse.json({ error: "Input is too long" }, { status: 413 });
+  }
 
   const result = await parseCapture(
     text,
@@ -31,6 +34,5 @@ export async function POST(req: Request) {
       : result.attemptedProvider
         ? `Rule-based fallback after ${result.attemptedProvider} error`
         : "Rule-based parse (AI not configured)",
-    ...(result.error ? { providerError: result.error } : {}),
   });
 }
