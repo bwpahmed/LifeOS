@@ -149,11 +149,7 @@ async function chat(
   jsonMode = false
 ): Promise<string> {
   const cfg = configFor(provider, env);
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20_000);
-  let response: Response;
-  try {
-    response = await fetch(cfg.url, {
+  const response = await fetch(cfg.url, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${cfg.key}`,
@@ -167,7 +163,7 @@ async function chat(
       ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
     }),
     cache: "no-store",
-    signal: AbortSignal.timeout(20000),
+    signal: AbortSignal.timeout(20_000),
   });
 
   if (!response.ok) {
