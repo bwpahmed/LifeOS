@@ -88,6 +88,7 @@ const checks=[
  ["N Four reminder severities",has("app/api/cron/reminders/route.ts",'"normal"','"important"','"urgent"','"critical"')&&has("app/notifications/page.tsx","severityPill")],
  ["O Goal health reason",has("app/goals/page.tsx","goalReason","Reason:")],
  ["P PDF export",has("app/settings/page.tsx","Print / Save PDF","window.print")],
+ ["Q Native hourly reminder scheduler",has("supabase/migrations/20260920_general_inapp_scheduler.sql","generate_due_lifeos_notifications","lifeos-general-reminders-hourly")],
 ];
 
 const failed=checks.filter(([,ok])=>!ok);
