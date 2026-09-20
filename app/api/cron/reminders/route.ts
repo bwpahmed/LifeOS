@@ -143,16 +143,21 @@ export async function GET(request: Request) {
   for (const userId of users) {
     checkedUsers += 1;
     pushed += await redeliverSnoozed(admin, userId);
-    const [{ data: profile }, { data: preferences }, { data: memberships, error: memberError }] = await Promise.all([
+    const [{ data: profile }, { data: preferences }, { data: memberships, error: memberError }, { data: dndBlocks }] = await Promise.all([
       admin.from("profiles").select("timezone").eq("id", userId).maybeSingle(),
       admin.from("notification_preferences").select("quiet_start,quiet_end,allow_critical_in_quiet").eq("user_id", userId).maybeSingle(),
       admin.from("workspace_members").select("workspace_id").eq("user_id", userId),
+      admin.from("notification_dnd_blocks").select("label,start_time,end_time,days_of_week,active").eq("user_id",userId).eq("active",true),
     ]);
     if (memberError) continue;
     const tz = profile?.timezone || "Asia/Dubai";
     const local = localParts(tz);
     const hm = `${String(local.hour).padStart(2, "0")}:${String(local.minute).padStart(2, "0")}`;
-    const quiet = isInQuietHours(hm, preferences?.quiet_start || "22:30", preferences?.quiet_end || "07:00");
+    const localDateObj = new Date(local.date + "T12:00:00Z");
+    const localDow = ((localDateObj.getUTCDay() + 6) % 7) + 1;
+    const baseQuiet = isInQuietHours(hm, preferences?.quiet_start || "22:30", preferences?.quiet_end || "07:00");
+    const dndActive = (dndBlocks||[]).some((b:any)=>{const days=Array.isArray(b.days_of_week)?b.days_of_week.map(Number):[1,2,3,4,5,6,7];return days.includes(localDow)&&isInQuietHours(hm,String(b.start_time||"00:00"),String(b.end_time||"00:00"));});
+    const quiet = baseQuiet || dndActive;
     const allowCritical = Boolean(preferences?.allow_critical_in_quiet);
     const workspaceIds = (memberships || []).map((m) => m.workspace_id);
     if (!workspaceIds.length) continue;
@@ -214,7 +219,7 @@ export async function GET(request: Request) {
       pushed += r.pushed;
     }
 
-    if ((dailyMode || (local.hour >= 9 && local.hour <= 18)) && !quiet) {
+    if (dailyMode || (local.hour >= 9 && local.hour <= 18)) {
       const localDayMs = new Date(local.date + "T12:00:00Z").getTime();
       for (const rec of money || []) {
         const dueMs = rec.due_date ? new Date(rec.due_date + "T12:00:00Z").getTime() : localDayMs;
@@ -252,8 +257,6 @@ export async function GET(request: Request) {
     }
 
 
-    const localDateObj = new Date(local.date + "T12:00:00Z");
-    const localDow = ((localDateObj.getUTCDay() + 6) % 7) + 1;
     for (const routine of healthRoutines || []) {
       if (routine.start_date && routine.start_date > local.date) continue;
       if (routine.end_date && routine.end_date < local.date) continue;
@@ -285,15 +288,17 @@ export async function GET(request: Request) {
       pushed += r.pushed;
     }
 
-    if ((dailyMode || local.hour === 9) && !quiet) {
+    if (dailyMode || local.hour === 9) {
       const todayMs = new Date(local.date + "T12:00:00Z").getTime();
       for (const doc of docs || []) {
         if (!doc.expiry_date) continue;
         const days = Math.round((new Date(doc.expiry_date + "T12:00:00Z").getTime() - todayMs) / 86400000);
         if (![30, 14, 7, 3, 1, 0].includes(days)) continue;
+        const severity = days <= 3 ? "critical" : "important";
+        if (quiet && !(severity === "critical" && allowCritical)) continue;
         const r = await deliver(admin, {
           userId, workspaceId: doc.workspace_id, title: "LifeOS document reminder",
-          body: `${doc.name} expires in ${days} day${days === 1 ? "" : "s"}.`, severity: days <= 3 ? "critical" : "important",
+          body: `${doc.name} expires in ${days} day${days === 1 ? "" : "s"}.`, severity,
           refTable: "migration_documents", refId: doc.id, url: "/europe", dedupeHours: 20,
         });
         created += r.created; pushed += r.pushed;
