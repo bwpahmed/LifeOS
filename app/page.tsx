@@ -52,7 +52,7 @@ export default function Home(){
   const[completedWeek,setCompletedWeek]=useState(0);
   const[activityWeek,setActivityWeek]=useState(0);
   const[wasteMonth,setWasteMonth]=useState(0);
-  const[homeWidgets,setHomeWidgets]=useState<string[]>(["top3","money","health","focus","family","europe","business","calendar","alerts","waiting","goals","week","waste"]);
+  const[homeWidgets,setHomeWidgets]=useState<string[]>(["top3","money","health","focus","family","europe","business","calendar","alerts","waiting","goals","week","waste"]);const[lifeScoreEnabled,setLifeScoreEnabled]=useState(true);
   const[timezone,setTimezone]=useState("Asia/Dubai");
   const[error,setError]=useState("");
 
@@ -104,7 +104,7 @@ export default function Home(){
       setGoals((g.data||[]) as Goal[]);
       setCompletedWeek((done.data||[]).length);
       setActivityWeek((activity.data||[]).length);
-      setWasteMonth((expenses.data||[]).filter((x:any)=>x.is_waste).reduce((a:any,x:any)=>a+Number(x.amount||0),0));const hw=(us.data?.settings as any)?.home_widgets;if(Array.isArray(hw))setHomeWidgets(hw.map(String));
+      setWasteMonth((expenses.data||[]).filter((x:any)=>x.is_waste).reduce((a:any,x:any)=>a+Number(x.amount||0),0));const settings=(us.data?.settings||{}) as any;const hw=settings.home_widgets;if(Array.isArray(hw))setHomeWidgets(hw.map(String));setLifeScoreEnabled(settings.life_score_enabled!==false);
 
       const ids=habitRows.map(x=>x.id);
       if(ids.length){
@@ -202,10 +202,10 @@ export default function Home(){
         <h2>Do the right thing first.</h2>
         <p>LifeOS keeps money, work, health, family and long-term goals visible until the important things are actually done.</p>
       </div>
-      <div className="life-score">
+      {lifeScoreEnabled&&<div className="life-score">
         <div className="ring" style={{"--p":scores.life} as React.CSSProperties}><span>{scores.life}%</span></div>
         <small>Life Score<br/><span style={{opacity:.6}}>directional</span></small>
-      </div>
+      </div>}
     </div>
 
     <div className="grid g4 mt">
