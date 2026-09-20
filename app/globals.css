@@ -337,3 +337,17 @@ button{cursor:pointer}
 :root[data-theme="light"] .sticky-pink{background:#ffe5e9}
 @media(max-width:1050px){.sticky-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:700px){.sticky-grid{grid-template-columns:1fr}}
+
+.settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.settings-section{border:1px solid var(--line);border-radius:14px;padding:14px}
+.settings-section h3{font-size:13px;margin:0 0 10px}
+.settings-row{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:9px 0;border-bottom:1px solid var(--line)}
+.settings-row:last-child{border-bottom:0}
+.settings-row label,.settings-row span{font-size:10px}
+.settings-row input,.settings-row select{background:#0a1524;border:1px solid var(--line);border-radius:8px;color:var(--text);padding:7px 8px;max-width:190px}
+.feature-directory{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.feature-link{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:11px;font-size:11px;background:rgba(255,255,255,.02)}
+.feature-link:hover{background:rgba(255,255,255,.055)}
+@media(max-width:1180px){.feature-directory{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:800px){.settings-grid{grid-template-columns:1fr}.feature-directory{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.feature-directory{grid-template-columns:1fr}}
