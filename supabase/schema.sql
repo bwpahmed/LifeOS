@@ -489,6 +489,10 @@ as $$
     when 'health' then 'health'
     when 'hair' then 'health'
     when 'money' then 'money'
+    when 'tasks' then 'tasks'
+    when 'journal' then 'journal'
+    when 'family' then 'family'
+    when 'europe' then 'europe'
     else null
   end;
 $$;
