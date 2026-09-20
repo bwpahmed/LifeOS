@@ -97,6 +97,7 @@ const checks=[
  ["W Mobile installed-app shortcuts",has("public/manifest.webmanifest","Quick Add","Tasks & Notes","Sticky Notes","Waste Guard")&&has("app/mobile/page.tsx","Widget-like mobile access","Tasks & Notes")],
  ["X Light theme utility contrast",has("app/globals.css","LIGHT MODE READABILITY HARDENING — canonical",".text-white",".text-emerald-300",".text-red-300",".nav-item span")],
  ["Y Exact in-app schedules",has("supabase/migrations/20260920_health_inapp_scheduler.sql","*/15 * * * *","generate_due_health_notifications")&&has("supabase/migrations/20260920_general_inapp_scheduler.sql","7 * * * *","generate_due_lifeos_notifications")],
+ ["Z Exact Web Push dispatcher",exists("supabase/functions/lifeos-push-dispatch/index.ts")&&has("supabase/migrations/20260920_schedule_exact_push_dispatch.sql","*/5 * * * *","lifeos-push-dispatch")&&has("app/notifications/page.tsx","push_sent_at:null","push_attempts:0")&&has("public/sw.js","data.data?.url")],
 ];
 
 const failed=checks.filter(([,ok])=>!ok);
