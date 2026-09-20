@@ -37,6 +37,8 @@ export async function POST(req: Request) {
     active_goals: Array.isArray(context?.active_goals) ? context!.active_goals!.slice(0, 25) : [],
     upcoming_family: Array.isArray(context?.upcoming_family) ? context!.upcoming_family!.slice(0, 25) : [],
     migration_blockers: Array.isArray(context?.migration_blockers) ? context!.migration_blockers!.slice(0, 25) : [],
+    energy: context?.energy && typeof context.energy === "object" ? context.energy : undefined,
+    calendar_items: Array.isArray(context?.calendar_items) ? context!.calendar_items!.slice(0,25) : [],
   };
 
   const result = await coachAnswer(question.trim(), safeContext, process.env);
