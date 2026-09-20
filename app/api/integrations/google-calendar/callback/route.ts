@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { supabaseServer } from "@/lib/supabase/server";
 import { encryptSecret,googleConfigured,googleRedirectUri,verifyState } from "@/lib/google-calendar";
 
 export async function GET(request:Request){
@@ -26,10 +26,12 @@ export async function GET(request:Request){
     const userRes=await fetch("https://openidconnect.googleapis.com/v1/userinfo",{headers:{Authorization:"Bearer "+token.access_token},cache:"no-store"});
     const user=await userRes.json();
     if(!userRes.ok)throw new Error("Could not read Google account");
-    const admin=supabaseAdmin();
-    const existing=await admin.from("external_connections").select("refresh_token_enc").eq("user_id",state.userId).eq("provider","google_calendar").maybeSingle();
+    const sb=await supabaseServer();
+    const auth=await sb.auth.getUser();
+    if(!auth.data.user||auth.data.user.id!==state.userId)throw new Error("LifeOS session expired. Sign in and connect again.");
+    const existing=await sb.from("external_connections").select("refresh_token_enc").eq("user_id",state.userId).eq("provider","google_calendar").maybeSingle();
     const refresh=token.refresh_token?encryptSecret(token.refresh_token):(existing.data?.refresh_token_enc||null);
-    const{error}=await admin.from("external_connections").upsert({
+    const{error}=await sb.from("external_connections").upsert({
       workspace_id:state.workspaceId,user_id:state.userId,provider:"google_calendar",
       account_email:user.email||null,
       access_token_enc:encryptSecret(token.access_token),
