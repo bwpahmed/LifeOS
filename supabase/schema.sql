@@ -813,5 +813,30 @@ create policy "ai suggestion access" on public.ai_suggestions for all
 using (exists(select 1 from public.ai_conversations c where c.id=conversation_id and public.can_access_module(c.workspace_id,'tasks')))
 with check (exists(select 1 from public.ai_conversations c where c.id=conversation_id and public.is_workspace_writer(c.workspace_id) and public.can_access_module(c.workspace_id,'tasks')));
 
+
+-- Tighten SECURITY DEFINER helper execution.
+-- RLS policies require selected helpers for authenticated users, but anonymous callers do not.
+
+revoke execute on function public.is_workspace_member(uuid) from public, anon;
+revoke execute on function public.is_workspace_writer(uuid) from public, anon;
+revoke execute on function public.is_workspace_admin(uuid) from public, anon;
+revoke execute on function public.can_access_module(uuid,text) from public, anon;
+revoke execute on function public.can_access_private_row(uuid,uuid,text,text) from public, anon;
+revoke execute on function public.can_read_private_storage(text) from public, anon;
+revoke execute on function public.can_insert_private_storage(text) from public, anon;
+revoke execute on function public.can_manage_private_storage(text) from public, anon;
+revoke execute on function public.private_storage_workspace(text) from public, anon, authenticated;
+revoke execute on function public.private_storage_module(text) from public, anon, authenticated;
+revoke execute on function public.handle_new_lifeos_user() from public, anon, authenticated;
+
+grant execute on function public.is_workspace_member(uuid) to authenticated;
+grant execute on function public.is_workspace_writer(uuid) to authenticated;
+grant execute on function public.is_workspace_admin(uuid) to authenticated;
+grant execute on function public.can_access_module(uuid,text) to authenticated;
+grant execute on function public.can_access_private_row(uuid,uuid,text,text) to authenticated;
+grant execute on function public.can_read_private_storage(text) to authenticated;
+grant execute on function public.can_insert_private_storage(text) to authenticated;
+grant execute on function public.can_manage_private_storage(text) to authenticated;
+
 commit;
 
