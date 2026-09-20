@@ -9,10 +9,20 @@ import { todayInTZ } from "@/lib/timezone";
 
 type Item={id:string;date:string;title:string;kind:string;editable?:boolean;sourceId?:string;url?:string|null;calendarName?:string};
 type GoogleStatus={authenticated:boolean;configured:boolean;connected:boolean;accountEmail?:string|null;error?:string};
+type View="month"|"agenda";
 
 function addDays(iso:string,n:number){const d=new Date(iso+"T12:00:00");d.setDate(d.getDate()+n);return d.toISOString().slice(0,10);}
 function isoStart(iso:string){return new Date(iso+"T00:00:00").toISOString();}
 function isoEnd(iso:string){return new Date(iso+"T23:59:59").toISOString();}
+function monthStart(iso:string){return iso.slice(0,7)+"-01";}
+function shiftMonth(iso:string,n:number){const d=new Date(iso+"T12:00:00");d.setMonth(d.getMonth()+n,1);return d.toISOString().slice(0,10);}
+function monthCells(first:string){
+  const d=new Date(first+"T12:00:00");
+  const mondayIndex=(d.getDay()+6)%7;
+  const start=new Date(d);start.setDate(d.getDate()-mondayIndex);
+  return Array.from({length:42},(_,i)=>{const x=new Date(start);x.setDate(start.getDate()+i);return x.toISOString().slice(0,10);});
+}
+function kindClass(kind:string){return kind==="Money"?"money":kind==="Family"?"family":kind==="Google"?"google":"";}
 
 export default function CalendarPage(){
   const[workspaceId,setWorkspaceId]=useState("");
@@ -21,6 +31,8 @@ export default function CalendarPage(){
   const[google,setGoogle]=useState<GoogleStatus>({authenticated:false,configured:false,connected:false});
   const[error,setError]=useState("");
   const[range,setRange]=useState<"7"|"30"|"90">("30");
+  const[view,setView]=useState<View>("month");
+  const[cursor,setCursor]=useState(()=>monthStart(todayInTZ()));
   const[loadingGoogle,setLoadingGoogle]=useState(false);
 
   const load=useCallback(async()=>{
@@ -29,7 +41,7 @@ export default function CalendarPage(){
       const ctx=await currentWorkspace(sb);
       if(!ctx){setWorkspaceId("");return;}
       setWorkspaceId(ctx.workspaceId);
-      const from=addDays(todayInTZ(),-7),to=addDays(todayInTZ(),120);
+      const from=addDays(todayInTZ(),-120),to=addDays(todayInTZ(),400);
       const[t,r,f,m]=await Promise.all([
         sb.from("tasks").select("id,name,deadline,status").eq("workspace_id",ctx.workspaceId).gte("deadline",from).lte("deadline",to).not("status","in",'("Completed","Cancelled")'),
         sb.from("receivables").select("id,name,next_followup,status").eq("workspace_id",ctx.workspaceId).gte("next_followup",from).lte("next_followup",to).neq("status","Paid"),
@@ -53,7 +65,7 @@ export default function CalendarPage(){
       const status=await statusRes.json() as GoogleStatus;
       setGoogle(status);
       if(!status.connected){setGoogleItems([]);return;}
-      const from=todayInTZ(),to=addDays(from,120);
+      const from=addDays(todayInTZ(),-120),to=addDays(todayInTZ(),400);
       const res=await fetch(`/api/integrations/google-calendar/events?from=${encodeURIComponent(isoStart(from))}&to=${encodeURIComponent(isoEnd(to))}`,{cache:"no-store"});
       const data=await res.json();
       if(!res.ok)throw new Error(data.error||"Google Calendar sync failed");
@@ -70,6 +82,10 @@ export default function CalendarPage(){
   const allItems=useMemo(()=>[...items,...googleItems].sort((a,b)=>a.date.localeCompare(b.date)),[items,googleItems]);
   const visible=useMemo(()=>{const end=addDays(todayInTZ(),Number(range));return allItems.filter(x=>x.date>=todayInTZ()&&x.date<=end);},[allItems,range]);
   const grouped=useMemo(()=>visible.reduce<Record<string,Item[]>>((a,x)=>{(a[x.date]??=[]).push(x);return a;},{}),[visible]);
+  const cells=useMemo(()=>monthCells(cursor),[cursor]);
+  const cellMap=useMemo(()=>allItems.reduce<Record<string,Item[]>>((a,x)=>{(a[x.date]??=[]).push(x);return a;},{}),[allItems]);
+  const monthLabel=new Date(cursor+"T12:00:00").toLocaleDateString("en-US",{month:"long",year:"numeric"});
+  const cursorMonth=cursor.slice(0,7);
 
   async function reschedule(i:Item,date:string){
     if(!i.sourceId)return;
@@ -83,9 +99,8 @@ export default function CalendarPage(){
     <div className="section-heading">
       <div><span className="label">CALENDAR</span><h2>One timeline for obligations</h2></div>
       <div className="section-actions">
-        <select value={range} onChange={e=>setRange(e.target.value as any)} className="ghost-btn">
-          <option value="7">7 days</option><option value="30">30 days</option><option value="90">90 days</option>
-        </select>
+        <button onClick={()=>setView("month")} className={view==="month"?"primary-btn":"ghost-btn"}>Month</button>
+        <button onClick={()=>setView("agenda")} className={view==="agenda"?"primary-btn":"ghost-btn"}>Agenda</button>
         {google.configured&&google.connected?<button onClick={()=>loadGoogle()} className="ghost-btn">{loadingGoogle?"Syncing…":"Sync Google"}</button>:
           google.configured?<Link href="/api/integrations/google-calendar/connect?next=/calendar" className="primary-btn">Connect Google Calendar</Link>:
           <Link href="/settings#google-calendar" className="ghost-btn">Configure Google Calendar</Link>}
@@ -95,17 +110,32 @@ export default function CalendarPage(){
     <div className="grid g3">
       <article className="metric-card accent-blue"><span>Google Calendar</span><strong>{google.connected?"Connected":"Not connected"}</strong><small>{google.accountEmail||"Primary Gmail calendar"}</small></article>
       <article className="metric-card accent-green"><span>LifeOS items</span><strong>{items.length}</strong><small>Tasks, money, family and documents</small></article>
-      <article className="metric-card accent-amber"><span>Google events</span><strong>{googleItems.length}</strong><small>Owned calendars in current sync window</small></article>
+      <article className="metric-card accent-amber"><span>Google events</span><strong>{googleItems.length}</strong><small>Owned calendars in sync window</small></article>
     </div>
 
     {!google.configured&&<div className="panel mt">
       <span className="label">GOOGLE OAUTH</span><h3 style={{margin:"6px 0"}}>Calendar code is ready, server credentials are not configured yet</h3>
-      <p className="small-copy">Add GOOGLE_CALENDAR_CLIENT_ID, GOOGLE_CALENDAR_CLIENT_SECRET and GOOGLE_CALENDAR_TOKEN_KEY in Vercel. Then use Connect Google Calendar here.</p>
+      <p className="small-copy">Add GOOGLE_CALENDAR_CLIENT_ID, GOOGLE_CALENDAR_CLIENT_SECRET and GOOGLE_CALENDAR_TOKEN_KEY in Vercel. Then connect your Gmail calendar here.</p>
     </div>}
 
     {error&&<p className="mt text-sm text-red-300">{error}</p>}
     {!workspaceId?<p className="panel mt">Sign in first. <Link href="/login" className="text-btn">Login →</Link></p>:
-      <div className="mt list-stack">
+    view==="month"?<section className="panel mt">
+      <div className="calendar-toolbar">
+        <div className="section-actions"><button onClick={()=>setCursor(shiftMonth(cursor,-1))} className="ghost-btn">← Prev</button><button onClick={()=>setCursor(monthStart(todayInTZ()))} className="ghost-btn">Today</button><button onClick={()=>setCursor(shiftMonth(cursor,1))} className="ghost-btn">Next →</button></div>
+        <div className="calendar-title">{monthLabel}</div>
+      </div>
+      <div className="calendar-grid">
+        {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d=><div key={d} className="cal-head">{d}</div>)}
+        {cells.map(date=>{const rows=cellMap[date]||[];const muted=date.slice(0,7)!==cursorMonth;return <div key={date} className={`cal-day ${muted?"muted-day":""} ${date===todayInTZ()?"today":""}`}>
+          <span className="cal-date">{Number(date.slice(-2))}</span>
+          <div className="cal-items">{rows.slice(0,4).map(i=>i.url?<a key={i.id} href={i.url} target="_blank" rel="noreferrer" title={i.title} className={`cal-item ${kindClass(i.kind)}`}>{i.title}</a>:<span key={i.id} title={i.title} className={`cal-item ${kindClass(i.kind)}`}>{i.title}</span>)}{rows.length>4&&<span className="cal-item">+{rows.length-4} more</span>}</div>
+        </div>})}
+      </div>
+    </section>:
+    <section className="mt">
+      <div className="calendar-toolbar"><div className="calendar-title">Agenda</div><select value={range} onChange={e=>setRange(e.target.value as any)} className="ghost-btn"><option value="7">7 days</option><option value="30">30 days</option><option value="90">90 days</option></select></div>
+      <div className="list-stack">
         {Object.entries(grouped).map(([date,rows])=><Panel key={date} title={date} kicker={date===todayInTZ()?"TODAY":new Date(date+"T12:00:00").toLocaleDateString("en-US",{weekday:"long"})}>
           <div className="list-stack">{rows.map(i=><div key={i.id} className="priority-item">
             <span className="priority-number">{i.kind==="Google"?"G":i.kind.slice(0,1)}</span>
@@ -115,6 +145,7 @@ export default function CalendarPage(){
           </div>)}</div>
         </Panel>)}
         {visible.length===0&&<div className="empty-state"><b>Nothing scheduled</b>No LifeOS or Google items in this window.</div>}
-      </div>}
+      </div>
+    </section>}
   </main>;
 }
