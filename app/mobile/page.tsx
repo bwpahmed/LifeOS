@@ -5,6 +5,7 @@ import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { currentWorkspace } from "@/lib/supabase/workspace";
 import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
+import { InstallPWA } from "@/components/install-pwa";
 
 type Task={id:string;name:string;status:string;deadline:string|null};
 type Note={id:string;title:string;body:string;pinned:boolean;archived:boolean;updated_at:string};
@@ -19,6 +20,8 @@ export default function MobileCompactPage(){
  async function done(id:string){const sb=supabaseBrowser();const{error:q}=await sb.from("tasks").update({status:"Completed",completed_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",id);if(q)setError(q.message);else await load();}
  return <main className="mobile-compact">
    <div className="mobile-compact-head"><div><span className="label">PHONE QUICK VIEW</span><h2>Tasks & Notes</h2></div><Link href="/quick-add" className="primary-btn">＋ Add</Link></div>
+   <div className="sticky-info"><b>Widget-like mobile access:</b> install LifeOS as a PWA, then use its app shortcuts for Tasks & Notes, Tasks, Sticky Notes and Waste Guard. Browsers do not expose a true native home-screen widget API to a normal PWA.</div>
+   <div className="mt"><InstallPWA/></div>
    {error&&<p className="text-sm text-red-300">{error}</p>}
    {!workspaceId?<p className="panel p-4 text-sm">Sign in first. <Link href="/login" className="text-btn">Login →</Link></p>:<>
     <section className="panel"><div className="panel-head"><div><span className="label">NEXT</span><h3>Tasks</h3></div><Link href="/tasks" className="text-btn">All</Link></div><div className="list-stack">{tasks.map(t=><div key={t.id} className="priority-item"><span className="priority-number">✓</span><div><strong>{t.name}</strong><small>{t.status} · {t.deadline||"No deadline"}</small></div><button onClick={()=>done(t.id)} className="mini-btn">Done</button></div>)}{!tasks.length&&<div className="empty-state"><b>No open tasks</b>Suspiciously peaceful.</div>}</div></section>
