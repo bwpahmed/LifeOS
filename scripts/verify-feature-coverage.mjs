@@ -89,6 +89,14 @@ const checks=[
  ["O Goal health reason",has("app/goals/page.tsx","goalReason","Reason:")],
  ["P PDF export",has("app/settings/page.tsx","Print / Save PDF","window.print")],
  ["Q Native hourly reminder scheduler",has("supabase/migrations/20260920_general_inapp_scheduler.sql","generate_due_lifeos_notifications","lifeos-general-reminders-hourly")],
+ ["R Calendar real views + drag",has("app/calendar/page.tsx",'type View="day"|"week"|"month"|"timeline"',"dragStart","dropOn","rescheduleTask")],
+ ["S Achievement milestones",has("app/progress/page.tsx","30 Focus Sessions","AED 100K Recovered","90% Health Consistency","Europe Application Submitted","6 Month Hair Tracking")],
+ ["T Weekly planning checklist",has("app/reviews/page.tsx","Weekly planning mode","Clear inbox","Review money","Review Europe","Save weekly plan")],
+ ["U Waste memory fields",has("app/expenses/page.tsx","is_waste","waste_reason","avoid_next_time","Recurring waste","Anti-waste memory")],
+ ["V Health planner full set",has("app/health-planner/page.tsx","Water tracker","Medicine & health reminders","Diet plan","Sleep tracker","water_logs","diet_plan_items","sleep_sessions")],
+ ["W Mobile installed-app shortcuts",has("public/manifest.webmanifest","Quick Add","Tasks & Notes","Sticky Notes","Waste Guard")&&has("app/mobile/page.tsx","Widget-like mobile access","Tasks & Notes")],
+ ["X Light theme utility contrast",has("app/globals.css","LIGHT MODE UTILITY CONTRAST",".text-white",".text-emerald-300",".text-red-300",".nav-item span")],
+ ["Y Exact in-app schedules",has("supabase/migrations/20260920_health_inapp_scheduler.sql","*/15 * * * *","generate_due_health_notifications")&&has("supabase/migrations/20260920_general_inapp_scheduler.sql","7 * * * *","generate_due_lifeos_notifications")],
 ];
 
 const failed=checks.filter(([,ok])=>!ok);
