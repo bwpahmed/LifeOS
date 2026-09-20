@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { sendWebPush, type PushKeys } from "@/lib/push";
 import { isInQuietHours } from "@/lib/timezone";
 import { escalation } from "@/lib/money";
 import { createDailyBackup } from "@/lib/server-backup";
@@ -63,75 +62,14 @@ async function deliver(admin: ReturnType<typeof supabaseAdmin>, opts: {
   });
   if (insertError) throw insertError;
 
-  const { data: subs, error: subsError } = await admin
-    .from("push_subscriptions")
-    .select("id,endpoint,keys")
-    .eq("user_id", opts.userId);
-  if (subsError) throw subsError;
-
-  let pushed = 0;
-  for (const sub of subs || []) {
-    try {
-      const result = await sendWebPush({
-        endpoint: sub.endpoint,
-        keys: sub.keys as PushKeys,
-        payload: { title: opts.title, body: opts.body, url: opts.url, tag: `${opts.refTable}-${opts.refId}` },
-      });
-      if (result.ok) pushed += 1;
-      if (result.status === 404 || result.status === 410) {
-        await admin.from("push_subscriptions").delete().eq("id", sub.id);
-      }
-    } catch {
-      // Keep the in-app notification even if one push endpoint fails.
-    }
-  }
-  return { created: 1, pushed };
+  // Web Push is dispatched by the Supabase scheduled Edge Function.
+  return { created: 1, pushed: 0 };
 }
 
-async function redeliverSnoozed(admin: ReturnType<typeof supabaseAdmin>, userId: string) {
-  const now = new Date().toISOString();
-  const { data: due } = await admin
-    .from("notifications")
-    .select("id,title,body,ref_table,ref_id,snoozed_until")
-    .eq("user_id", userId)
-    .is("read_at", null)
-    .not("snoozed_until", "is", null)
-    .lte("snoozed_until", now)
-    .limit(50);
-  if (!due?.length) return 0;
-
-  const { data: subs } = await admin
-    .from("push_subscriptions")
-    .select("id,endpoint,keys")
-    .eq("user_id", userId);
-
-  let pushed = 0;
-  for (const n of due) {
-    const url =
-      n.ref_table === "tasks" ? "/today"
-      : n.ref_table === "receivables" ? "/money"
-      : n.ref_table === "family_tasks" ? "/family"
-      : n.ref_table === "migration_documents" ? "/europe"
-      : n.ref_table === "health_routines" ? "/health-planner"
-      : "/notifications";
-    for (const sub of subs || []) {
-      try {
-        const result = await sendWebPush({
-          endpoint: sub.endpoint,
-          keys: sub.keys as PushKeys,
-          payload: { title: n.title, body: n.body, url, tag: `notification-${n.id}` },
-        });
-        if (result.ok) pushed += 1;
-        if (result.status === 404 || result.status === 410) {
-          await admin.from("push_subscriptions").delete().eq("id", sub.id);
-        }
-      } catch {}
-    }
-    await admin.from("notifications").update({ snoozed_until: null }).eq("id", n.id);
-  }
-  return pushed;
+async function redeliverSnoozed(_admin: ReturnType<typeof supabaseAdmin>, _userId: string) {
+  // Supabase exact push dispatcher handles due snoozes every five minutes.
+  return 0;
 }
-
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const dailyMode =
