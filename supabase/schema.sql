@@ -30,7 +30,7 @@ create table tasks (
   id uuid primary key default uuid_generate_v4(), workspace_id uuid references workspaces(id) on delete cascade,
   name text not null, description text, area text, goal_id uuid references goals(id) on delete set null,
   project_id uuid references projects(id) on delete set null, milestone_id uuid references goal_milestones(id) on delete set null,
-  status text default 'Inbox', importance int default 3, ai_score int,
+  status text default 'Inbox', importance int default 3, ai_score int, responsible text default 'Me', business_section text,
   start_date date, deadline date, reminder_time text, recurrence jsonb default '{"kind":"none"}',
   estimate_min int default 30, actual_min int default 0, financial_value numeric default 0,
   assigned_to uuid references auth.users, waiting_for text, blocked_by uuid references tasks(id) on delete set null,
