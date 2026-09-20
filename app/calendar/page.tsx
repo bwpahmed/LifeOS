@@ -9,12 +9,13 @@ import { todayInTZ } from "@/lib/timezone";
 
 type Item={id:string;date:string;title:string;kind:string;editable?:boolean;sourceId?:string;url?:string|null;calendarName?:string};
 type GoogleStatus={authenticated:boolean;configured:boolean;connected:boolean;accountEmail?:string|null;error?:string};
-type View="month"|"agenda";
+type View="day"|"week"|"month"|"timeline";
 
 function addDays(iso:string,n:number){const d=new Date(iso+"T12:00:00");d.setDate(d.getDate()+n);return d.toISOString().slice(0,10);}
 function isoStart(iso:string){return new Date(iso+"T00:00:00").toISOString();}
 function isoEnd(iso:string){return new Date(iso+"T23:59:59").toISOString();}
 function monthStart(iso:string){return iso.slice(0,7)+"-01";}
+function weekStart(iso:string){const d=new Date(iso+"T12:00:00");d.setDate(d.getDate()-((d.getDay()+6)%7));return d.toISOString().slice(0,10);}
 function shiftMonth(iso:string,n:number){const d=new Date(iso+"T12:00:00");d.setMonth(d.getMonth()+n,1);return d.toISOString().slice(0,10);}
 function monthCells(first:string){
   const d=new Date(first+"T12:00:00");
@@ -33,6 +34,7 @@ export default function CalendarPage(){
   const[range,setRange]=useState<"7"|"30"|"90">("30");
   const[view,setView]=useState<View>("month");
   const[cursor,setCursor]=useState(()=>monthStart(todayInTZ()));
+  const[selectedDate,setSelectedDate]=useState(todayInTZ());
   const[loadingGoogle,setLoadingGoogle]=useState(false);
 
   const load=useCallback(async()=>{
@@ -87,20 +89,20 @@ export default function CalendarPage(){
   const monthLabel=new Date(cursor+"T12:00:00").toLocaleDateString("en-US",{month:"long",year:"numeric"});
   const cursorMonth=cursor.slice(0,7);
 
-  async function reschedule(i:Item,date:string){
-    if(!i.sourceId)return;
-    const sb=supabaseBrowser();
-    const{error:q}=await sb.from("tasks").update({deadline:date,updated_at:new Date().toISOString()}).eq("id",i.sourceId);
-    if(q)setError(q.message);else await load();
-  }
+  async function reschedule(i:Item,date:string){if(!i.sourceId)return;await rescheduleTask(i.sourceId,date);}
+  async function rescheduleTask(id:string,date:string){const sb=supabaseBrowser();const{error:q}=await sb.from("tasks").update({deadline:date,status:"Planned",updated_at:new Date().toISOString()}).eq("id",id);if(q)setError(q.message);else await load();}
+  function dragStart(e:React.DragEvent,item:Item){if(item.editable&&item.sourceId)e.dataTransfer.setData("text/lifeos-task-id",item.sourceId);}
+  function dropOn(e:React.DragEvent,date:string){e.preventDefault();const id=e.dataTransfer.getData("text/lifeos-task-id");if(id)void rescheduleTask(id,date);}
 
   return <main className="page-root">
     <BackHome/>
     <div className="section-heading">
       <div><span className="label">CALENDAR</span><h2>One timeline for obligations</h2></div>
       <div className="section-actions">
+        <button onClick={()=>setView("day")} className={view==="day"?"primary-btn":"ghost-btn"}>Day</button>
+        <button onClick={()=>setView("week")} className={view==="week"?"primary-btn":"ghost-btn"}>Week</button>
         <button onClick={()=>setView("month")} className={view==="month"?"primary-btn":"ghost-btn"}>Month</button>
-        <button onClick={()=>setView("agenda")} className={view==="agenda"?"primary-btn":"ghost-btn"}>Agenda</button>
+        <button onClick={()=>setView("timeline")} className={view==="timeline"?"primary-btn":"ghost-btn"}>Timeline</button>
         {google.configured&&google.connected?<button onClick={()=>loadGoogle()} className="ghost-btn">{loadingGoogle?"Syncing…":"Sync Google"}</button>:
           google.configured?<Link href="/api/integrations/google-calendar/connect?next=/calendar" className="primary-btn">Connect Google Calendar</Link>:
           <Link href="/settings#google-calendar" className="ghost-btn">Configure Google Calendar</Link>}
@@ -120,32 +122,6 @@ export default function CalendarPage(){
 
     {error&&<p className="mt text-sm text-red-300">{error}</p>}
     {!workspaceId?<p className="panel mt">Sign in first. <Link href="/login" className="text-btn">Login →</Link></p>:
-    view==="month"?<section className="panel mt">
-      <div className="calendar-toolbar">
-        <div className="section-actions"><button onClick={()=>setCursor(shiftMonth(cursor,-1))} className="ghost-btn">← Prev</button><button onClick={()=>setCursor(monthStart(todayInTZ()))} className="ghost-btn">Today</button><button onClick={()=>setCursor(shiftMonth(cursor,1))} className="ghost-btn">Next →</button></div>
-        <div className="calendar-title">{monthLabel}</div>
-      </div>
-      <div className="calendar-grid">
-        {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d=><div key={d} className="cal-head">{d}</div>)}
-        {cells.map(date=>{const rows=cellMap[date]||[];const muted=date.slice(0,7)!==cursorMonth;return <div key={date} className={`cal-day ${muted?"muted-day":""} ${date===todayInTZ()?"today":""}`}>
-          <span className="cal-date">{Number(date.slice(-2))}</span>
-          <div className="cal-items">{rows.slice(0,4).map(i=>i.url?<a key={i.id} href={i.url} target="_blank" rel="noreferrer" title={i.title} className={`cal-item ${kindClass(i.kind)}`}>{i.title}</a>:<span key={i.id} title={i.title} className={`cal-item ${kindClass(i.kind)}`}>{i.title}</span>)}{rows.length>4&&<span className="cal-item">+{rows.length-4} more</span>}</div>
-        </div>})}
-      </div>
-    </section>:
-    <section className="mt">
-      <div className="calendar-toolbar"><div className="calendar-title">Agenda</div><select value={range} onChange={e=>setRange(e.target.value as any)} className="ghost-btn"><option value="7">7 days</option><option value="30">30 days</option><option value="90">90 days</option></select></div>
-      <div className="list-stack">
-        {Object.entries(grouped).map(([date,rows])=><Panel key={date} title={date} kicker={date===todayInTZ()?"TODAY":new Date(date+"T12:00:00").toLocaleDateString("en-US",{weekday:"long"})}>
-          <div className="list-stack">{rows.map(i=><div key={i.id} className="priority-item">
-            <span className="priority-number">{i.kind==="Google"?"G":i.kind.slice(0,1)}</span>
-            <div><strong>{i.title}</strong><small>{i.kind}{i.calendarName?" · "+i.calendarName:""}</small></div>
-            {i.editable?<input type="date" value={i.date} onChange={e=>reschedule(i,e.target.value)} className="mini-btn"/>:
-              i.url?<a href={i.url} target="_blank" rel="noreferrer" className="mini-btn">Open</a>:<span/>}
-          </div>)}</div>
-        </Panel>)}
-        {visible.length===0&&<div className="empty-state"><b>Nothing scheduled</b>No LifeOS or Google items in this window.</div>}
-      </div>
-    </section>}
+    view==="day"?<section className="panel mt"><div className="calendar-toolbar"><div className="section-actions"><button onClick={()=>setSelectedDate(addDays(selectedDate,-1))} className="ghost-btn">←</button><button onClick={()=>setSelectedDate(todayInTZ())} className="ghost-btn">Today</button><button onClick={()=>setSelectedDate(addDays(selectedDate,1))} className="ghost-btn">→</button></div><div className="calendar-title">{selectedDate}</div></div><div onDragOver={e=>e.preventDefault()} onDrop={e=>dropOn(e,selectedDate)} className="cal-day today" style={{minHeight:320}}><div className="cal-items">{(cellMap[selectedDate]||[]).map(i=>i.url?<a key={i.id} href={i.url} target="_blank" rel="noreferrer" className={`cal-item ${kindClass(i.kind)}`}>{i.title}</a>:<div key={i.id} draggable={Boolean(i.editable)} onDragStart={e=>dragStart(e,i)} className={`cal-item ${kindClass(i.kind)}`}>{i.title}{i.editable&&<input type="date" value={i.date} onChange={e=>reschedule(i,e.target.value)} style={{marginLeft:8,width:"auto"}}/>}</div>)}</div></div></section>:view==="week"?<section className="panel mt"><div className="calendar-toolbar"><div className="section-actions"><button onClick={()=>setSelectedDate(addDays(selectedDate,-7))} className="ghost-btn">← Week</button><button onClick={()=>setSelectedDate(todayInTZ())} className="ghost-btn">This week</button><button onClick={()=>setSelectedDate(addDays(selectedDate,7))} className="ghost-btn">Week →</button></div><div className="calendar-title">{weekStart(selectedDate)} → {addDays(weekStart(selectedDate),6)}</div></div><div className="calendar-week-grid">{Array.from({length:7},(_,idx)=>addDays(weekStart(selectedDate),idx)).map(date=><div key={date} onDragOver={e=>e.preventDefault()} onDrop={e=>dropOn(e,date)} className={`cal-day ${date===todayInTZ()?"today":""}`}><b className="cal-date">{new Date(date+"T12:00:00").toLocaleDateString("en-US",{weekday:"short",day:"numeric"})}</b><div className="cal-items">{(cellMap[date]||[]).map(i=>i.url?<a key={i.id} href={i.url} target="_blank" rel="noreferrer" className={`cal-item ${kindClass(i.kind)}`}>{i.title}</a>:<span key={i.id} draggable={Boolean(i.editable)} onDragStart={e=>dragStart(e,i)} className={`cal-item ${kindClass(i.kind)}`}>{i.title}</span>)}</div></div>)}</div></section>:view==="month"?<section className="panel mt"><div className="calendar-toolbar"><div className="section-actions"><button onClick={()=>setCursor(shiftMonth(cursor,-1))} className="ghost-btn">← Prev</button><button onClick={()=>setCursor(monthStart(todayInTZ()))} className="ghost-btn">Today</button><button onClick={()=>setCursor(shiftMonth(cursor,1))} className="ghost-btn">Next →</button></div><div className="calendar-title">{monthLabel}</div></div><div className="calendar-grid">{["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d=><div key={d} className="cal-head">{d}</div>)}{cells.map(date=>{const rows=cellMap[date]||[];const muted=date.slice(0,7)!==cursorMonth;return <div key={date} onDragOver={e=>e.preventDefault()} onDrop={e=>dropOn(e,date)} className={`cal-day ${muted?"muted-day":""} ${date===todayInTZ()?"today":""}`}><span className="cal-date">{Number(date.slice(-2))}</span><div className="cal-items">{rows.slice(0,4).map(i=>i.url?<a key={i.id} href={i.url} target="_blank" rel="noreferrer" title={i.title} className={`cal-item ${kindClass(i.kind)}`}>{i.title}</a>:<span key={i.id} draggable={Boolean(i.editable)} onDragStart={e=>dragStart(e,i)} title={i.title+(i.editable?" · drag to reschedule":"")} className={`cal-item ${kindClass(i.kind)}`}>{i.title}</span>)}{rows.length>4&&<span className="cal-item">+{rows.length-4} more</span>}</div></div>})}</div></section>:<section className="mt"><div className="calendar-toolbar"><div className="calendar-title">Timeline</div><select value={range} onChange={e=>setRange(e.target.value as any)} className="ghost-btn"><option value="7">7 days</option><option value="30">30 days</option><option value="90">90 days</option></select></div><div className="list-stack">{Object.entries(grouped).map(([date,rows])=><Panel key={date} title={date} kicker={date===todayInTZ()?"TODAY":new Date(date+"T12:00:00").toLocaleDateString("en-US",{weekday:"long"})}><div className="list-stack">{rows.map(i=><div key={i.id} className="priority-item"><span className="priority-number">{i.kind==="Google"?"G":i.kind.slice(0,1)}</span><div><strong>{i.title}</strong><small>{i.kind}{i.calendarName?" · "+i.calendarName:""}</small></div>{i.editable?<input type="date" value={i.date} onChange={e=>reschedule(i,e.target.value)} className="mini-btn"/>:i.url?<a href={i.url} target="_blank" rel="noreferrer" className="mini-btn">Open</a>:<span/>}</div>)}</div></Panel>)}{visible.length===0&&<div className="empty-state"><b>Nothing scheduled</b>No LifeOS or Google items in this window.</div>}</div></section>}
   </main>;
 }
