@@ -85,6 +85,7 @@ const pageTitles: Record<string, string> = {
   "/waiting": "Waiting For",
   "/matrix": "Priority Matrix",
   "/sticky-notes": "Sticky Notes",
+  "/mobile": "Tasks & Notes",
 };
 
 function pageTitle(pathname: string) {
