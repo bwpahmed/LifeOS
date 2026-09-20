@@ -176,15 +176,32 @@ export async function GET(request: Request) {
 
     for (const task of tasks || []) {
       const reminderHour = Number(String(task.reminder_time || "09:00").slice(0, 2));
-      if (local.hour !== reminderHour) continue;
-      const severity = Number(task.importance || 3) >= 5 ? "critical" : Number(task.importance || 3) >= 4 ? "important" : "normal";
+      const escalationHours = Array.from(new Set([reminderHour, 12, 17]))
+        .filter((hour) => hour >= reminderHour)
+        .sort((a, b) => a - b);
+      if (!escalationHours.includes(local.hour)) continue;
+
+      const baseSeverity = Number(task.importance || 3) >= 5 ? "critical" : Number(task.importance || 3) >= 4 ? "important" : "normal";
+      const severity =
+        local.hour >= 17 && baseSeverity === "normal" ? "important"
+        : local.hour >= 17 && baseSeverity === "important" ? "critical"
+        : baseSeverity;
       if (quiet && !(severity === "critical" && allowCritical)) continue;
+
+      const isFollowup = local.hour !== reminderHour;
       const r = await deliver(admin, {
-        userId, workspaceId: task.workspace_id, title: "LifeOS task reminder",
-        body: privateBody(task.area || "", task.name), severity,
-        refTable: "tasks", refId: task.id, url: "/today", dedupeHours: 2,
+        userId,
+        workspaceId: task.workspace_id,
+        title: isFollowup ? "LifeOS task follow-up" : "LifeOS task reminder",
+        body: privateBody(task.area || "", task.name),
+        severity,
+        refTable: "tasks",
+        refId: task.id,
+        url: "/today",
+        dedupeHours: 2,
       });
-      created += r.created; pushed += r.pushed;
+      created += r.created;
+      pushed += r.pushed;
     }
 
     if (local.hour >= 9 && local.hour <= 18 && !quiet) {
