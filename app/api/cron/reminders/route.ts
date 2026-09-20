@@ -119,6 +119,7 @@ async function redeliverSnoozed(admin: ReturnType<typeof supabaseAdmin>, userId:
 }
 
 export async function GET(request: Request) {
+  const dailyMode = new URL(request.url).searchParams.get("mode") === "daily";
   const secret = process.env.CRON_SECRET;
   if (!secret) return NextResponse.json({ error: "CRON_SECRET is not configured" }, { status: 503 });
   if (request.headers.get("authorization") !== `Bearer ${secret}`) {
@@ -180,7 +181,7 @@ export async function GET(request: Request) {
       const escalationHours = Array.from(new Set([reminderHour, 12, 17]))
         .filter((hour) => hour >= reminderHour)
         .sort((a, b) => a - b);
-      if (!escalationHours.includes(local.hour)) continue;
+      if (!dailyMode && !escalationHours.includes(local.hour)) continue;
 
       const baseSeverity = Number(task.importance || 3) >= 5 ? "critical" : Number(task.importance || 3) >= 4 ? "important" : "normal";
       const severity =
@@ -189,7 +190,7 @@ export async function GET(request: Request) {
         : baseSeverity;
       if (quiet && !(severity === "critical" && allowCritical)) continue;
 
-      const isFollowup = local.hour !== reminderHour;
+      const isFollowup = !dailyMode && local.hour !== reminderHour;
       const r = await deliver(admin, {
         userId,
         workspaceId: task.workspace_id,
@@ -199,13 +200,13 @@ export async function GET(request: Request) {
         refTable: "tasks",
         refId: task.id,
         url: "/today",
-        dedupeHours: 2,
+        dedupeHours: dailyMode ? 20 : 2,
       });
       created += r.created;
       pushed += r.pushed;
     }
 
-    if (local.hour >= 9 && local.hour <= 18 && !quiet) {
+    if ((dailyMode || (local.hour >= 9 && local.hour <= 18)) && !quiet) {
       const localDayMs = new Date(local.date + "T12:00:00Z").getTime();
       for (const rec of money || []) {
         const dueMs = rec.due_date ? new Date(rec.due_date + "T12:00:00Z").getTime() : localDayMs;
@@ -231,7 +232,7 @@ export async function GET(request: Request) {
       }
     }
 
-    if (local.hour === 8 && !quiet) {
+    if ((dailyMode || local.hour === 8) && !quiet) {
       for (const item of family || []) {
         const r = await deliver(admin, {
           userId, workspaceId: item.workspace_id, title: "LifeOS family reminder",
@@ -242,7 +243,7 @@ export async function GET(request: Request) {
       }
     }
 
-    if (local.hour === 9 && !quiet) {
+    if ((dailyMode || local.hour === 9) && !quiet) {
       const todayMs = new Date(local.date + "T12:00:00Z").getTime();
       for (const doc of docs || []) {
         if (!doc.expiry_date) continue;
@@ -258,5 +259,5 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, checkedUsers, created, pushed });
+  return NextResponse.json({ ok: true, mode: dailyMode ? "daily" : "hourly", checkedUsers, created, pushed });
 }
