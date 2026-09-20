@@ -41,7 +41,24 @@ function HealthPlannerContent(){
  function toggleDay(list:number[],setList:(next:number[])=>void,day:number){setList(list.includes(day)?list.filter(x=>x!==day):[...list,day].sort((a,b)=>a-b));}
 
 
- async function addRoutine(e:FormEvent){e.preventDefault();if(!workspaceId||!userId||!title.trim())return;const reminderTimes=times.split(",").map(x=>x.trim()).filter(x=>/^\d{2}:\d{2}$/.test(x));let detailObj:Record<string,any>={note:details.trim()||null};if(kind==="water")detailObj={...detailObj,daily_goal_ml:2500,default_amount_ml:250};if(kind==="medicine")detailObj={...detailObj,dose:details.trim()||null};if(kind==="sleep")detailObj={...detailObj,target_hours:8};const sb=supabaseBrowser();const{error:q}=await sb.from("health_routines").insert({workspace_id:workspaceId,created_by:userId,kind,title:title.trim(),details:detailObj,reminder_times:reminderTimes,days_of_week:[1,2,3,4,5,6,7],active:true,start_date:todayInTZ()});if(q)setError(q.message);else{setMsg("Health routine saved.");await load();}}
+ async function addRoutine(e:FormEvent){
+  e.preventDefault();
+  if(!workspaceId||!userId||!title.trim())return;
+  setError("");
+  if(!routineDays.length){setError("Select at least one reminder day.");return;}
+  const reminderTimes=times.split(",").map(x=>x.trim()).filter(x=>/^\d{2}:\d{2}$/.test(x));
+  if(!reminderTimes.length){setError("Add at least one reminder time in HH:MM format.");return;}
+  let detailObj:Record<string,any>={note:details.trim()||null};
+  if(kind==="water")detailObj={...detailObj,daily_goal_ml:Math.max(250,Math.min(10000,Number(waterGoalInput)||2500)),default_amount_ml:250};
+  if(kind==="medicine")detailObj={...detailObj,dose:details.trim()||null};
+  if(kind==="sleep")detailObj={...detailObj,target_hours:8};
+  const sb=supabaseBrowser();
+  const{error:q}=await sb.from("health_routines").insert({
+    workspace_id:workspaceId,created_by:userId,kind,title:title.trim(),details:detailObj,
+    reminder_times:reminderTimes,days_of_week:routineDays,active:true,start_date:todayInTZ()
+  });
+  if(q)setError(q.message);else{setMsg("Health routine saved.");setDetails("");await load();}
+ }
 
  async function toggleRoutine(r:Routine){const sb=supabaseBrowser();const{error:q}=await sb.from("health_routines").update({active:!r.active,updated_at:new Date().toISOString()}).eq("id",r.id);if(q)setError(q.message);else await load();}
  async function removeRoutine(r:Routine){if(!confirm(`Delete routine "${r.title}"?`))return;const sb=supabaseBrowser();const{error:q}=await sb.from("health_routines").delete().eq("id",r.id);if(q)setError(q.message);else await load();}
@@ -50,9 +67,53 @@ function HealthPlannerContent(){
  async function addWater(amount:number){const sb=supabaseBrowser();const{error:q}=await sb.from("water_logs").insert({workspace_id:workspaceId,created_by:userId,date:todayInTZ(),amount_ml:amount});if(q)setError(q.message);else await load();}
  async function saveWaterGoal(){if(!workspaceId||!userId)return;const goal=Math.max(250,Math.min(10000,Number(waterGoalInput)||2500));const sb=supabaseBrowser();const existing=routines.find(r=>r.kind==="water");if(existing){const{error:q}=await sb.from("health_routines").update({details:{...(existing.details||{}),daily_goal_ml:goal,default_amount_ml:Number(existing.details?.default_amount_ml||250)},updated_at:new Date().toISOString()}).eq("id",existing.id);if(q){setError(q.message);return;}}else{const{error:q}=await sb.from("health_routines").insert({workspace_id:workspaceId,created_by:userId,kind:"water",title:"Drink water",details:{daily_goal_ml:goal,default_amount_ml:250},reminder_times:["09:00","11:00","13:00","15:00","17:00","19:00"],days_of_week:[1,2,3,4,5,6,7],active:true,start_date:todayInTZ()});if(q){setError(q.message);return;}}setMsg("Water target saved.");await load();}
  async function ensureSleepReminder(){if(!workspaceId||!userId)return;const sb=supabaseBrowser();const existing=routines.find(r=>r.kind==="sleep");const payload={title:"Sleep reminder",details:{target_hours:8,note:"Bedtime reminder"},reminder_times:[bedTime],days_of_week:[1,2,3,4,5,6,7],active:true,start_date:todayInTZ(),updated_at:new Date().toISOString()};const q=existing?await sb.from("health_routines").update(payload).eq("id",existing.id):await sb.from("health_routines").insert({...payload,workspace_id:workspaceId,created_by:userId,kind:"sleep"});if(q.error)setError(q.error.message);else{setMsg("Sleep reminder saved.");await load();}}
- async function addMeal(e:FormEvent){e.preventDefault();if(!mealTitle.trim())return;if(!mealDays.length){setError("Select at least one meal-plan day.");return;}const sb=supabaseBrowser();const{error:q}=await sb.from("diet_plan_items").insert({workspace_id:workspaceId,created_by:userId,meal_type:mealType,meal_time:mealTime||null,title:mealTitle.trim(),details:mealDetails.trim()||null,calories:mealCalories??null,protein_g:mealProtein??null,days_of_week:mealDays,active:true});if(q)setError(q.message);else{setMealTitle("");setMealDetails("");setMealCalories(undefined);setMealProtein(undefined);await load();}}
- async function toggleMeal(m:Meal){const sb=supabaseBrowser();const{error:q}=await sb.from("diet_plan_items").update({active:!m.active,updated_at:new Date().toISOString()}).eq("id",m.id);if(q)setError(q.message);else await load();}
- async function removeMeal(m:Meal){if(!confirm(`Delete meal "${m.title}"?`))return;const sb=supabaseBrowser();const{error:q}=await sb.from("diet_plan_items").delete().eq("id",m.id);if(q)setError(q.message);else await load();}
+ async function addMeal(e:FormEvent){
+  e.preventDefault();
+  if(!workspaceId||!userId||!mealTitle.trim())return;
+  setError("");
+  if(!mealDays.length){setError("Select at least one meal-plan day.");return;}
+  if(!/^\d{2}:\d{2}$/.test(mealTime)){setError("Choose a meal time so LifeOS can remind you.");return;}
+  const sb=supabaseBrowser();
+  const mealId=crypto.randomUUID();
+  const mealPayload={
+    id:mealId,workspace_id:workspaceId,created_by:userId,meal_type:mealType,meal_time:mealTime,
+    title:mealTitle.trim(),details:mealDetails.trim()||null,calories:mealCalories??null,
+    protein_g:mealProtein??null,days_of_week:mealDays,active:true
+  };
+  const mealQ=await sb.from("diet_plan_items").insert(mealPayload);
+  if(mealQ.error){setError(mealQ.error.message);return;}
+  const routineQ=await sb.from("health_routines").insert({
+    workspace_id:workspaceId,created_by:userId,kind:"meal",title:`${mealType}: ${mealTitle.trim()}`,
+    details:{meal_id:mealId,meal_type:mealType,note:mealDetails.trim()||null},
+    reminder_times:[mealTime],days_of_week:mealDays,active:true,start_date:todayInTZ()
+  });
+  if(routineQ.error){
+    await sb.from("diet_plan_items").delete().eq("id",mealId);
+    setError(routineQ.error.message);
+    return;
+  }
+  setMealTitle("");setMealDetails("");setMealCalories(undefined);setMealProtein(undefined);
+  setMsg("Meal plan and reminder saved.");
+  await load();
+ }
+ async function toggleMeal(m:Meal){
+  const sb=supabaseBrowser();const next=!m.active;
+  const q=await sb.from("diet_plan_items").update({active:next,updated_at:new Date().toISOString()}).eq("id",m.id);
+  if(q.error){setError(q.error.message);return;}
+  const routine=await sb.from("health_routines").select("id").eq("workspace_id",workspaceId).eq("kind","meal").contains("details",{meal_id:m.id}).maybeSingle();
+  if(routine.error){setError(routine.error.message);return;}
+  if(routine.data?.id){const rq=await sb.from("health_routines").update({active:next,updated_at:new Date().toISOString()}).eq("id",routine.data.id);if(rq.error){setError(rq.error.message);return;}}
+  await load();
+ }
+ async function removeMeal(m:Meal){
+  if(!confirm(`Delete meal "${m.title}" and its reminder?`))return;
+  const sb=supabaseBrowser();
+  const routine=await sb.from("health_routines").select("id").eq("workspace_id",workspaceId).eq("kind","meal").contains("details",{meal_id:m.id});
+  if(routine.error){setError(routine.error.message);return;}
+  for(const row of routine.data||[]){const rq=await sb.from("health_routines").delete().eq("id",row.id);if(rq.error){setError(rq.error.message);return;}}
+  const{error:q}=await sb.from("diet_plan_items").delete().eq("id",m.id);
+  if(q)setError(q.message);else await load();
+ }
  async function saveSleep(e:FormEvent){e.preventDefault();const duration=minutesBetween(bedTime,wakeTime);const sb=supabaseBrowser();const existing=sleep.find(s=>s.date===todayInTZ());const payload={workspace_id:workspaceId,created_by:userId,date:todayInTZ(),bed_time:bedTime,wake_time:wakeTime,duration_min:duration,quality:sleepQuality,note:sleepNote.trim()||null,updated_at:new Date().toISOString()};const q=existing?await sb.from("sleep_sessions").update(payload).eq("id",existing.id):await sb.from("sleep_sessions").insert(payload);if(q.error)setError(q.error.message);else{setMsg("Sleep saved.");await load();}}
 
  const today=todayInTZ(),dow=dayIsoIndex();
