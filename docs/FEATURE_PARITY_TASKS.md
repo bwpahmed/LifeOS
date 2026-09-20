@@ -90,12 +90,18 @@ This checklist is the implementation plan for the uploaded LifeOS Advanced speci
 - [x] Local storage limited to approved cache/preferences/queues
 
 ## Verification gates
-- [ ] CI tests
-- [ ] TypeScript
-- [ ] SQL verifier
-- [ ] Feature coverage verifier
-- [ ] Production build
-- [ ] AI policy gate
+- [x] CI tests
+- [x] TypeScript
+- [x] SQL verifier
+- [x] Feature coverage verifier
+- [x] Production build
+- [x] AI policy gate
 - [ ] Vercel deployment status
-- [ ] Live Supabase reminder functions smoke-tested
-- [ ] Live cron jobs confirmed active
+- [x] Live Supabase reminder functions smoke-tested
+- [x] Live cron jobs confirmed active
+
+
+## Remaining external blockers
+- [ ] Latest Vercel preview deployment is currently blocked by Vercel build-rate-limit. GitHub CI production build itself passes.
+- [ ] Google Calendar website OAuth cannot be activated until the Vercel project has GOOGLE_CALENDAR_CLIENT_ID, GOOGLE_CALENDAR_CLIENT_SECRET and GOOGLE_CALENDAR_TOKEN_KEY configured. The integration code is already present.
+- [ ] A true native Android/iOS home-screen widget is not available to a normal PWA. LifeOS provides the closest web-supported equivalent: installable PWA + Tasks & Notes compact screen + app shortcuts.
