@@ -7,6 +7,8 @@ import { habitConsistency, habitConsistencyForFrequency, habitPeriodStreak, reco
 import { canSeeModule } from "./permissions";
 import { serverWins } from "./sync-queue";
 import { deterministicParse, validateParsed } from "./ai/service";
+import { expenseMonthStats } from "./waste";
+import { activeForIsoDay,clampWaterGoal,parseReminderTimes,sleepMinutes,waterTotalForDate } from "./health-planner";
 
 describe("priority score (prototype parity)", () => {
   it("completed tasks score 0", () => {
@@ -92,5 +94,41 @@ describe("smart capture", () => {
     expect(p.amount).toBe(25000);
     expect(p.due_date).toBe("2026-09-17");
     expect(p.person.toLowerCase()).toBe("mustafa");
+  });
+});
+
+
+describe("Waste Guard", () => {
+  it("calculates monthly waste, recurring leaks and saved lessons", () => {
+    const stats=expenseMonthStats([
+      {date:"2026-09-01",amount:100,is_waste:true,recurring:false,avoid_next_time:"Wait 24h"},
+      {date:"2026-09-02",amount:50,is_waste:true,recurring:true,avoid_next_time:null},
+      {date:"2026-09-03",amount:350,is_waste:false,recurring:false},
+      {date:"2026-08-31",amount:999,is_waste:true,recurring:true,avoid_next_time:"Old month"},
+    ],"2026-09");
+    expect(stats).toEqual({spent:500,waste:150,recurringWaste:50,lessons:1,wastePct:30});
+  });
+});
+
+describe("health planner helpers", () => {
+  it("rejects invalid reminder clock values instead of silently scheduling nonsense", () => {
+    expect(parseReminderTimes("09:00, 23:59, 99:99, 12:60")).toEqual({
+      times:["09:00","23:59"],
+      invalid:["99:99","12:60"],
+    });
+  });
+  it("clamps water targets to safe UI limits", () => {
+    expect(clampWaterGoal(100)).toBe(250);
+    expect(clampWaterGoal(12000)).toBe(10000);
+    expect(clampWaterGoal(undefined)).toBe(2500);
+  });
+  it("tracks overnight sleep duration correctly", () => {
+    expect(sleepMinutes("23:00","07:00")).toBe(480);
+    expect(sleepMinutes("22:30","06:15")).toBe(465);
+    expect(sleepMinutes("25:00","07:00")).toBeNull();
+  });
+  it("sums water by date and selects routines for the current ISO day", () => {
+    expect(waterTotalForDate([{date:"2026-09-20",amount_ml:250},{date:"2026-09-20",amount_ml:500},{date:"2026-09-19",amount_ml:999}],"2026-09-20")).toBe(750);
+    expect(activeForIsoDay([{active:true,days_of_week:[1,7],name:"a"},{active:false,days_of_week:[7],name:"b"}],7).map(x=>x.name)).toEqual(["a"]);
   });
 });
