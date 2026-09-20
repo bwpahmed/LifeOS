@@ -80,6 +80,14 @@ const checks=[
  ["F Diet plan",has("app/health-planner/page.tsx","diet_plan_items","meal")],
  ["G Sleep tracker/reminders",has("app/health-planner/page.tsx","sleep_sessions")&&has("app/api/cron/reminders/route.ts",'routine.kind === "sleep"')],
  ["H Single Supabase source of truth",has("lib/supabase/client.ts","createBrowserClient")&&exists("lib/offline.ts")],
+ ["I Multiple task dependencies",has("app/tasks/page.tsx","task_dependencies","dependencyIds")&&has("supabase/schema.sql","create table task_dependencies")],
+ ["J Family reminder days",has("app/family/page.tsx","reminder_days","responsible")&&has("app/api/cron/reminders/route.ts","reminderDays","daysUntil")],
+ ["K Follow-up global search",has("app/search/page.tsx","receivable_followups","Follow-up")],
+ ["L Secure offline private note",has("app/quick-add/page.tsx","queuePrivateJournal")&&has("lib/private-offline.ts","AES-GCM","indexedDB")],
+ ["M Cloud theme preference",has("components/theme-toggle.tsx","user_settings","settings","theme")&&has("app/settings/page.tsx","theme:next")],
+ ["N Four reminder severities",has("app/api/cron/reminders/route.ts",'"normal"','"important"','"urgent"','"critical"')&&has("app/notifications/page.tsx","severityPill")],
+ ["O Goal health reason",has("app/goals/page.tsx","goalReason","Reason:")],
+ ["P PDF export",has("app/settings/page.tsx","Print / Save PDF","window.print")],
 ];
 
 const failed=checks.filter(([,ok])=>!ok);
