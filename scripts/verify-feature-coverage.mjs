@@ -87,3 +87,34 @@ if(failed.length){
  process.exit(1);
 }
 console.log(`\nFeature coverage passed: ${checks.length}/${checks.length}`);
+
+const allowedLocalStorage = new Set([
+  "components/theme-toggle.tsx",
+  "components/privacy-gate.tsx",
+  "app/settings/page.tsx",
+  "app/focus/page.tsx",
+  "app/privacy/page.tsx",
+  "lib/offline.ts",
+  "lib/sync-queue.ts",
+]);
+
+function walk(dir){
+  const out=[];
+  if(!fs.existsSync(dir)) return out;
+  for(const entry of fs.readdirSync(dir,{withFileTypes:true})){
+    const p=dir+"/"+entry.name;
+    if(entry.isDirectory()) out.push(...walk(p));
+    else if(/\.(ts|tsx|js|mjs)$/.test(entry.name)) out.push(p);
+  }
+  return out;
+}
+const directLocalStorage = ["app","components","lib"].flatMap(walk)
+  .filter(path=>read(path).includes("localStorage"))
+  .filter(path=>!allowedLocalStorage.has(path));
+if(directLocalStorage.length){
+  console.error("\nFAIL  Single-source rule: unexpected localStorage use in persistent app code:");
+  for(const path of directLocalStorage) console.error(" - "+path);
+  process.exit(1);
+}
+console.log("PASS  Single-source rule: persistent records use Supabase; device storage is limited to approved cache/preferences.");
+
