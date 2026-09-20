@@ -80,6 +80,8 @@ function dateLine() {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const title = pageTitle(pathname);
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good Morning" : hour < 18 ? "Good Afternoon" : "Good Evening";
 
   return (
     <div className="app-shell">
@@ -124,7 +126,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <header className="topbar">
           <div className="title-block">
             <p className="eyebrow">{dateLine()}</p>
-            <h1>{pathname === "/" ? "Good Morning" : title}</h1>
+            <h1>{pathname === "/" ? greeting : title}</h1>
           </div>
           <div className="top-actions">
             <Link className="icon-btn" href="/search" title="Search" aria-label="Search">⌕</Link>
