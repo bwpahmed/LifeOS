@@ -548,32 +548,32 @@ begin
     execute format('drop policy if exists "private row delete" on public.%I', t);
     execute format(
       'create policy "private row select" on public.%I for select using (
-        public.can_access_module(workspace_id, case when area = ''Health'' then ''health'' when area = ''Self-control'' then ''self_control'' else ''tasks'' end)
+        public.can_access_module(workspace_id, case when area = ''Health'' then ''health'' when area = ''Self-control'' then ''self_control'' when area in (''Business'',''Work'') then ''business'' else ''tasks'' end)
         and public.can_access_private_row(workspace_id,created_by,privacy,area)
       )', t
     );
     execute format(
       'create policy "private row insert" on public.%I for insert with check (
         public.is_workspace_writer(workspace_id)
-        and public.can_access_module(workspace_id, case when area = ''Health'' then ''health'' when area = ''Self-control'' then ''self_control'' else ''tasks'' end)
+        and public.can_access_module(workspace_id, case when area = ''Health'' then ''health'' when area = ''Self-control'' then ''self_control'' when area in (''Business'',''Work'') then ''business'' else ''tasks'' end)
         and public.can_access_private_row(workspace_id,created_by,privacy,area)
       )', t
     );
     execute format(
       'create policy "private row update" on public.%I for update using (
         public.is_workspace_writer(workspace_id)
-        and public.can_access_module(workspace_id, case when area = ''Health'' then ''health'' when area = ''Self-control'' then ''self_control'' else ''tasks'' end)
+        and public.can_access_module(workspace_id, case when area = ''Health'' then ''health'' when area = ''Self-control'' then ''self_control'' when area in (''Business'',''Work'') then ''business'' else ''tasks'' end)
         and public.can_access_private_row(workspace_id,created_by,privacy,area)
       ) with check (
         public.is_workspace_writer(workspace_id)
-        and public.can_access_module(workspace_id, case when area = ''Health'' then ''health'' when area = ''Self-control'' then ''self_control'' else ''tasks'' end)
+        and public.can_access_module(workspace_id, case when area = ''Health'' then ''health'' when area = ''Self-control'' then ''self_control'' when area in (''Business'',''Work'') then ''business'' else ''tasks'' end)
         and public.can_access_private_row(workspace_id,created_by,privacy,area)
       )', t
     );
     execute format(
       'create policy "private row delete" on public.%I for delete using (
         public.is_workspace_writer(workspace_id)
-        and public.can_access_module(workspace_id, case when area = ''Health'' then ''health'' when area = ''Self-control'' then ''self_control'' else ''tasks'' end)
+        and public.can_access_module(workspace_id, case when area = ''Health'' then ''health'' when area = ''Self-control'' then ''self_control'' when area in (''Business'',''Work'') then ''business'' else ''tasks'' end)
         and public.can_access_private_row(workspace_id,created_by,privacy,area)
       )', t
     );
@@ -636,38 +636,38 @@ using ((created_by = auth.uid() or public.is_workspace_admin(workspace_id)) and 
 -- Tighten child tables so direct queries cannot bypass module grants.
 drop policy if exists "goal milestone access" on public.goal_milestones;
 create policy "goal milestone access" on public.goal_milestones for all
-using (exists(select 1 from public.goals g where g.id=goal_id and public.can_access_module(g.workspace_id,case when g.area='Health' then 'health' when g.area='Self-control' then 'self_control' else 'tasks' end)))
-with check (exists(select 1 from public.goals g where g.id=goal_id and public.is_workspace_writer(g.workspace_id) and public.can_access_module(g.workspace_id,case when g.area='Health' then 'health' when g.area='Self-control' then 'self_control' else 'tasks' end)));
+using (exists(select 1 from public.goals g where g.id=goal_id and public.can_access_module(g.workspace_id,case when g.area='Health' then 'health' when g.area='Self-control' then 'self_control' when g.area in ('Business','Work') then 'business' else 'tasks' end)))
+with check (exists(select 1 from public.goals g where g.id=goal_id and public.is_workspace_writer(g.workspace_id) and public.can_access_module(g.workspace_id,case when g.area='Health' then 'health' when g.area='Self-control' then 'self_control' when g.area in ('Business','Work') then 'business' else 'tasks' end)));
 
 drop policy if exists "goal update access" on public.goal_updates;
 create policy "goal update access" on public.goal_updates for all
-using (exists(select 1 from public.goals g where g.id=goal_id and public.can_access_module(g.workspace_id,case when g.area='Health' then 'health' when g.area='Self-control' then 'self_control' else 'tasks' end)))
-with check (exists(select 1 from public.goals g where g.id=goal_id and public.is_workspace_writer(g.workspace_id) and public.can_access_module(g.workspace_id,case when g.area='Health' then 'health' when g.area='Self-control' then 'self_control' else 'tasks' end)));
+using (exists(select 1 from public.goals g where g.id=goal_id and public.can_access_module(g.workspace_id,case when g.area='Health' then 'health' when g.area='Self-control' then 'self_control' when g.area in ('Business','Work') then 'business' else 'tasks' end)))
+with check (exists(select 1 from public.goals g where g.id=goal_id and public.is_workspace_writer(g.workspace_id) and public.can_access_module(g.workspace_id,case when g.area='Health' then 'health' when g.area='Self-control' then 'self_control' when g.area in ('Business','Work') then 'business' else 'tasks' end)));
 
 drop policy if exists "project member access" on public.project_members;
 create policy "project member access" on public.project_members for all
-using (exists(select 1 from public.projects p where p.id=project_id and public.can_access_module(p.workspace_id,case when p.area='Health' then 'health' when p.area='Self-control' then 'self_control' else 'tasks' end)))
+using (exists(select 1 from public.projects p where p.id=project_id and public.can_access_module(p.workspace_id,case when p.area='Health' then 'health' when p.area='Self-control' then 'self_control' when p.area in ('Business','Work') then 'business' else 'tasks' end)))
 with check (exists(select 1 from public.projects p where p.id=project_id and public.is_workspace_admin(p.workspace_id)));
 
 drop policy if exists "task dependency access" on public.task_dependencies;
 create policy "task dependency access" on public.task_dependencies for all
-using (exists(select 1 from public.tasks t where t.id=task_id and public.can_access_module(t.workspace_id,case when t.area='Health' then 'health' when t.area='Self-control' then 'self_control' else 'tasks' end)))
-with check (exists(select 1 from public.tasks t where t.id=task_id and public.is_workspace_writer(t.workspace_id) and public.can_access_module(t.workspace_id,case when t.area='Health' then 'health' when t.area='Self-control' then 'self_control' else 'tasks' end)));
+using (exists(select 1 from public.tasks t where t.id=task_id and public.can_access_module(t.workspace_id,case when t.area='Health' then 'health' when t.area='Self-control' then 'self_control' when t.area in ('Business','Work') then 'business' else 'tasks' end)))
+with check (exists(select 1 from public.tasks t where t.id=task_id and public.is_workspace_writer(t.workspace_id) and public.can_access_module(t.workspace_id,case when t.area='Health' then 'health' when t.area='Self-control' then 'self_control' when t.area in ('Business','Work') then 'business' else 'tasks' end)));
 
 drop policy if exists "task comment access" on public.task_comments;
 create policy "task comment access" on public.task_comments for all
-using (exists(select 1 from public.tasks t where t.id=task_id and public.can_access_module(t.workspace_id,case when t.area='Health' then 'health' when t.area='Self-control' then 'self_control' else 'tasks' end)))
-with check (exists(select 1 from public.tasks t where t.id=task_id and public.is_workspace_writer(t.workspace_id) and public.can_access_module(t.workspace_id,case when t.area='Health' then 'health' when t.area='Self-control' then 'self_control' else 'tasks' end)));
+using (exists(select 1 from public.tasks t where t.id=task_id and public.can_access_module(t.workspace_id,case when t.area='Health' then 'health' when t.area='Self-control' then 'self_control' when t.area in ('Business','Work') then 'business' else 'tasks' end)))
+with check (exists(select 1 from public.tasks t where t.id=task_id and public.is_workspace_writer(t.workspace_id) and public.can_access_module(t.workspace_id,case when t.area='Health' then 'health' when t.area='Self-control' then 'self_control' when t.area in ('Business','Work') then 'business' else 'tasks' end)));
 
 drop policy if exists "task activity access" on public.task_activity;
 create policy "task activity access" on public.task_activity for all
-using (exists(select 1 from public.tasks t where t.id=task_id and public.can_access_module(t.workspace_id,case when t.area='Health' then 'health' when t.area='Self-control' then 'self_control' else 'tasks' end)))
-with check (exists(select 1 from public.tasks t where t.id=task_id and public.is_workspace_writer(t.workspace_id) and public.can_access_module(t.workspace_id,case when t.area='Health' then 'health' when t.area='Self-control' then 'self_control' else 'tasks' end)));
+using (exists(select 1 from public.tasks t where t.id=task_id and public.can_access_module(t.workspace_id,case when t.area='Health' then 'health' when t.area='Self-control' then 'self_control' when t.area in ('Business','Work') then 'business' else 'tasks' end)))
+with check (exists(select 1 from public.tasks t where t.id=task_id and public.is_workspace_writer(t.workspace_id) and public.can_access_module(t.workspace_id,case when t.area='Health' then 'health' when t.area='Self-control' then 'self_control' when t.area in ('Business','Work') then 'business' else 'tasks' end)));
 
 drop policy if exists "habit log access" on public.habit_logs;
 create policy "habit log access" on public.habit_logs for all
-using (exists(select 1 from public.habits h where h.id=habit_id and public.can_access_module(h.workspace_id,case when h.area='Health' then 'health' when h.area='Self-control' then 'self_control' else 'tasks' end)))
-with check (exists(select 1 from public.habits h where h.id=habit_id and public.is_workspace_writer(h.workspace_id) and public.can_access_module(h.workspace_id,case when h.area='Health' then 'health' when h.area='Self-control' then 'self_control' else 'tasks' end)));
+using (exists(select 1 from public.habits h where h.id=habit_id and public.can_access_module(h.workspace_id,case when h.area='Health' then 'health' when h.area='Self-control' then 'self_control' when h.area in ('Business','Work') then 'business' else 'tasks' end)))
+with check (exists(select 1 from public.habits h where h.id=habit_id and public.is_workspace_writer(h.workspace_id) and public.can_access_module(h.workspace_id,case when h.area='Health' then 'health' when h.area='Self-control' then 'self_control' when h.area in ('Business','Work') then 'business' else 'tasks' end)));
 
 do $$
 declare
