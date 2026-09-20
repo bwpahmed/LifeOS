@@ -74,7 +74,7 @@ language sql
 stable
 security definer
 set search_path = public
-as $
+as $$
   select exists (
     select 1 from public.workspace_members m
     where m.workspace_id = ws
@@ -87,7 +87,7 @@ as $
         or (area_name = 'Self-control' and 'self_control' = any(m.modules))
       )
   );
-$;
+$$;
 
 grant execute on function public.can_access_private_row(uuid,uuid,text,text) to authenticated;
 
