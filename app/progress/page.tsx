@@ -4,6 +4,7 @@ import { useCallback,useEffect,useMemo,useState } from "react";
 import Link from "next/link";
 import { BackHome,Panel } from "@/components/ui";
 import { remaining } from "@/lib/money";
+import { habitConsistencyForFrequency } from "@/lib/habits";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { currentWorkspace } from "@/lib/supabase/workspace";
 import { todayInTZ } from "@/lib/timezone";
@@ -19,7 +20,7 @@ export default function ProgressPage(){
  const load=useCallback(async()=>{try{const sb=supabaseBrowser();const ctx=await currentWorkspace(sb);if(!ctx){setSignedIn(false);return;}setSignedIn(true);const from=daysAgo(29);
   const[tasks,habits,focus,health,recs,family,docs,goals,hair]=await Promise.all([
    sb.from("tasks").select("id,area,status,completed_at").eq("workspace_id",ctx.workspaceId),
-   sb.from("habits").select("id,area").eq("workspace_id",ctx.workspaceId),
+   sb.from("habits").select("id,area,frequency,target").eq("workspace_id",ctx.workspaceId),
    sb.from("focus_sessions").select("minutes,date").eq("workspace_id",ctx.workspaceId).gte("date",from),
    sb.from("health_entries").select("date").eq("workspace_id",ctx.workspaceId).gte("date",from),
    sb.from("receivables").select("id,total,next_followup,status,receivable_payments(amount,date)").eq("workspace_id",ctx.workspaceId),
@@ -31,7 +32,7 @@ export default function ProgressPage(){
   const taskRows=(tasks.data||[]) as any[];const recentCompleted=taskRows.filter(t=>t.status==="Completed"&&t.completed_at&&String(t.completed_at).slice(0,10)>=from);
   const openWork=taskRows.filter(t=>["Business","Work"].includes(t.area)&&!["Cancelled"].includes(t.status));const doneWork=openWork.filter(t=>t.status==="Completed");
   const growth=taskRows.filter(t=>t.area==="Growth"&&!["Cancelled"].includes(t.status));const growthDone=growth.filter(t=>t.status==="Completed");
-  const hids=(habits.data||[]).map((h:any)=>h.id);let healthHabitRatio:number|null=null;if(hids.length){const hl=await sb.from("habit_logs").select("habit_id,date,value").in("habit_id",hids).gte("date",from);if(hl.error)throw hl.error;const healthIds=new Set((habits.data||[]).filter((h:any)=>h.area==="Health").map((h:any)=>h.id));const healthLogs=(hl.data||[]).filter((l:any)=>healthIds.has(l.habit_id)&&Number(l.value)>0);if(healthIds.size)healthHabitRatio=pct(healthLogs.length,healthIds.size*30);}
+  const habitRows=(habits.data||[]) as {id:string;area:string|null;frequency:string;target:number|null}[];const hids=habitRows.map(h=>h.id);let healthHabitRatio:number|null=null;if(hids.length){const hl=await sb.from("habit_logs").select("habit_id,date,value").in("habit_id",hids).gte("date",from).lte("date",todayInTZ());if(hl.error)throw hl.error;const healthHabits=habitRows.filter(h=>h.area==="Health");if(healthHabits.length){const days:string[]=[];for(let d=new Date(from+"T12:00:00");d<=new Date(todayInTZ()+"T12:00:00");d.setDate(d.getDate()+1))days.push(d.toISOString().slice(0,10));const scores=healthHabits.map(h=>{const map=Object.fromEntries((hl.data||[]).filter((l:any)=>l.habit_id===h.id).map((l:any)=>[l.date,Number(l.value||0)]));return habitConsistencyForFrequency(map,days,h.frequency||"Daily",Number(h.target||1));});healthHabitRatio=Math.round(scores.reduce((a,b)=>a+b,0)/scores.length);}}
   const healthDays=new Set((health.data||[]).map((h:any)=>h.date)).size;const healthScore=healthHabitRatio??pct(healthDays,20);
   const recRows=(recs.data||[]) as any[];let moneyRecovered=0;const openRecs=recRows.filter(r=>r.status!=="Paid"&&remaining(Number(r.total||0),(r.receivable_payments||[]).map((p:any)=>({amount:Number(p.amount),date:p.date})))>0);for(const r of recRows)for(const p of r.receivable_payments||[])if(p.date>=from)moneyRecovered+=Number(p.amount||0);const moneyScore=openRecs.length?pct(openRecs.filter(r=>Boolean(r.next_followup)).length,openRecs.length):(recRows.length?100:null);
   const familyRows=family.data||[];const familyScore=familyRows.length?pct(familyRows.filter((x:any)=>x.status==="Completed").length,familyRows.length):null;
