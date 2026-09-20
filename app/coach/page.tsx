@@ -27,7 +27,7 @@ export default function CoachPage() {
       setSignedIn(true);
 
       const [tasksQ, moneyQ, goalsQ, familyQ, docsQ] = await Promise.all([
-        sb.from("tasks").select("name,status,importance,deadline,financial_value,area,goal_id,blocked_by,created_at").eq("workspace_id", ctx.workspaceId).not("status","in",'("Completed","Cancelled")').limit(100),
+        sb.from("tasks").select("name,status,importance,deadline,financial_value,area,goal_id,blocked_by,created_at,estimate_min").eq("workspace_id", ctx.workspaceId).not("status","in",'("Completed","Cancelled")').limit(100),
         sb.from("receivables").select("name,total,next_followup,receivable_payments(amount,date)").eq("workspace_id", ctx.workspaceId).limit(100),
         sb.from("goals").select("name,progress,status").eq("workspace_id", ctx.workspaceId).not("status","eq","Completed").limit(50),
         sb.from("family_tasks").select("title,due_date,status").eq("workspace_id", ctx.workspaceId).neq("status","Completed").limit(50),
@@ -49,6 +49,7 @@ export default function CoachPage() {
             goalId: t.goal_id,
             blockedBy: t.blocked_by,
             createdAt: t.created_at,
+            estimateMin: t.estimate_min,
           }),
         }))
         .sort((a,b)=>b.score-a.score)
