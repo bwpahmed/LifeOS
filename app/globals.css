@@ -351,3 +351,10 @@ button{cursor:pointer}
 @media(max-width:1180px){.feature-directory{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:800px){.settings-grid{grid-template-columns:1fr}.feature-directory{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:480px){.feature-directory{grid-template-columns:1fr}}
+
+.quick-type-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.quick-type-grid a,.quick-type-grid button{border:1px solid var(--line);background:rgba(255,255,255,.02);color:var(--text);border-radius:13px;padding:14px 9px;display:flex;gap:8px;align-items:center;justify-content:center}
+.quick-type-grid a:hover,.quick-type-grid button:hover{background:rgba(255,255,255,.06)}
+.quick-type-grid b{color:#9fc7ff;font-size:16px}
+.quick-type-grid span{font-size:10px}
+@media(max-width:480px){.quick-type-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
