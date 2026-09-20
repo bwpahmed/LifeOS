@@ -12,6 +12,12 @@ describe("priority score (prototype parity)", () => {
   it("completed tasks score 0", () => {
     expect(priorityScore({ status: "Completed", deadline: "2020-01-01" })).toBe(0);
   });
+  it("estimated effort is a small transparent tie-breaker", () => {
+    const fast = priorityScore({ status: "Planned", deadline: "2026-09-20", importance: 3, estimateMin: 15 }, new Date("2026-09-20T12:00:00"));
+    const long = priorityScore({ status: "Planned", deadline: "2026-09-20", importance: 3, estimateMin: 180 }, new Date("2026-09-20T12:00:00"));
+    expect(fast).toBeGreaterThan(long);
+    expect(whyPriority({ status: "Planned", deadline: "2026-09-20", estimateMin: 15 }, new Date("2026-09-20T12:00:00")).join(" ")).toMatch(/quick win/i);
+  });
   it("overdue critical money task scores high with reasons", () => {
     const s = priorityScore({ status: "Today", deadline: "2020-01-01", importance: 5, value: 25000, area: "Money" }, new Date("2026-09-16T12:00:00"));
     expect(s).toBeGreaterThanOrEqual(90);
