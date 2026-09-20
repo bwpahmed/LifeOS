@@ -149,7 +149,11 @@ async function chat(
   jsonMode = false
 ): Promise<string> {
   const cfg = configFor(provider, env);
-  const response = await fetch(cfg.url, {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20_000);
+  let response: Response;
+  try {
+    response = await fetch(cfg.url, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${cfg.key}`,
