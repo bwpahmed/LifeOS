@@ -36,8 +36,10 @@ export default function QuickAddPage(){
    <a href="/tasks"><b>✓</b><span>Task</span></a>
    <a href="/habits"><b>↻</b><span>Habit</span></a>
    <a href="/money"><b>₳</b><span>Payment</span></a>
+   <a href="/expenses"><b>⊘</b><span>Expense</span></a>
    <a href="/journal"><b>✎</b><span>Note</span></a>
    <a href="/health"><b>♥</b><span>Health</span></a>
+   <a href="/health-planner"><b>✚</b><span>Water / Meds</span></a>
    <a href="/family"><b>⌁</b><span>Family</span></a>
  </div></Panel>
  <div className="mt"><Panel title="Brain dump" kicker="SMART CAPTURE"><textarea value={text} onChange={e=>setText(e.target.value)} rows={3} className="w-full rounded-lg border border-white/10 bg-[#0a1524] p-2 text-white"/><div className="mt-2 grid grid-cols-[1fr_auto] gap-2"><button onClick={parse} disabled={loading||!text.trim()} className="w-full rounded-lg bg-[#77adff] p-2 font-bold text-[#06101f] disabled:opacity-50">{loading?"Parsing…":"Smart Capture"}</button><button onClick={voiceCapture} disabled={listening} className="rounded-lg border border-white/10 px-3 text-sm disabled:opacity-50">{listening?"Listening…":"Voice"}</button></div>{provider&&<p className="mt-2 text-xs text-slate-500">{provider}. Nothing is saved until you confirm.</p>}{out&&<><pre className="mt-2 overflow-auto rounded-lg bg-black/30 p-3 text-xs text-slate-200">{JSON.stringify(out,null,2)}</pre><button onClick={confirmSave} disabled={saving} className="mt-2 w-full rounded-lg border border-emerald-300/30 bg-emerald-300/10 p-2 font-bold text-emerald-100 disabled:opacity-50">{saving?"Saving…":"Confirm & Save"}</button></>}{msg&&<p className="mt-3 text-sm text-slate-300">{msg}</p>}</Panel></div></main>;
