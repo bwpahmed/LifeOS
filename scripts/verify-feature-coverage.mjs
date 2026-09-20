@@ -98,7 +98,7 @@ const checks=[
  ["X Light theme utility contrast",has("app/globals.css","LIGHT MODE READABILITY HARDENING — canonical",".text-white",".text-emerald-300",".text-red-300",".nav-item span")],
  ["Y Exact in-app schedules",has("supabase/migrations/20260920_health_inapp_scheduler.sql","*/15 * * * *","generate_due_health_notifications")&&has("supabase/migrations/20260920_general_inapp_scheduler.sql","7 * * * *","generate_due_lifeos_notifications")],
  ["Z Exact Web Push dispatcher",exists("supabase/functions/lifeos-push-dispatch/index.ts")&&has("supabase/migrations/20260920_schedule_exact_push_dispatch.sql","*/5 * * * *","lifeos-push-dispatch")&&has("app/notifications/page.tsx","push_sent_at:null","push_attempts:0")&&has("public/sw.js","data.data?.url")],
- ["S01 Screenshot Home",has("app/page.tsx","MUST WIN TODAY","Needs attention","Waiting For","Long-term direction","System health")],
+ ["S01 Screenshot Home",has("app/page.tsx","MUST WIN TODAY","Needs attention","WAITING FOR","Long-term direction","System health")],
  ["S02 Screenshot Today",has("app/today/page.tsx","Morning check-in","Rebuild plan","Night Review","FOCUS MODE","Missed / overdue","Must Win Today")],
  ["S03 Screenshot Tasks",has("app/tasks/page.tsx","Priority queue","Open","Today","Waiting","Completed","Edit","Delete")],
  ["S04 Screenshot Goals",has("app/goals/page.tsx","Save goal","Milestones","Edit","Delete","On Track","At Risk")],
