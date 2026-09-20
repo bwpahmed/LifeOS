@@ -19,6 +19,7 @@ type Habit={id:string;name:string;area:string|null};
 type Doc={id:string;name:string;status:string;expiry_date:string|null};
 type Goal={id:string;name:string;progress:number|null;status:string};
 type FamilyTask={id:string;title:string;due_date:string|null;status:string;reminder_days:number|null};
+type WasteLesson={id:string;amount:number;category:string;merchant:string|null;avoid_next_time:string|null;waste_reason:string|null;date:string};
 
 function isoAddDays(iso:string,days:number){
   const d=new Date(iso+"T12:00:00");
@@ -52,6 +53,7 @@ export default function Home(){
   const[completedWeek,setCompletedWeek]=useState(0);
   const[activityWeek,setActivityWeek]=useState(0);
   const[wasteMonth,setWasteMonth]=useState(0);
+  const[wasteLessons,setWasteLessons]=useState<WasteLesson[]>([]);
   const[homeWidgets,setHomeWidgets]=useState<string[]>(["top3","money","health","focus","family","europe","business","calendar","alerts","waiting","goals","week","waste"]);const[lifeScoreEnabled,setLifeScoreEnabled]=useState(true);
   const[timezone,setTimezone]=useState("Asia/Dubai");
   const[error,setError]=useState("");
@@ -89,7 +91,7 @@ export default function Home(){
         sb.from("goals").select("id,name,progress,status").eq("workspace_id",ctx.workspaceId).neq("status","Completed").order("deadline",{ascending:true,nullsFirst:false}).limit(6),
         sb.from("tasks").select("id").eq("workspace_id",ctx.workspaceId).eq("status","Completed").gte("completed_at",localWeekStart+"T00:00:00Z"),
         sb.from("activity_log").select("id").eq("workspace_id",ctx.workspaceId).gte("created_at",localWeekStart+"T00:00:00Z"),
-        sb.from("money_expenses").select("amount,is_waste").eq("workspace_id",ctx.workspaceId).gte("date",localToday.slice(0,7)+"-01").lte("date",localToday),
+        sb.from("money_expenses").select("id,amount,category,merchant,avoid_next_time,waste_reason,date,is_waste").eq("workspace_id",ctx.workspaceId).gte("date",localToday.slice(0,7)+"-01").lte("date",localToday),
         sb.from("user_settings").select("settings").eq("user_id",ctx.user.id).maybeSingle()
       ]);
       for(const q of[t,r,h,fl,fam,d,g,done,activity,expenses,us])if(q.error)throw q.error;
@@ -104,7 +106,9 @@ export default function Home(){
       setGoals((g.data||[]) as Goal[]);
       setCompletedWeek((done.data||[]).length);
       setActivityWeek((activity.data||[]).length);
-      setWasteMonth((expenses.data||[]).filter((x:any)=>x.is_waste).reduce((a:any,x:any)=>a+Number(x.amount||0),0));const settings=(us.data?.settings||{}) as any;const hw=settings.home_widgets;if(Array.isArray(hw))setHomeWidgets(hw.map(String));setLifeScoreEnabled(settings.life_score_enabled!==false);
+      const expenseRows=(expenses.data||[]) as any[];
+      setWasteMonth(expenseRows.filter((x:any)=>x.is_waste).reduce((a:any,x:any)=>a+Number(x.amount||0),0));
+      setWasteLessons(expenseRows.filter((x:any)=>x.is_waste&&(x.avoid_next_time||x.waste_reason)).sort((a:any,b:any)=>String(b.date).localeCompare(String(a.date))).slice(0,3) as WasteLesson[]);const settings=(us.data?.settings||{}) as any;const hw=settings.home_widgets;if(Array.isArray(hw))setHomeWidgets(hw.map(String));setLifeScoreEnabled(settings.life_score_enabled!==false);
 
       const ids=habitRows.map(x=>x.id);
       if(ids.length){
@@ -175,6 +179,7 @@ export default function Home(){
     }
     if(money.count)arr.push({kind:"critical",icon:"₳",title:`${aed(money.overdue)} overdue`,meta:`${money.count} account${money.count===1?"":"s"} need follow-up`,href:"/money"});
     if(wasteMonth>0)arr.push({kind:"important",icon:"⊘",title:`${aed(wasteMonth)} marked as waste this month`,meta:"Review the reason and avoid-next-time rules.",href:"/expenses"});
+    if(wasteLessons[0])arr.push({kind:"reminder",icon:"↺",title:"Waste Guard lesson",meta:wasteLessons[0].avoid_next_time||wasteLessons[0].waste_reason||"Review the last waste expense.",href:"/expenses"});
     for(const f of familyTasks.filter(f=>f.due_date&&f.due_date<=isoAddDays(today,Number(f.reminder_days||2))).slice(0,2)){
       arr.push({kind:"reminder",icon:"⌁",title:f.title,meta:`Family · ${f.due_date}`,href:"/family"});
     }
@@ -182,7 +187,7 @@ export default function Home(){
       arr.push({kind:"reminder",icon:"◈",title:`Europe document: ${d.name}`,meta:d.status,href:"/europe"});
     }
     return arr.slice(0,8);
-  },[tasks,money,wasteMonth,familyTasks,docs,today]);
+  },[tasks,money,wasteMonth,wasteLessons,familyTasks,docs,today]);
 
   const waiting=useMemo(()=>tasks
     .filter(t=>t.status==="Waiting")
@@ -284,6 +289,14 @@ export default function Home(){
         </div>
       </article>}
     </div>
+
+    {wasteLessons.length>0&&<article className="panel mt">
+      <div className="panel-head"><div><span className="label">WASTE GUARD MEMORY</span><h3>Rules worth remembering</h3></div><Link className="text-btn" href="/expenses">Open Waste Guard →</Link></div>
+      <div className="grid g3">{wasteLessons.map(x=><Link href="/expenses" key={x.id} className="priority-item">
+        <span className="priority-number">⊘</span>
+        <div><strong>{x.avoid_next_time||"Avoid repeating this expense"}</strong><small>{aed(Number(x.amount||0))} · {x.category}{x.merchant?" · "+x.merchant:""}{x.waste_reason?" · "+x.waste_reason:""}</small></div>
+      </Link>)}</div>
+    </article>}
 
     <div className="mt" style={{display:"flex",gap:8,flexWrap:"wrap"}}>
       <Link href="/expenses" className="ghost-btn">Waste Guard · {aed(wasteMonth)}</Link>
