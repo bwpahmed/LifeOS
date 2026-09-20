@@ -358,3 +358,18 @@ button{cursor:pointer}
 .quick-type-grid b{color:#9fc7ff;font-size:16px}
 .quick-type-grid span{font-size:10px}
 @media(max-width:480px){.quick-type-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.calendar-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.calendar-title{font-size:18px;font-weight:800}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.cal-head{font-size:8px;color:#7186a4;text-align:center;padding:7px}
+.cal-day{min-height:98px;border:1px solid var(--line);border-radius:11px;padding:7px;background:rgba(255,255,255,.015)}
+.cal-day.muted-day{opacity:.35}
+.cal-day.today{border-color:rgba(105,167,255,.45);background:rgba(105,167,255,.05)}
+.cal-date{font-size:9px;color:#9dafc7}
+.cal-items{display:flex;flex-direction:column;gap:3px;margin-top:6px}
+.cal-item{font-size:8px;padding:4px 5px;border-radius:6px;background:rgba(105,167,255,.09);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-item.money{background:rgba(255,189,105,.13)}
+.cal-item.family{background:rgba(75,210,160,.13)}
+.cal-item.google{background:rgba(154,140,255,.14)}
+@media(max-width:800px){.calendar-grid{gap:3px;overflow:auto}.cal-day{min-height:74px;padding:5px}.cal-item{font-size:7px}.calendar-grid{grid-template-columns:repeat(7,minmax(76px,1fr))}}
