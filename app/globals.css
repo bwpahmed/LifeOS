@@ -212,6 +212,7 @@ button{cursor:pointer}
   color:var(--text);padding:7px 8px;font-size:10px
 }
 
+.back-home-link{display:none;color:#8ab6ff;font-size:12px;margin-bottom:8px}
 .mobile-nav{display:none}
 
 @media(max-width:1180px){
@@ -227,6 +228,7 @@ button{cursor:pointer}
   .topbar h1{font-size:21px}
   .top-actions .quick-add-btn{display:none}
   .page-root{padding-bottom:10px}
+  .back-home-link{display:inline-block}
   .hero-card{padding:20px;align-items:flex-start}
   .hero-card h2{font-size:22px}
   .life-score{display:none}
