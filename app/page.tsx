@@ -51,6 +51,7 @@ export default function Home(){
   const[goals,setGoals]=useState<Goal[]>([]);
   const[completedWeek,setCompletedWeek]=useState(0);
   const[activityWeek,setActivityWeek]=useState(0);
+  const[wasteMonth,setWasteMonth]=useState(0);
   const[timezone,setTimezone]=useState("Asia/Dubai");
   const[error,setError]=useState("");
 
@@ -70,7 +71,7 @@ export default function Home(){
       const localToday=todayInTZ(tz);
       const localWeekStart=weekStart(localToday);
 
-      const[t,r,h,fl,fam,d,g,done,activity]=await Promise.all([
+      const[t,r,h,fl,fam,d,g,done,activity,expenses]=await Promise.all([
         sb.from("tasks")
           .select("id,name,area,status,importance,deadline,financial_value,goal_id,blocked_by,created_at,waiting_for,start_date")
           .eq("workspace_id",ctx.workspaceId)
@@ -86,9 +87,10 @@ export default function Home(){
         sb.from("migration_documents").select("id,name,status,expiry_date").eq("workspace_id",ctx.workspaceId),
         sb.from("goals").select("id,name,progress,status").eq("workspace_id",ctx.workspaceId).neq("status","Completed").order("deadline",{ascending:true,nullsFirst:false}).limit(6),
         sb.from("tasks").select("id").eq("workspace_id",ctx.workspaceId).eq("status","Completed").gte("completed_at",localWeekStart+"T00:00:00Z"),
-        sb.from("activity_log").select("id").eq("workspace_id",ctx.workspaceId).gte("created_at",localWeekStart+"T00:00:00Z")
+        sb.from("activity_log").select("id").eq("workspace_id",ctx.workspaceId).gte("created_at",localWeekStart+"T00:00:00Z"),
+        sb.from("money_expenses").select("amount,is_waste").eq("workspace_id",ctx.workspaceId).gte("date",localToday.slice(0,7)+"-01").lte("date",localToday)
       ]);
-      for(const q of[t,r,h,fl,fam,d,g,done,activity])if(q.error)throw q.error;
+      for(const q of[t,r,h,fl,fam,d,g,done,activity,expenses])if(q.error)throw q.error;
 
       const habitRows=(h.data||[]) as Habit[];
       setTasks((t.data||[]) as Task[]);
@@ -100,6 +102,7 @@ export default function Home(){
       setGoals((g.data||[]) as Goal[]);
       setCompletedWeek((done.data||[]).length);
       setActivityWeek((activity.data||[]).length);
+      setWasteMonth((expenses.data||[]).filter((x:any)=>x.is_waste).reduce((a:any,x:any)=>a+Number(x.amount||0),0));
 
       const ids=habitRows.map(x=>x.id);
       if(ids.length){
@@ -114,7 +117,7 @@ export default function Home(){
 
   useEffect(()=>{void load();},[load]);
   useRealtimeRefresh(
-    ["tasks","receivables","receivable_payments","habits","habit_logs","focus_sessions","family_tasks","migration_documents","goals","activity_log"],
+    ["tasks","receivables","receivable_payments","money_expenses","habits","habit_logs","focus_sessions","family_tasks","migration_documents","goals","activity_log"],
     load,
     Boolean(workspaceId)
   );
@@ -165,6 +168,7 @@ export default function Home(){
       });
     }
     if(money.count)arr.push({kind:"critical",icon:"₳",title:`${aed(money.overdue)} overdue`,meta:`${money.count} account${money.count===1?"":"s"} need follow-up`,href:"/money"});
+    if(wasteMonth>0)arr.push({kind:"important",icon:"⊘",title:`${aed(wasteMonth)} marked as waste this month`,meta:"Review the reason and avoid-next-time rules.",href:"/expenses"});
     for(const f of familyTasks.filter(f=>f.due_date&&f.due_date<=isoAddDays(today,Number(f.reminder_days||2))).slice(0,2)){
       arr.push({kind:"reminder",icon:"⌁",title:f.title,meta:`Family · ${f.due_date}`,href:"/family"});
     }
@@ -172,7 +176,7 @@ export default function Home(){
       arr.push({kind:"reminder",icon:"◈",title:`Europe document: ${d.name}`,meta:d.status,href:"/europe"});
     }
     return arr.slice(0,8);
-  },[tasks,money,familyTasks,docs,today]);
+  },[tasks,money,wasteMonth,familyTasks,docs,today]);
 
   const waiting=useMemo(()=>tasks
     .filter(t=>t.status==="Waiting")
@@ -280,6 +284,9 @@ export default function Home(){
     </div>
 
     <div className="mt" style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+      <Link href="/expenses" className="ghost-btn">Waste Guard · {aed(wasteMonth)}</Link>
+      <Link href="/health-planner" className="ghost-btn">Health Planner</Link>
+      <Link href="/mobile" className="ghost-btn">Mobile Tasks & Notes</Link>
       <Link href="/matrix" className="ghost-btn">Priority Matrix</Link>
       <Link href="/habits" className="ghost-btn">Habits</Link>
       <Link href="/coach" className="ghost-btn">AI Coach</Link>
