@@ -5,6 +5,19 @@ const files = [
   "supabase/migrations/20260919_security_bootstrap.sql",
 ];
 
+const requiredFragments = [
+  "create policy \"own notifications select\"",
+  "create policy \"own notification preferences\"",
+  "create policy \"own push subscriptions\"",
+  "create table if not exists public.workspace_invitations",
+  "create policy \"workspace invitations admin select\"",
+  "create policy \"lifeos private storage select\"",
+  "when area = ''Money'' then ''money''",
+  "when area = ''Family'' then ''family''",
+  "when area = ''Europe'' then ''europe''",
+  "when area in (''Business'',''Work'') then ''business''",
+];
+
 let failed = false;
 
 for (const file of files) {
@@ -32,7 +45,14 @@ for (const file of files) {
     failed = true;
     console.error(`${file}: migration transaction wrapper appears incomplete`);
   }
+
+  for (const fragment of requiredFragments) {
+    if (!sql.toLowerCase().includes(fragment.toLowerCase())) {
+      failed = true;
+      console.error(`${file}: required security fragment missing: ${fragment}`);
+    }
+  }
 }
 
 if (failed) process.exit(1);
-console.log("Supabase SQL sanity checks passed.");
+console.log("Supabase SQL syntax and security sanity checks passed.");
