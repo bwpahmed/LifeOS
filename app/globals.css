@@ -530,3 +530,72 @@ button{cursor:pointer}
   .topbar{gap:8px}
   .icon-btn{width:42px;height:42px}
 }
+
+/* Light mode contrast hardening: many legacy pages still use Tailwind slate/white utility classes. */
+:root[data-theme="light"] body,
+:root[data-theme="light"] .page-content,
+:root[data-theme="light"] .panel,
+:root[data-theme="light"] .metric-card,
+:root[data-theme="light"] .timeline-item,
+:root[data-theme="light"] .priority-item,
+:root[data-theme="light"] .alert,
+:root[data-theme="light"] .stat-box,
+:root[data-theme="light"] .feature-link { color:#172033; }
+
+:root[data-theme="light"] .brand,
+:root[data-theme="light"] .topbar h1,
+:root[data-theme="light"] .panel h1,
+:root[data-theme="light"] .panel h2,
+:root[data-theme="light"] .panel h3,
+:root[data-theme="light"] strong,
+:root[data-theme="light"] b { color:#142033; }
+
+:root[data-theme="light"] .brand-sub,
+:root[data-theme="light"] .nav-item,
+:root[data-theme="light"] .metric-card>span,
+:root[data-theme="light"] .metric-card small,
+:root[data-theme="light"] .panel small,
+:root[data-theme="light"] .hero-card p,
+:root[data-theme="light"] .progress-label,
+:root[data-theme="light"] .timeline-time,
+:root[data-theme="light"] .small-copy,
+:root[data-theme="light"] .text-slate-300,
+:root[data-theme="light"] .text-slate-400,
+:root[data-theme="light"] .text-slate-500,
+:root[data-theme="light"] .text-slate-200 { color:#53647c!important; }
+
+:root[data-theme="light"] .eyebrow,
+:root[data-theme="light"] .label,
+:root[data-theme="light"] .nav-section { color:#50657f!important; }
+
+:root[data-theme="light"] .nav-item.active,
+:root[data-theme="light"] .nav-item:hover,
+:root[data-theme="light"] .text-white { color:#142033!important; }
+
+:root[data-theme="light"] .ghost-btn,
+:root[data-theme="light"] .soft-btn,
+:root[data-theme="light"] .icon-btn,
+:root[data-theme="light"] .mini-btn,
+:root[data-theme="light"] .chip,
+:root[data-theme="light"] .pill,
+:root[data-theme="light"] .feature-link {
+  color:#203149!important;
+  background:rgba(23,49,84,.035);
+  border-color:rgba(17,33,55,.16);
+}
+
+:root[data-theme="light"] .ghost-btn:hover,
+:root[data-theme="light"] .soft-btn:hover,
+:root[data-theme="light"] .icon-btn:hover,
+:root[data-theme="light"] .mini-btn:hover,
+:root[data-theme="light"] .feature-link:hover { background:rgba(23,49,84,.08); }
+
+:root[data-theme="light"] [class*="border-white"] { border-color:rgba(17,33,55,.14)!important; }
+:root[data-theme="light"] [class*="bg-white"] { background-color:rgba(23,49,84,.035)!important; }
+:root[data-theme="light"] [class*="bg-[#0a1524]"] { background:#fff!important; color:#172033!important; }
+:root[data-theme="light"] .mobile-item { color:#53647c; }
+:root[data-theme="light"] .mobile-item.active { color:#234f9a; }
+:root[data-theme="light"] .counter { color:#fff!important; }
+:root[data-theme="light"] .primary-btn,
+:root[data-theme="light"] .quick-add-btn,
+:root[data-theme="light"] .mobile-add { color:#07101d!important; }
