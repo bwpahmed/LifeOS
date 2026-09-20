@@ -99,6 +99,7 @@ async function redeliverSnoozed(admin: ReturnType<typeof supabaseAdmin>, userId:
       : n.ref_table === "receivables" ? "/money"
       : n.ref_table === "family_tasks" ? "/family"
       : n.ref_table === "migration_documents" ? "/europe"
+      : n.ref_table === "health_routines" ? "/health-planner"
       : "/notifications";
     for (const sub of subs || []) {
       try {
@@ -156,7 +157,7 @@ export async function GET(request: Request) {
     const workspaceIds = (memberships || []).map((m) => m.workspace_id);
     if (!workspaceIds.length) continue;
 
-    const [{ data: tasks }, { data: money }, { data: family }, { data: docs }] = await Promise.all([
+    const [{ data: tasks }, { data: money }, { data: family }, { data: docs }, { data: healthRoutines }] = await Promise.all([
       admin.from("tasks")
         .select("id,workspace_id,name,area,importance,deadline,reminder_time,status")
         .in("workspace_id", workspaceIds)
@@ -177,6 +178,10 @@ export async function GET(request: Request) {
         .in("workspace_id", workspaceIds)
         .neq("status", "Ready")
         .gte("expiry_date", local.date),
+      admin.from("health_routines")
+        .select("id,workspace_id,kind,title,details,reminder_times,days_of_week,active,start_date,end_date")
+        .in("workspace_id", workspaceIds)
+        .eq("active", true),
     ]);
 
     for (const task of tasks || []) {
@@ -244,6 +249,40 @@ export async function GET(request: Request) {
         });
         created += r.created; pushed += r.pushed;
       }
+    }
+
+
+    const localDateObj = new Date(local.date + "T12:00:00Z");
+    const localDow = ((localDateObj.getUTCDay() + 6) % 7) + 1;
+    for (const routine of healthRoutines || []) {
+      if (routine.start_date && routine.start_date > local.date) continue;
+      if (routine.end_date && routine.end_date < local.date) continue;
+      const days = Array.isArray(routine.days_of_week) ? routine.days_of_week.map(Number) : [1,2,3,4,5,6,7];
+      if (!days.includes(localDow)) continue;
+      const times = Array.isArray(routine.reminder_times) ? routine.reminder_times.map(String) : [];
+      if (!times.length) continue;
+      const dueNow = times.some((t) => Number(t.slice(0,2)) === local.hour);
+      if (!dailyMode && !dueNow) continue;
+      if (quiet) continue;
+      const label =
+        routine.kind === "water" ? "Water reminder"
+        : routine.kind === "medicine" ? "Medicine reminder"
+        : routine.kind === "sleep" ? "Sleep reminder"
+        : routine.kind === "meal" ? "Meal reminder"
+        : "Health reminder";
+      const r = await deliver(admin, {
+        userId,
+        workspaceId: routine.workspace_id,
+        title: `LifeOS ${label.toLowerCase()}`,
+        body: "A private health routine needs attention.",
+        severity: routine.kind === "medicine" ? "important" : "normal",
+        refTable: "health_routines",
+        refId: routine.id,
+        url: "/health-planner",
+        dedupeHours: dailyMode ? 20 : 1,
+      });
+      created += r.created;
+      pushed += r.pushed;
     }
 
     if ((dailyMode || local.hour === 9) && !quiet) {
