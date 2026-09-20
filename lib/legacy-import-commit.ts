@@ -323,7 +323,7 @@ export async function commitLegacyImport(opts: {
     try{
       const {blob,ext}=dataUrlToBlob(String(p.dataUrl));
       const id=crypto.randomUUID();
-      const path=`${userId}/hair/${id}.${ext}`;
+      const path=`${workspaceId}/${userId}/hair/${id}.${ext}`;
       const up=await sb.storage.from("lifeos-private").upload(path,blob,{upsert:false,contentType:blob.type});
       if(up.error)throw up.error;
       const ins=await sb.from("hair_photos").insert({id,workspace_id:workspaceId,created_by:userId,date:p.date||null,label:p.label||"Legacy photo",path,privacy:"private"});
