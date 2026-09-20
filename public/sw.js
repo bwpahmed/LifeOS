@@ -1,7 +1,7 @@
 /* LifeOS service worker.
    Privacy rule: never cache authenticated HTML/API responses. Only public shell/static assets. */
-const CACHE = "lifeos-v3";
-const CORE = ["/offline.html", "/manifest.webmanifest", "/icons/icon.svg", "/today", "/tasks", "/habits", "/quick-add"];
+const CACHE = "lifeos-v4";
+const CORE = ["/offline.html", "/manifest.webmanifest", "/icons/icon.svg", "/today", "/tasks", "/habits", "/quick-add", "/mobile", "/sticky-notes", "/expenses", "/health-planner"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(CORE)).then(() => self.skipWaiting()));
