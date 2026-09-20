@@ -5,6 +5,18 @@ import { isInQuietHours } from "@/lib/timezone";
 import { escalation } from "@/lib/money";
 import { createDailyBackup } from "@/lib/server-backup";
 
+function addIsoDays(iso: string, days: number) {
+  const d = new Date(iso + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function daysUntil(from: string, to: string) {
+  const a = new Date(from + "T12:00:00Z").getTime();
+  const b = new Date(to + "T12:00:00Z").getTime();
+  return Math.round((b - a) / 86400000);
+}
+
 function localParts(tz: string) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: tz,
@@ -175,9 +187,10 @@ export async function GET(request: Request) {
         .lte("next_followup", local.date)
         .neq("status", "Paid"),
       admin.from("family_tasks")
-        .select("id,workspace_id,title,due_date,status")
+        .select("id,workspace_id,title,due_date,status,reminder_days,responsible")
         .in("workspace_id", workspaceIds)
-        .eq("due_date", local.date)
+        .gte("due_date", local.date)
+        .lte("due_date", addIsoDays(local.date, 90))
         .neq("status", "Completed"),
       admin.from("migration_documents")
         .select("id,workspace_id,name,expiry_date,status")
@@ -248,12 +261,23 @@ export async function GET(request: Request) {
 
     if ((dailyMode || local.hour === 8) && !quiet) {
       for (const item of family || []) {
+        if (!item.due_date) continue;
+        const days = daysUntil(local.date, item.due_date);
+        const reminderDays = Math.max(0, Number(item.reminder_days ?? 2));
+        if (days !== 0 && days !== reminderDays) continue;
         const r = await deliver(admin, {
-          userId, workspaceId: item.workspace_id, title: "LifeOS family reminder",
-          body: item.title, severity: "normal",
-          refTable: "family_tasks", refId: item.id, url: "/family", dedupeHours: 20,
+          userId,
+          workspaceId: item.workspace_id,
+          title: days === 0 ? "LifeOS family task due today" : "LifeOS family reminder",
+          body: item.title,
+          severity: days === 0 ? "important" : "normal",
+          refTable: "family_tasks",
+          refId: item.id,
+          url: "/family",
+          dedupeHours: 20,
         });
-        created += r.created; pushed += r.pushed;
+        created += r.created;
+        pushed += r.pushed;
       }
     }
 
