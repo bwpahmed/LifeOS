@@ -43,6 +43,15 @@ describe("recurrence", () => {
     expect(nextOccurrence("2026-09-16", { kind: "daily" })).toBe("2026-09-17");
     expect(nextOccurrence("2026-09-16", { kind: "none" })).toBeNull();
   });
+  it("supports every-X-days without exploding future rows", () => {
+    expect(nextOccurrence("2026-09-16", { kind: "everyXDays", days: 3 })).toBe("2026-09-19");
+    expect(nextOccurrence("2026-09-16", { kind: "everyXDays", days: 0 })).toBe("2026-09-17");
+  });
+  it("supports specific weekdays and picks only the next matching day", () => {
+    // 16 Sep 2026 is Wednesday. 1=Mon ... 5=Fri in the app weekday selector.
+    expect(nextOccurrence("2026-09-16", { kind: "weekdays", days: [1, 5] })).toBe("2026-09-18");
+    expect(nextOccurrence("2026-09-18", { kind: "weekdays", days: [1, 5] })).toBe("2026-09-21");
+  });
 });
 
 describe("legacy import", () => {
