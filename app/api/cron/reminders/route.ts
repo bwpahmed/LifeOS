@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { sendWebPush, type PushKeys } from "@/lib/push";
 import { isInQuietHours } from "@/lib/timezone";
+import { escalation } from "@/lib/money";
 
 function localParts(tz: string) {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -158,7 +159,7 @@ export async function GET(request: Request) {
         .eq("deadline", local.date)
         .not("status", "in", '("Completed","Cancelled")'),
       admin.from("receivables")
-        .select("id,workspace_id,name,next_followup,status")
+        .select("id,workspace_id,name,next_followup,due_date,promise_date,status")
         .in("workspace_id", workspaceIds)
         .lte("next_followup", local.date)
         .neq("status", "Paid"),
@@ -205,13 +206,28 @@ export async function GET(request: Request) {
     }
 
     if (local.hour >= 9 && local.hour <= 18 && !quiet) {
+      const localDayMs = new Date(local.date + "T12:00:00Z").getTime();
       for (const rec of money || []) {
+        const dueMs = rec.due_date ? new Date(rec.due_date + "T12:00:00Z").getTime() : localDayMs;
+        const overdueDays = rec.due_date ? Math.max(0, Math.floor((localDayMs - dueMs) / 86400000)) : 0;
+        const promiseMissed = Boolean(rec.promise_date && rec.promise_date < local.date);
+        const level = escalation({ overdueDays, promiseMissed });
+        const severity = level === "Critical" ? "critical" : level === "Normal" ? "normal" : "important";
+        if (quiet && !(severity === "critical" && allowCritical)) continue;
+        const dedupeHours = level === "Critical" ? 5 : level === "High" ? 10 : 20;
         const r = await deliver(admin, {
-          userId, workspaceId: rec.workspace_id, title: "LifeOS money follow-up",
-          body: "A money follow-up is due.", severity: "important",
-          refTable: "receivables", refId: rec.id, url: "/money", dedupeHours: 20,
+          userId,
+          workspaceId: rec.workspace_id,
+          title: level === "Critical" ? "LifeOS urgent money follow-up" : "LifeOS money follow-up",
+          body: "A money follow-up is due.",
+          severity,
+          refTable: "receivables",
+          refId: rec.id,
+          url: "/money",
+          dedupeHours,
         });
-        created += r.created; pushed += r.pushed;
+        created += r.created;
+        pushed += r.pushed;
       }
     }
 
