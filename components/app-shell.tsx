@@ -18,6 +18,7 @@ const nav = [
 
   { section: "LIFE AREAS" },
   { href: "/money", icon: "₳", label: "Money" },
+  { href: "/expenses", icon: "⊘", label: "Waste Guard" },
   { href: "/business", icon: "▤", label: "Business" },
   { href: "/health", icon: "♥", label: "Health" },
   { href: "/family", icon: "⌁", label: "Family" },
@@ -37,6 +38,7 @@ const nav = [
   { href: "/sticky-notes", icon: "▰", label: "Sticky Notes" },
   { href: "/matrix", icon: "◆", label: "Priority Matrix" },
   { href: "/waiting", icon: "…", label: "Waiting For" },
+  { href: "/health-planner", icon: "✚", label: "Health Planner" },
   { href: "/health-vault", icon: "▣", label: "Health Vault" },
   { href: "/hair", icon: "◌", label: "Hair Recovery" },
   { href: "/self-control", icon: "◇", label: "Self-Control" },
@@ -54,8 +56,10 @@ const pageTitles: Record<string, string> = {
   "/goals": "Goals",
   "/projects": "Projects",
   "/money": "Money Recovery",
+  "/expenses": "Waste Guard",
   "/business": "Business",
   "/health": "Health",
+  "/health-planner": "Health Planner",
   "/health-vault": "Health Vault",
   "/hair": "Hair Recovery",
   "/self-control": "Self-Control",
@@ -166,7 +170,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Link className={`mobile-item ${pathname === "/" ? "active" : ""}`} href="/"><span>⌂</span>Home</Link>
         <Link className={`mobile-item ${pathname === "/today" ? "active" : ""}`} href="/today"><span>◷</span>Today</Link>
         <Link className="mobile-add" href="/quick-add" aria-label="Quick Add">＋</Link>
-        <Link className={`mobile-item ${pathname === "/money" ? "active" : ""}`} href="/money"><span>₳</span>Money</Link>
+        <Link className={`mobile-item ${pathname === "/progress" ? "active" : ""}`} href="/progress"><span>↗</span>Progress</Link>
         <Link className={`mobile-item ${pathname === "/settings" ? "active" : ""}`} href="/settings"><span>☰</span>More</Link>
       </nav>
     </div>
