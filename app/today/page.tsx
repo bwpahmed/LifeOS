@@ -53,7 +53,7 @@ export default function TodayPage(){
        <p style={{fontSize:11,color:"var(--muted)",lineHeight:1.5,maxWidth:650}}>One task, one timer. Focus sessions persist across refreshes and completed sessions are saved to Supabase.</p>
      </div>
      <div style={{textAlign:"center",minWidth:200}}>
-       <strong style={{display:"block",fontSize:36,letterSpacing:1}}>45:00</strong>
+       <strong style={{display:"block",fontSize:30,letterSpacing:.5}}>45 min</strong>
        <Link href="/focus" className="primary-btn" style={{display:"inline-block",marginTop:9}}>Open Focus Mode</Link>
      </div>
    </article>
