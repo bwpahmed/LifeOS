@@ -525,3 +525,24 @@ button{cursor:pointer}
 :root[data-theme="light"] .empty-state{color:#66758d!important;border-color:rgba(28,49,77,.18)!important}
 :root[data-theme="light"] .empty-state b{color:#2d3f58!important}
 :root[data-theme="light"] .mobile-note{color:#172033}
+
+/* LIGHT MODE UTILITY CONTRAST — keep Tailwind utility text readable */
+:root[data-theme="light"] .text-white{color:#111827!important}
+:root[data-theme="light"] .text-slate-200{color:#334155!important}
+:root[data-theme="light"] .text-slate-300{color:#3f4f66!important}
+:root[data-theme="light"] .text-emerald-100,
+:root[data-theme="light"] .text-emerald-200,
+:root[data-theme="light"] .text-emerald-300{color:#047857!important}
+:root[data-theme="light"] .text-amber-100,
+:root[data-theme="light"] .text-amber-200,
+:root[data-theme="light"] .text-amber-300{color:#a16207!important}
+:root[data-theme="light"] .text-red-200,
+:root[data-theme="light"] .text-red-300{color:#b42335!important}
+:root[data-theme="light"] .text-blue-200,
+:root[data-theme="light"] .text-blue-300{color:#1d4ed8!important}
+:root[data-theme="light"] button:disabled,
+:root[data-theme="light"] [aria-disabled="true"]{color:#64748b!important}
+:root[data-theme="light"] .avatar{color:#f8fbff!important}
+:root[data-theme="light"] .primary-btn,
+:root[data-theme="light"] .quick-add-btn,
+:root[data-theme="light"] .mobile-add{color:#07101d!important}
