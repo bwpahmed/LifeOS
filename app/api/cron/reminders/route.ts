@@ -210,10 +210,18 @@ export async function GET(request: Request) {
         .sort((a, b) => a - b);
       if (!dailyMode && !escalationHours.includes(local.hour)) continue;
 
-      const baseSeverity = Number(task.importance || 3) >= 5 ? "critical" : Number(task.importance || 3) >= 4 ? "important" : "normal";
+      const importance = Number(task.importance || 3);
+      const baseSeverity =
+        importance >= 5 ? "critical"
+        : importance >= 4 ? "urgent"
+        : importance >= 3 ? "important"
+        : "normal";
       const severity =
-        local.hour >= 17 && baseSeverity === "normal" ? "important"
-        : local.hour >= 17 && baseSeverity === "important" ? "critical"
+        local.hour >= 17 && baseSeverity === "urgent" ? "critical"
+        : local.hour >= 17 && baseSeverity === "important" ? "urgent"
+        : local.hour >= 17 && baseSeverity === "normal" ? "important"
+        : local.hour >= 12 && baseSeverity === "important" ? "urgent"
+        : local.hour >= 12 && baseSeverity === "normal" ? "important"
         : baseSeverity;
       if (quiet && !(severity === "critical" && allowCritical)) continue;
 
@@ -240,7 +248,11 @@ export async function GET(request: Request) {
         const overdueDays = rec.due_date ? Math.max(0, Math.floor((localDayMs - dueMs) / 86400000)) : 0;
         const promiseMissed = Boolean(rec.promise_date && rec.promise_date < local.date);
         const level = escalation({ overdueDays, promiseMissed });
-        const severity = level === "Critical" ? "critical" : level === "Normal" ? "normal" : "important";
+        const severity =
+          level === "Critical" ? "critical"
+          : level === "High" ? "urgent"
+          : level === "Important" ? "important"
+          : "normal";
         if (quiet && !(severity === "critical" && allowCritical)) continue;
         const dedupeHours = level === "Critical" ? 5 : level === "High" ? 10 : 20;
         const r = await deliver(admin, {
