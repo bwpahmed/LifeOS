@@ -3,13 +3,14 @@
 import { useEffect } from "react";
 import { replayQueue } from "@/lib/sync-queue";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { replayPrivateQueue } from "@/lib/private-offline";
 
 export function OfflineSync() {
   useEffect(() => {
     let stopped = false;
     async function sync() {
       if (stopped || !navigator.onLine) return;
-      try { await replayQueue(supabaseBrowser()); } catch {}
+      try { const client=supabaseBrowser(); await replayQueue(client); await replayPrivateQueue(client); } catch {}
     }
     void sync();
     const onOnline = () => void sync();
