@@ -13,9 +13,9 @@ permissions:
 
 env:
   AGENT_SKILLS_REPO: https://github.com/addyosmani/agent-skills.git
-  AGENT_SKILLS_SHA: 6ca0cd7db39b41b1c37e26d335c507ee92382c6d
+  AGENT_SKILLS_SHA: c004a74784a08295d52749b04cda634125b9a581
   AGENCY_AGENTS_REPO: https://github.com/msitarzewski/agency-agents.git
-  AGENCY_AGENTS_SHA: 6d29a9b08785a0e49ffc9818bbdd381164c2df5f
+  AGENCY_AGENTS_SHA: ad9264e309bd5e5422c04784372d7841b1e5d604
 
 jobs:
   sync:
