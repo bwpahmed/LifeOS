@@ -98,6 +98,20 @@ const checks=[
  ["X Light theme utility contrast",has("app/globals.css","LIGHT MODE READABILITY HARDENING — canonical",".text-white",".text-emerald-300",".text-red-300",".nav-item span")],
  ["Y Exact in-app schedules",has("supabase/migrations/20260920_health_inapp_scheduler.sql","*/15 * * * *","generate_due_health_notifications")&&has("supabase/migrations/20260920_general_inapp_scheduler.sql","7 * * * *","generate_due_lifeos_notifications")],
  ["Z Exact Web Push dispatcher",exists("supabase/functions/lifeos-push-dispatch/index.ts")&&has("supabase/migrations/20260920_schedule_exact_push_dispatch.sql","*/5 * * * *","lifeos-push-dispatch")&&has("app/notifications/page.tsx","push_sent_at:null","push_attempts:0")&&has("public/sw.js","data.data?.url")],
+ ["S01 Screenshot Home",has("app/page.tsx","MUST WIN TODAY","Needs attention","Waiting For","Long-term direction","System health")],
+ ["S02 Screenshot Today",has("app/today/page.tsx","Morning check-in","Rebuild plan","Night Review","FOCUS MODE","Missed / overdue","Must Win Today")],
+ ["S03 Screenshot Tasks",has("app/tasks/page.tsx","Priority queue","Open","Today","Waiting","Completed","Edit","Delete")],
+ ["S04 Screenshot Goals",has("app/goals/page.tsx","Save goal","Milestones","Edit","Delete","On Track","At Risk")],
+ ["S05 Screenshot Projects",has("app/projects/page.tsx","Save project","Project task","Edit","Delete")],
+ ["S06 Screenshot Money",has("app/money/page.tsx","Receivables","Payment","Follow up","History","Edit","Delete")],
+ ["S07 Screenshot Health",has("app/health/page.tsx","Daily health","Lab record","Hair","Self-control","Vault")],
+ ["S08 Screenshot Family",has("app/family/page.tsx","Family members","Upcoming family tasks","Baby dashboard","Edit","Delete")],
+ ["S09 Screenshot Europe",has("app/europe/page.tsx","Family move to Europe","Document readiness","Edit","Delete")],
+ ["S10 Screenshot Calendar",has("app/calendar/page.tsx","Day","Week","Month","Timeline","Today","dragStart")],
+ ["S11 Screenshot Timeline",has("app/timeline/page.tsx","Timeline","activity_log")],
+ ["S12 Screenshot Automations",has("app/automations/page.tsx","Save rule","Run enabled automations now","Enabled","Delete")],
+ ["S13 Screenshot Reviews",has("app/reviews/page.tsx","Save weekly snapshot","Save daily review","weekly","monthly")],
+ ["S14 Screenshot Settings",has("app/settings/page.tsx","dailyFocus","weeklyFocus","Privacy / PIN","Export JSON","Export CSV","Activity")],
 ];
 
 const failed=checks.filter(([,ok])=>!ok);
