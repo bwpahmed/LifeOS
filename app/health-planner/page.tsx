@@ -8,6 +8,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { currentWorkspace } from "@/lib/supabase/workspace";
 import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
 import { todayInTZ } from "@/lib/timezone";
+import { activeForIsoDay,clampWaterGoal,parseReminderTimes,sleepMinutes,waterTotalForDate } from "@/lib/health-planner";
 
 type Routine={id:string;kind:string;title:string;details:Record<string,any>;reminder_times:string[];days_of_week:number[];active:boolean;start_date:string|null;end_date:string|null};
 type RoutineLog={id:string;routine_id:string;date:string;scheduled_time:string;status:string;value:number|null;unit:string|null;note:string|null;completed_at:string|null};
@@ -17,7 +18,6 @@ type Sleep={id:string;date:string;bed_time:string|null;wake_time:string|null;dur
 
 const DAY_LABELS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 function dayIsoIndex(date=todayInTZ()){const d=new Date(date+"T12:00:00");return ((d.getDay()+6)%7)+1;}
-function minutesBetween(bed:string,wake:string){if(!bed||!wake)return null;const[a,b]=bed.split(":").map(Number),[c,d]=wake.split(":").map(Number);let start=a*60+b,end=c*60+d;if(end<start)end+=1440;return end-start;}
 function hours(min:number|null){return min==null?"—":(min/60).toFixed(1)+"h";}
 
 function HealthPlannerContent(){
@@ -46,10 +46,12 @@ function HealthPlannerContent(){
   if(!workspaceId||!userId||!title.trim())return;
   setError("");
   if(!routineDays.length){setError("Select at least one reminder day.");return;}
-  const reminderTimes=times.split(",").map(x=>x.trim()).filter(x=>/^\d{2}:\d{2}$/.test(x));
+  const parsedTimes=parseReminderTimes(times);
+  if(parsedTimes.invalid.length){setError("Invalid reminder time: "+parsedTimes.invalid.join(", ")+". Use 24-hour HH:MM (00:00–23:59).");return;}
+  const reminderTimes=parsedTimes.times;
   if(!reminderTimes.length){setError("Add at least one reminder time in HH:MM format.");return;}
   let detailObj:Record<string,any>={note:details.trim()||null};
-  if(kind==="water")detailObj={...detailObj,daily_goal_ml:Math.max(250,Math.min(10000,Number(waterGoalInput)||2500)),default_amount_ml:250};
+  if(kind==="water")detailObj={...detailObj,daily_goal_ml:clampWaterGoal(waterGoalInput),default_amount_ml:250};
   if(kind==="medicine")detailObj={...detailObj,dose:details.trim()||null};
   if(kind==="sleep")detailObj={...detailObj,target_hours:8};
   const sb=supabaseBrowser();
@@ -65,7 +67,7 @@ function HealthPlannerContent(){
  async function doneRoutine(r:Routine,time:string){const sb=supabaseBrowser();const{error:q}=await sb.from("health_routine_logs").upsert({routine_id:r.id,workspace_id:workspaceId,created_by:userId,date:todayInTZ(),scheduled_time:time,status:"done",completed_at:new Date().toISOString()},{onConflict:"routine_id,date,scheduled_time"});if(q)setError(q.message);else await load();}
 
  async function addWater(amount:number){const sb=supabaseBrowser();const{error:q}=await sb.from("water_logs").insert({workspace_id:workspaceId,created_by:userId,date:todayInTZ(),amount_ml:amount});if(q)setError(q.message);else await load();}
- async function saveWaterGoal(){if(!workspaceId||!userId)return;const goal=Math.max(250,Math.min(10000,Number(waterGoalInput)||2500));const sb=supabaseBrowser();const existing=routines.find(r=>r.kind==="water");if(existing){const{error:q}=await sb.from("health_routines").update({details:{...(existing.details||{}),daily_goal_ml:goal,default_amount_ml:Number(existing.details?.default_amount_ml||250)},updated_at:new Date().toISOString()}).eq("id",existing.id);if(q){setError(q.message);return;}}else{const{error:q}=await sb.from("health_routines").insert({workspace_id:workspaceId,created_by:userId,kind:"water",title:"Drink water",details:{daily_goal_ml:goal,default_amount_ml:250},reminder_times:["09:00","11:00","13:00","15:00","17:00","19:00"],days_of_week:[1,2,3,4,5,6,7],active:true,start_date:todayInTZ()});if(q){setError(q.message);return;}}setMsg("Water target saved.");await load();}
+ async function saveWaterGoal(){if(!workspaceId||!userId)return;const goal=clampWaterGoal(waterGoalInput);const sb=supabaseBrowser();const existing=routines.find(r=>r.kind==="water");if(existing){const{error:q}=await sb.from("health_routines").update({details:{...(existing.details||{}),daily_goal_ml:goal,default_amount_ml:Number(existing.details?.default_amount_ml||250)},updated_at:new Date().toISOString()}).eq("id",existing.id);if(q){setError(q.message);return;}}else{const{error:q}=await sb.from("health_routines").insert({workspace_id:workspaceId,created_by:userId,kind:"water",title:"Drink water",details:{daily_goal_ml:goal,default_amount_ml:250},reminder_times:["09:00","11:00","13:00","15:00","17:00","19:00"],days_of_week:[1,2,3,4,5,6,7],active:true,start_date:todayInTZ()});if(q){setError(q.message);return;}}setMsg("Water target saved.");await load();}
  async function ensureSleepReminder(){if(!workspaceId||!userId)return;const sb=supabaseBrowser();const existing=routines.find(r=>r.kind==="sleep");const payload={title:"Sleep reminder",details:{target_hours:8,note:"Bedtime reminder"},reminder_times:[bedTime],days_of_week:[1,2,3,4,5,6,7],active:true,start_date:todayInTZ(),updated_at:new Date().toISOString()};const q=existing?await sb.from("health_routines").update(payload).eq("id",existing.id):await sb.from("health_routines").insert({...payload,workspace_id:workspaceId,created_by:userId,kind:"sleep"});if(q.error)setError(q.error.message);else{setMsg("Sleep reminder saved.");await load();}}
  async function addMeal(e:FormEvent){
   e.preventDefault();
@@ -114,13 +116,13 @@ function HealthPlannerContent(){
   const{error:q}=await sb.from("diet_plan_items").delete().eq("id",m.id);
   if(q)setError(q.message);else await load();
  }
- async function saveSleep(e:FormEvent){e.preventDefault();const duration=minutesBetween(bedTime,wakeTime);const sb=supabaseBrowser();const existing=sleep.find(s=>s.date===todayInTZ());const payload={workspace_id:workspaceId,created_by:userId,date:todayInTZ(),bed_time:bedTime,wake_time:wakeTime,duration_min:duration,quality:sleepQuality,note:sleepNote.trim()||null,updated_at:new Date().toISOString()};const q=existing?await sb.from("sleep_sessions").update(payload).eq("id",existing.id):await sb.from("sleep_sessions").insert(payload);if(q.error)setError(q.error.message);else{setMsg("Sleep saved.");await load();}}
+ async function saveSleep(e:FormEvent){e.preventDefault();const duration=sleepMinutes(bedTime,wakeTime);const sb=supabaseBrowser();const existing=sleep.find(s=>s.date===todayInTZ());const payload={workspace_id:workspaceId,created_by:userId,date:todayInTZ(),bed_time:bedTime,wake_time:wakeTime,duration_min:duration,quality:sleepQuality,note:sleepNote.trim()||null,updated_at:new Date().toISOString()};const q=existing?await sb.from("sleep_sessions").update(payload).eq("id",existing.id):await sb.from("sleep_sessions").insert(payload);if(q.error)setError(q.error.message);else{setMsg("Sleep saved.");await load();}}
 
  const today=todayInTZ(),dow=dayIsoIndex();
- const todayWater=water.filter(w=>w.date===today).reduce((a,w)=>a+Number(w.amount_ml||0),0);
+ const todayWater=waterTotalForDate(water,today);
  const waterRoutine=routines.find(r=>r.kind==="water"&&r.active);
  const waterGoal=Number(waterRoutine?.details?.daily_goal_ml||2500);
- const activeToday=routines.filter(r=>r.active&&(r.days_of_week||[]).includes(dow));
+ const activeToday=activeForIsoDay(routines,dow);
  const logKey=new Set(logs.filter(l=>l.date===today&&l.status==="done").map(l=>l.routine_id+"|"+l.scheduled_time));
  const todayMeals=meals.filter(m=>m.active&&(m.days_of_week||[]).includes(dow));
  const recentSleep=sleep.slice(0,7);const avgSleep=recentSleep.length?Math.round(recentSleep.reduce((a,s)=>a+Number(s.duration_min||0),0)/recentSleep.length):null;
