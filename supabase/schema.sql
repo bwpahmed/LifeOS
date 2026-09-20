@@ -1189,7 +1189,7 @@ returns integer
 language plpgsql
 security definer
 set search_path = public
-as $
+as $$
 declare
   inserted_count integer := 0;
 begin
@@ -1258,16 +1258,16 @@ begin
   get diagnostics inserted_count = row_count;
   return inserted_count;
 end;
-$;
+$$;
 
 revoke all on function public.generate_due_health_notifications() from public, anon, authenticated;
 
-do $
+do $$
 begin
   if exists(select 1 from cron.job where jobname='lifeos-health-reminders-15m') then
     perform cron.unschedule((select jobid from cron.job where jobname='lifeos-health-reminders-15m' limit 1));
   end if;
   perform cron.schedule('lifeos-health-reminders-15m','*/15 * * * *','select public.generate_due_health_notifications();');
-end $;
+end $$;
 
 commit;
