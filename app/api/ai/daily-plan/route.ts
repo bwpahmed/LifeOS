@@ -20,7 +20,7 @@ export async function POST(){
  ]);for(const q of[tasks,recs,goals,family,docs,checkin])if(q.error)return NextResponse.json({error:q.error.message},{status:500});
  const taskRows=(tasks.data||[]) as any[];
  const context:AIContext={
-  today_tasks:taskRows.filter(t=>!["Waiting","Blocked"].includes(t.status)).map(t=>({title:t.name+" ("+Number(t.estimate_min||30)+" min)",due:t.deadline,score:priorityScore({status:t.status,deadline:t.deadline,importance:t.importance,value:t.financial_value,area:t.area,goalId:t.goal_id,blockedBy:t.blocked_by,createdAt:t.created_at})})).sort((a,b)=>b.score-a.score).slice(0,25),
+  today_tasks:taskRows.filter(t=>!["Waiting","Blocked"].includes(t.status)).map(t=>({title:t.name+" ("+Number(t.estimate_min||30)+" min)",due:t.deadline,score:priorityScore({status:t.status,deadline:t.deadline,importance:t.importance,value:t.financial_value,area:t.area,goalId:t.goal_id,blockedBy:t.blocked_by,createdAt:t.created_at,estimateMin:t.estimate_min})})).sort((a,b)=>b.score-a.score).slice(0,25),
   overdue_tasks:taskRows.filter(t=>t.deadline&&t.deadline<today).map(t=>({title:t.name,days:daysLate(t.deadline,today)})).slice(0,25),
   money_due:((recs.data||[]) as any[]).map(r=>({name:r.name,remaining:remaining(Number(r.total||0),(r.receivable_payments||[]).map((p:any)=>({amount:Number(p.amount||0),date:p.date}))),nextFollowUp:r.next_followup})).filter(x=>x.remaining>0).slice(0,25),
   active_goals:(goals.data||[]).map((g:any)=>({name:g.name,progress:Number(g.progress||0)})).slice(0,25),
