@@ -50,11 +50,15 @@ self.addEventListener("push", (event) => {
   try {
     if (event.data) data = { ...data, ...event.data.json() };
   } catch {}
+  const targetUrl = data.url || data.data?.url || "/today";
   event.waitUntil(
-    self.registration.showNotification(data.title, {
-      body: data.body,
+    self.registration.showNotification(data.title || "LifeOS", {
+      body: data.body || "A LifeOS item needs attention.",
+      icon: data.icon || "/icons/icon.svg",
+      badge: data.badge || "/icons/icon.svg",
       tag: data.tag || "lifeos",
-      data: { url: data.url || "/today" },
+      requireInteraction: Boolean(data.requireInteraction),
+      data: { ...(data.data || {}), url: targetUrl },
     })
   );
 });
