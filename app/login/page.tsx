@@ -12,7 +12,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     const next = new URLSearchParams(location.search).get("next");
-    if (next && next.startsWith("/")) setNextPath(next);
+    if (next && next.startsWith("/") && !next.startsWith("//") && !next.includes("\\")) setNextPath(next);
   }, []);
 
   async function magicLink() {
