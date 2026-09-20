@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect,useState } from "react";
 import { usePathname } from "next/navigation";
 import { WorkspaceSwitcher } from "@/components/workspace-switcher";
 import { InstallPWA } from "@/components/install-pwa";
@@ -68,20 +69,25 @@ function pageTitle(pathname: string) {
   return pageTitles[pathname] || "LifeOS";
 }
 
-function dateLine() {
+function formatDateLine(date:Date) {
   return new Intl.DateTimeFormat("en-GB", {
     weekday: "long",
     day: "2-digit",
     month: "short",
     year: "numeric",
-  }).format(new Date()).toUpperCase();
+  }).format(date).toUpperCase();
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const title = pageTitle(pathname);
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? "Good Morning" : hour < 18 ? "Good Afternoon" : "Good Evening";
+  const[clock,setClock]=useState({date:"",greeting:"LifeOS"});
+  useEffect(()=>{
+    const update=()=>{const now=new Date();const hour=now.getHours();setClock({date:formatDateLine(now),greeting:hour<12?"Good Morning":hour<18?"Good Afternoon":"Good Evening"});};
+    update();
+    const timer=setInterval(update,60_000);
+    return()=>clearInterval(timer);
+  },[]);
 
   return (
     <div className="app-shell">
@@ -125,8 +131,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="main-area">
         <header className="topbar">
           <div className="title-block">
-            <p className="eyebrow">{dateLine()}</p>
-            <h1>{pathname === "/" ? greeting : title}</h1>
+            <p className="eyebrow">{clock.date||"PERSONAL + FAMILY COMMAND CENTER"}</p>
+            <h1>{pathname === "/" ? clock.greeting : title}</h1>
           </div>
           <div className="top-actions">
             <Link className="icon-btn" href="/search" title="Search" aria-label="Search">⌕</Link>
