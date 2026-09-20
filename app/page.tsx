@@ -52,6 +52,7 @@ export default function Home(){
   const[completedWeek,setCompletedWeek]=useState(0);
   const[activityWeek,setActivityWeek]=useState(0);
   const[wasteMonth,setWasteMonth]=useState(0);
+  const[homeWidgets,setHomeWidgets]=useState<string[]>(["top3","money","health","focus","family","europe","business","calendar","alerts","waiting","goals","week","waste"]);
   const[timezone,setTimezone]=useState("Asia/Dubai");
   const[error,setError]=useState("");
 
@@ -71,7 +72,7 @@ export default function Home(){
       const localToday=todayInTZ(tz);
       const localWeekStart=weekStart(localToday);
 
-      const[t,r,h,fl,fam,d,g,done,activity,expenses]=await Promise.all([
+      const[t,r,h,fl,fam,d,g,done,activity,expenses,us]=await Promise.all([
         sb.from("tasks")
           .select("id,name,area,status,importance,deadline,financial_value,goal_id,blocked_by,created_at,waiting_for,start_date")
           .eq("workspace_id",ctx.workspaceId)
@@ -88,9 +89,10 @@ export default function Home(){
         sb.from("goals").select("id,name,progress,status").eq("workspace_id",ctx.workspaceId).neq("status","Completed").order("deadline",{ascending:true,nullsFirst:false}).limit(6),
         sb.from("tasks").select("id").eq("workspace_id",ctx.workspaceId).eq("status","Completed").gte("completed_at",localWeekStart+"T00:00:00Z"),
         sb.from("activity_log").select("id").eq("workspace_id",ctx.workspaceId).gte("created_at",localWeekStart+"T00:00:00Z"),
-        sb.from("money_expenses").select("amount,is_waste").eq("workspace_id",ctx.workspaceId).gte("date",localToday.slice(0,7)+"-01").lte("date",localToday)
+        sb.from("money_expenses").select("amount,is_waste").eq("workspace_id",ctx.workspaceId).gte("date",localToday.slice(0,7)+"-01").lte("date",localToday),
+        sb.from("user_settings").select("settings").eq("user_id",ctx.user.id).maybeSingle()
       ]);
-      for(const q of[t,r,h,fl,fam,d,g,done,activity,expenses])if(q.error)throw q.error;
+      for(const q of[t,r,h,fl,fam,d,g,done,activity,expenses,us])if(q.error)throw q.error;
 
       const habitRows=(h.data||[]) as Habit[];
       setTasks((t.data||[]) as Task[]);
@@ -102,7 +104,7 @@ export default function Home(){
       setGoals((g.data||[]) as Goal[]);
       setCompletedWeek((done.data||[]).length);
       setActivityWeek((activity.data||[]).length);
-      setWasteMonth((expenses.data||[]).filter((x:any)=>x.is_waste).reduce((a:any,x:any)=>a+Number(x.amount||0),0));
+      setWasteMonth((expenses.data||[]).filter((x:any)=>x.is_waste).reduce((a:any,x:any)=>a+Number(x.amount||0),0));const hw=(us.data?.settings as any)?.home_widgets;if(Array.isArray(hw))setHomeWidgets(hw.map(String));
 
       const ids=habitRows.map(x=>x.id);
       if(ids.length){
@@ -117,7 +119,7 @@ export default function Home(){
 
   useEffect(()=>{void load();},[load]);
   useRealtimeRefresh(
-    ["tasks","receivables","receivable_payments","money_expenses","habits","habit_logs","focus_sessions","family_tasks","migration_documents","goals","activity_log"],
+    ["tasks","receivables","receivable_payments","money_expenses","habits","habit_logs","focus_sessions","family_tasks","migration_documents","goals","activity_log","user_settings"],
     load,
     Boolean(workspaceId)
   );
@@ -157,6 +159,10 @@ export default function Home(){
     const life=Math.round((health+work+moneyScore+family+europe+growth)/6);
     return{health,work,money:moneyScore,family,europe,growth,life};
   },[healthHabits.length,healthDone,overdueBusiness,money,overdueFamily,docs.length,readyDocs,focusWeek]);
+
+  const show=(key:string)=>homeWidgets.includes(key);
+  const familyPending=familyTasks.filter(x=>x.status!=="Completed").length;
+  const calendarToday=tasks.filter(t=>t.deadline===today).length+familyTasks.filter(t=>t.due_date===today).length;
 
   const alerts=useMemo(()=>{
     const arr:{kind:"critical"|"important"|"reminder";icon:string;title:string;meta:string;href:string}[]=[];
@@ -203,22 +209,18 @@ export default function Home(){
     </div>
 
     <div className="grid g4 mt">
-      <Link href="/money" className="metric-card accent-red">
-        <span>Money overdue</span><strong>{aed(money.overdue)}</strong><small>{money.count} overdue account{money.count===1?"":"s"}</small>
-      </Link>
-      <Link href="/health" className="metric-card accent-green">
-        <span>Health today</span><strong>{healthDone} / {healthHabits.length}</strong><small>{scores.health}% health habits completed</small>
-      </Link>
-      <Link href="/focus" className="metric-card accent-blue">
-        <span>Deep work</span><strong>{Math.floor(focusWeek/60)}h {focusWeek%60}m</strong><small>600 min weekly target</small>
-      </Link>
-      <Link href="/europe" className="metric-card accent-amber">
-        <span>Europe docs</span><strong>{readyDocs}/{docs.length}</strong><small>{scores.europe}% ready</small>
-      </Link>
+      {show("money")&&<Link href="/money" className="metric-card accent-red"><span>Money overdue</span><strong>{aed(money.overdue)}</strong><small>{money.count} overdue account{money.count===1?"":"s"}</small></Link>}
+      {show("health")&&<Link href="/health" className="metric-card accent-green"><span>Health today</span><strong>{healthDone} / {healthHabits.length}</strong><small>{scores.health}% health habits completed</small></Link>}
+      {show("focus")&&<Link href="/focus" className="metric-card accent-blue"><span>Deep work</span><strong>{Math.floor(focusWeek/60)}h {focusWeek%60}m</strong><small>weekly focus logged</small></Link>}
+      {show("europe")&&<Link href="/europe" className="metric-card accent-amber"><span>Europe docs</span><strong>{readyDocs}/{docs.length}</strong><small>{scores.europe}% ready</small></Link>}
+      {show("family")&&<Link href="/family" className="metric-card"><span>Family</span><strong>{familyPending}</strong><small>pending responsibilities</small></Link>}
+      {show("business")&&<Link href="/business" className="metric-card"><span>Business</span><strong>{overdueBusiness}</strong><small>overdue business tasks</small></Link>}
+      {show("calendar")&&<Link href="/calendar" className="metric-card"><span>Calendar today</span><strong>{calendarToday}</strong><small>task + family obligations</small></Link>}
+      {show("waste")&&<Link href="/expenses" className="metric-card accent-red"><span>Waste guard</span><strong>{aed(wasteMonth)}</strong><small>marked waste this month</small></Link>}
     </div>
 
     <div className="grid wide mt">
-      <article className="panel">
+      {show("top3")&&<article className="panel">
         <div className="panel-head">
           <div><span className="label">MUST WIN TODAY</span><h3>Top priorities</h3></div>
           <Link className="text-btn" href="/today">Open day →</Link>
@@ -230,9 +232,9 @@ export default function Home(){
             <span className="priority-score">{score}/100</span>
           </Link>):<div className="empty-state"><b>No open priorities</b>Add a task and LifeOS will rank it here.</div>}
         </div>
-      </article>
+      </article>}
 
-      <article className="panel">
+      {show("alerts")&&<article className="panel">
         <div className="panel-head">
           <div><span className="label">ALERTS</span><h3>Needs attention</h3></div>
           <Link href="/notifications" className="pill red">{alerts.length} active</Link>
@@ -243,11 +245,11 @@ export default function Home(){
             <div><strong>{a.title}</strong><small>{a.meta}</small></div>
           </Link>):<div className="empty-state"><b>No urgent alerts</b>Nothing requires immediate attention.</div>}
         </div>
-      </article>
+      </article>}
     </div>
 
     <div className="grid g3 mt">
-      <article className="panel">
+      {show("waiting")&&<article className="panel">
         <div className="panel-head">
           <div><span className="label">WAITING FOR</span><h3>Dependencies</h3></div>
           <Link className="text-btn" href="/waiting">View all</Link>
@@ -259,9 +261,9 @@ export default function Home(){
             <span className="pill amber">{daysBetween(t.start_date,today)}d</span>
           </Link>):<div className="empty-state"><b>Nothing waiting</b>No external dependency is blocking you.</div>}
         </div>
-      </article>
+      </article>}
 
-      <article className="panel">
+      {show("goals")&&<article className="panel">
         <div className="panel-head">
           <div><span className="label">GOALS</span><h3>Long-term direction</h3></div>
           <Link className="text-btn" href="/goals">Open</Link>
@@ -270,9 +272,9 @@ export default function Home(){
           <div className="progress-label"><span>{g.name}</span><b>{Math.round(Number(g.progress||0))}%</b></div>
           <div className="progress"><i style={{width:`${clamp(Number(g.progress||0))}%`}}/></div>
         </div>):<div className="empty-state"><b>No active goals</b>Create a goal to keep long-term direction visible.</div>}
-      </article>
+      </article>}
 
-      <article className="panel">
+      {show("week")&&<article className="panel">
         <div className="panel-head"><div><span className="label">THIS WEEK</span><h3>System health</h3></div></div>
         <div className="stat-pair">
           <div className="stat-box"><b>{completedWeek}</b><span>tasks completed</span></div>
@@ -280,7 +282,7 @@ export default function Home(){
           <div className="stat-box"><b>{activityWeek}</b><span>actions logged</span></div>
           <div className="stat-box"><b>{scores.life}%</b><span>life score</span></div>
         </div>
-      </article>
+      </article>}
     </div>
 
     <div className="mt" style={{display:"flex",gap:8,flexWrap:"wrap"}}>
