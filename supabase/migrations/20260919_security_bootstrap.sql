@@ -355,7 +355,126 @@ create policy "own sync queue" on public.sync_queue for all
 using (user_id=auth.uid()) with check (user_id=auth.uid());
 
 
--- Private user-scoped storage for sensitive health/hair imports.
+-- Private workspace storage. New objects use:
+-- <workspace_id>/<uploader_user_id>/<health|hair|money>/...
+-- Legacy <user_id>/... paths remain readable/manageable by that same user.
+create or replace function public.private_storage_workspace(object_name text)
+returns uuid
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  raw_id text;
+begin
+  raw_id := split_part(object_name, '/', 1);
+  if raw_id = coalesce(auth.uid()::text, '') then
+    return null;
+  end if;
+  begin
+    return raw_id::uuid;
+  exception when invalid_text_representation then
+    return null;
+  end;
+end;
+$$;
+
+create or replace function public.private_storage_module(object_name text)
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select case split_part(object_name, '/', 3)
+    when 'health' then 'health'
+    when 'hair' then 'health'
+    when 'money' then 'money'
+    else null
+  end;
+$$;
+
+create or replace function public.can_read_private_storage(object_name text)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  ws uuid;
+  module_name text;
+begin
+  if split_part(object_name, '/', 1) = coalesce(auth.uid()::text, '') then
+    return true;
+  end if;
+  ws := public.private_storage_workspace(object_name);
+  module_name := public.private_storage_module(object_name);
+  return ws is not null
+    and module_name is not null
+    and public.can_access_module(ws, module_name);
+end;
+$$;
+
+create or replace function public.can_insert_private_storage(object_name text)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  ws uuid;
+  module_name text;
+begin
+  if split_part(object_name, '/', 1) = coalesce(auth.uid()::text, '') then
+    return true;
+  end if;
+  ws := public.private_storage_workspace(object_name);
+  module_name := public.private_storage_module(object_name);
+  return ws is not null
+    and module_name is not null
+    and split_part(object_name, '/', 2) = coalesce(auth.uid()::text, '')
+    and public.is_workspace_writer(ws)
+    and public.can_access_module(ws, module_name);
+end;
+$$;
+
+create or replace function public.can_manage_private_storage(object_name text)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  ws uuid;
+  module_name text;
+begin
+  if split_part(object_name, '/', 1) = coalesce(auth.uid()::text, '') then
+    return true;
+  end if;
+  ws := public.private_storage_workspace(object_name);
+  module_name := public.private_storage_module(object_name);
+  return ws is not null
+    and module_name is not null
+    and public.is_workspace_writer(ws)
+    and public.can_access_module(ws, module_name);
+end;
+$$;
+
+revoke all on function public.private_storage_workspace(text) from public;
+revoke all on function public.private_storage_module(text) from public;
+revoke all on function public.can_read_private_storage(text) from public;
+revoke all on function public.can_insert_private_storage(text) from public;
+revoke all on function public.can_manage_private_storage(text) from public;
+grant execute on function public.private_storage_workspace(text) to authenticated;
+grant execute on function public.private_storage_module(text) to authenticated;
+grant execute on function public.can_read_private_storage(text) to authenticated;
+grant execute on function public.can_insert_private_storage(text) to authenticated;
+grant execute on function public.can_manage_private_storage(text) to authenticated;
+
 insert into storage.buckets (id, name, public)
 values ('lifeos-private', 'lifeos-private', false)
 on conflict (id) do update set public = false;
@@ -367,20 +486,20 @@ drop policy if exists "lifeos private storage delete" on storage.objects;
 
 create policy "lifeos private storage select" on storage.objects
 for select to authenticated
-using (bucket_id = 'lifeos-private' and (storage.foldername(name))[1] = auth.uid()::text);
+using (bucket_id = 'lifeos-private' and public.can_read_private_storage(name));
 
 create policy "lifeos private storage insert" on storage.objects
 for insert to authenticated
-with check (bucket_id = 'lifeos-private' and (storage.foldername(name))[1] = auth.uid()::text);
+with check (bucket_id = 'lifeos-private' and public.can_insert_private_storage(name));
 
 create policy "lifeos private storage update" on storage.objects
 for update to authenticated
-using (bucket_id = 'lifeos-private' and (storage.foldername(name))[1] = auth.uid()::text)
-with check (bucket_id = 'lifeos-private' and (storage.foldername(name))[1] = auth.uid()::text);
+using (bucket_id = 'lifeos-private' and public.can_manage_private_storage(name))
+with check (bucket_id = 'lifeos-private' and public.can_manage_private_storage(name));
 
 create policy "lifeos private storage delete" on storage.objects
 for delete to authenticated
-using (bucket_id = 'lifeos-private' and (storage.foldername(name))[1] = auth.uid()::text);
+using (bucket_id = 'lifeos-private' and public.can_manage_private_storage(name));
 
 
 -- Realtime publication for multi-device LifeOS refresh.
