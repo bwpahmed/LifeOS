@@ -12,7 +12,7 @@ import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
 type Task={
   id:string;name:string;area:string|null;status:TaskStatus;importance:number|null;
   deadline:string|null;financial_value:number|null;goal_id:string|null;blocked_by:string|null;
-  created_at:string|null;waiting_for:string|null;start_date:string|null
+  created_at:string|null;waiting_for:string|null;start_date:string|null;estimate_min:number|null
 };
 type Rec={id:string;total:number;due_date:string|null;status:string;receivable_payments:{amount:number;date:string}[]};
 type Habit={id:string;name:string;area:string|null};
@@ -76,7 +76,7 @@ export default function Home(){
 
       const[t,r,h,fl,fam,d,g,done,activity,expenses,us]=await Promise.all([
         sb.from("tasks")
-          .select("id,name,area,status,importance,deadline,financial_value,goal_id,blocked_by,created_at,waiting_for,start_date")
+          .select("id,name,area,status,importance,deadline,financial_value,goal_id,blocked_by,created_at,waiting_for,start_date,estimate_min")
           .eq("workspace_id",ctx.workspaceId)
           .not("status","in",'("Completed","Cancelled")')
           .limit(250),
@@ -132,7 +132,7 @@ export default function Home(){
     .filter(t=>t.status!=="Waiting"&&t.status!=="Blocked")
     .map(task=>({task,score:priorityScore({
       status:task.status,deadline:task.deadline,importance:task.importance,value:task.financial_value,
-      area:task.area,goalId:task.goal_id,blockedBy:task.blocked_by,createdAt:task.created_at
+      area:task.area,goalId:task.goal_id,blockedBy:task.blocked_by,createdAt:task.created_at,estimateMin:task.estimate_min
     })}))
     .sort((a,b)=>b.score-a.score)
     .slice(0,3),[tasks]);
