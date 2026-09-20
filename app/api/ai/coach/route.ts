@@ -24,16 +24,19 @@ export async function POST(req: Request) {
   if (!question || question.trim().length < 2) {
     return NextResponse.json({ error: "Empty question" }, { status: 400 });
   }
+  if (question.length > 2000) {
+    return NextResponse.json({ error: "Question is too long" }, { status: 413 });
+  }
 
   const safeContext: AIContext = {
     ...EMPTY_CONTEXT,
     ...context,
-    today_tasks: Array.isArray(context?.today_tasks) ? context!.today_tasks! : [],
-    overdue_tasks: Array.isArray(context?.overdue_tasks) ? context!.overdue_tasks! : [],
-    money_due: Array.isArray(context?.money_due) ? context!.money_due! : [],
-    active_goals: Array.isArray(context?.active_goals) ? context!.active_goals! : [],
-    upcoming_family: Array.isArray(context?.upcoming_family) ? context!.upcoming_family! : [],
-    migration_blockers: Array.isArray(context?.migration_blockers) ? context!.migration_blockers! : [],
+    today_tasks: Array.isArray(context?.today_tasks) ? context!.today_tasks!.slice(0, 25) : [],
+    overdue_tasks: Array.isArray(context?.overdue_tasks) ? context!.overdue_tasks!.slice(0, 25) : [],
+    money_due: Array.isArray(context?.money_due) ? context!.money_due!.slice(0, 25) : [],
+    active_goals: Array.isArray(context?.active_goals) ? context!.active_goals!.slice(0, 25) : [],
+    upcoming_family: Array.isArray(context?.upcoming_family) ? context!.upcoming_family!.slice(0, 25) : [],
+    migration_blockers: Array.isArray(context?.migration_blockers) ? context!.migration_blockers!.slice(0, 25) : [],
   };
 
   const result = await coachAnswer(question.trim(), safeContext, process.env);
@@ -42,6 +45,5 @@ export async function POST(req: Request) {
     provider: result.provider,
     live: result.live,
     label: result.live ? `Live AI coach via ${result.provider}` : "Deterministic factual fallback",
-    ...(result.error ? { providerError: result.error } : {}),
   });
 }
