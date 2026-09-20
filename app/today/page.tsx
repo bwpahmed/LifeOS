@@ -11,13 +11,15 @@ import { todayInTZ } from "@/lib/timezone";
 import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
 
 const SLOTS=["9:00","10:00","12:00","2:00","4:00","Evening"];
-type TaskRow={id:string;name:string;area:string|null;status:TaskStatus;importance:number|null;deadline:string|null;financial_value:number|null;goal_id:string|null;blocked_by:string|null;created_at:string|null;estimate_min:number|null};
+type TaskRow={id:string;name:string;area:string|null;status:TaskStatus;importance:number|null;deadline:string|null;financial_value:number|null;goal_id:string|null;blocked_by:string|null;created_at:string|null;estimate_min:number|null;actual_min:number|null};
 type Checkin={sleep_hours:number|null;energy:number|null;mood:number|null;sleep_quality:number|null;main_goal:string|null};
 
 export default function TodayPage(){
- const[tasks,setTasks]=useState<TaskRow[]>([]);const[checkin,setCheckin]=useState<Checkin|null>(null);const[signedIn,setSignedIn]=useState<boolean|null>(null);const[error,setError]=useState("");const[msg,setMsg]=useState("");const[offline,setOffline]=useState(false);const[aiPlan,setAiPlan]=useState("");const[aiLabel,setAiLabel]=useState("");const[aiLoading,setAiLoading]=useState(false);
- const load=useCallback(async()=>{try{const sb=supabaseBrowser();const ctx=await currentWorkspace(sb);if(!ctx){const cached=loadOfflineCache<TaskRow[]>("today");if(cached){setTasks(cached);setOffline(true);}else setSignedIn(false);return;}setSignedIn(true);const[tq,cq]=await Promise.all([sb.from("tasks").select("id,name,area,status,importance,deadline,financial_value,goal_id,blocked_by,created_at,estimate_min").eq("workspace_id",ctx.workspaceId).not("status","in",'("Completed","Cancelled")').limit(200),sb.from("morning_checkins").select("sleep_hours,energy,mood,sleep_quality,main_goal").eq("workspace_id",ctx.workspaceId).eq("created_by",ctx.user.id).eq("date",todayInTZ()).maybeSingle()]);if(tq.error)throw tq.error;if(cq.error)throw cq.error;const rows=(tq.data||[]) as TaskRow[];setTasks(rows);setCheckin((cq.data||null) as Checkin|null);saveOfflineCache("today",rows);setOffline(false);}catch(e){const cached=loadOfflineCache<TaskRow[]>("today");if(cached){setTasks(cached);setOffline(true);}else setError(e instanceof Error?e.message:"Could not load today plan");}},[]);
+ const[tasks,setTasks]=useState<TaskRow[]>([]);const[checkin,setCheckin]=useState<Checkin|null>(null);const[signedIn,setSignedIn]=useState<boolean|null>(null);const[error,setError]=useState("");const[msg,setMsg]=useState("");const[offline,setOffline]=useState(false);const[aiPlan,setAiPlan]=useState("");const[aiLabel,setAiLabel]=useState("");const[aiLoading,setAiLoading]=useState(false);const[focusTaskId,setFocusTaskId]=useState("");const[focusRemaining,setFocusRemaining]=useState(45*60);const[focusRunning,setFocusRunning]=useState(false);
+ const load=useCallback(async()=>{try{const sb=supabaseBrowser();const ctx=await currentWorkspace(sb);if(!ctx){const cached=loadOfflineCache<TaskRow[]>("today");if(cached){setTasks(cached);setOffline(true);}else setSignedIn(false);return;}setSignedIn(true);const[tq,cq]=await Promise.all([sb.from("tasks").select("id,name,area,status,importance,deadline,financial_value,goal_id,blocked_by,created_at,estimate_min,actual_min").eq("workspace_id",ctx.workspaceId).not("status","in",'("Completed","Cancelled")').limit(200),sb.from("morning_checkins").select("sleep_hours,energy,mood,sleep_quality,main_goal").eq("workspace_id",ctx.workspaceId).eq("created_by",ctx.user.id).eq("date",todayInTZ()).maybeSingle()]);if(tq.error)throw tq.error;if(cq.error)throw cq.error;const rows=(tq.data||[]) as TaskRow[];setTasks(rows);setCheckin((cq.data||null) as Checkin|null);saveOfflineCache("today",rows);setOffline(false);}catch(e){const cached=loadOfflineCache<TaskRow[]>("today");if(cached){setTasks(cached);setOffline(true);}else setError(e instanceof Error?e.message:"Could not load today plan");}},[]);
  useEffect(()=>{void load();},[load]);useRealtimeRefresh(["tasks","morning_checkins"],load,signedIn===true);
+ useEffect(()=>{if(!focusTaskId&&tasks.length)setFocusTaskId(tasks[0].id);},[tasks,focusTaskId]);
+ useEffect(()=>{if(!focusRunning)return;const timer=setInterval(()=>setFocusRemaining(v=>{if(v<=1){setFocusRunning(false);return 0;}return v-1;}),1000);return()=>clearInterval(timer);},[focusRunning]);
  const plan=useMemo(()=>{const main=(checkin?.main_goal||"").toLowerCase().trim();const limit=Number(checkin?.energy||7)<=4?4:6;return tasks.filter(t=>t.status!=="Waiting"&&t.status!=="Blocked").map(task=>{const base=priorityScore({status:task.status,deadline:task.deadline,importance:task.importance,value:task.financial_value,area:task.area,goalId:task.goal_id,blockedBy:task.blocked_by,createdAt:task.created_at});const boost=main&&task.name.toLowerCase().includes(main)?15:0;return{task,score:Math.min(100,base+boost)};}).sort((a,b)=>b.score-a.score).slice(0,limit);},[tasks,checkin]);
  const recovery=useMemo(()=>tasks.filter(t=>t.status==="Waiting"||t.status==="Blocked"||Boolean(t.deadline&&t.deadline<new Date().toISOString().slice(0,10))).slice(0,6),[tasks]);
  async function complete(id:string){const sb=supabaseBrowser();const{error:q}=await sb.from("tasks").update({status:"Completed",completed_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",id);if(q)setError(q.message);else await load();}
@@ -31,6 +33,9 @@ export default function TodayPage(){
  }
  async function rebuildPlan(){await load();setMsg("Plan rebuilt from current priorities.");}
  async function buildAiPlan(){setAiLoading(true);setError("");try{const r=await fetch("/api/ai/daily-plan",{method:"POST"});const j=await r.json();if(!r.ok)throw new Error(j.error||"AI planner failed");setAiPlan(j.answer||"");setAiLabel(j.label||"");}catch(e){setError(e instanceof Error?e.message:"AI planner failed");}finally{setAiLoading(false);}}
+ function startFocus(){if(!focusTaskId){const id=plan[0]?.task.id;if(!id)return;setFocusTaskId(id);}setFocusRunning(true);}
+ function resetFocus(){setFocusRunning(false);setFocusRemaining(45*60);}
+ async function completeFocus(){if(!focusTaskId)return;try{const sb=supabaseBrowser();const ctx=await currentWorkspace(sb);if(!ctx)throw new Error("Sign in first.");const spent=Math.max(1,Math.round((45*60-focusRemaining)/60));const task=tasks.find(t=>t.id===focusTaskId);const s=await sb.from("focus_sessions").insert({workspace_id:ctx.workspaceId,created_by:ctx.user.id,task_id:focusTaskId,date:todayInTZ(),minutes:spent});if(s.error)throw s.error;if(task){const u=await sb.from("tasks").update({actual_min:Number(task.actual_min||0)+spent,status:task.status==="Inbox"?"Doing":task.status,updated_at:new Date().toISOString()}).eq("id",task.id);if(u.error)throw u.error;}setFocusRunning(false);setFocusRemaining(45*60);setMsg(`Focus session saved: ${spent} minute${spent===1?"":"s"}.`);await load();}catch(e){setError(e instanceof Error?e.message:"Could not save focus session");}}
 
  return <main className="page-root">
    <BackHome/>
@@ -64,14 +69,16 @@ export default function TodayPage(){
    </div>
 
    <article className="panel focus-panel mt">
-     <div>
+     <div style={{flex:1}}>
        <span className="label">FOCUS MODE</span>
-       <h3 style={{fontSize:22,margin:"7px 0"}}>{plan[0]?.task.name||"Choose your next task"}</h3>
-       <p style={{fontSize:11,color:"var(--muted)",lineHeight:1.5,maxWidth:650}}>One task, one timer. Focus sessions persist across refreshes and completed sessions are saved to Supabase.</p>
+       <h3 style={{fontSize:22,margin:"7px 0"}}>{tasks.find(t=>t.id===focusTaskId)?.name||plan[0]?.task.name||"Choose your next task"}</h3>
+       <p style={{fontSize:11,color:"var(--muted)",lineHeight:1.5,maxWidth:650}}>Quick 45-minute focus timer. Completed sessions are saved to Supabase and counted in Deep Work.</p>
+       <select value={focusTaskId} onChange={e=>setFocusTaskId(e.target.value)} style={{marginTop:10,maxWidth:420,width:"100%"}}><option value="">Select task</option>{plan.map(({task})=><option key={task.id} value={task.id}>{task.name}</option>)}</select>
      </div>
-     <div style={{textAlign:"center",minWidth:200}}>
-       <strong style={{display:"block",fontSize:30,letterSpacing:.5}}>45 min</strong>
-       <Link href="/focus" className="primary-btn" style={{display:"inline-block",marginTop:9}}>Open Focus Mode</Link>
+     <div style={{textAlign:"center",minWidth:230}}>
+       <strong style={{display:"block",fontSize:30,letterSpacing:.5}}>{String(Math.floor(focusRemaining/60)).padStart(2,"0")}:{String(focusRemaining%60).padStart(2,"0")}</strong>
+       <div style={{display:"flex",gap:7,justifyContent:"center",marginTop:9,flexWrap:"wrap"}}><button onClick={startFocus} disabled={focusRunning||!focusTaskId} className="primary-btn">{focusRunning?"Running":"Start"}</button><button onClick={resetFocus} className="ghost-btn">Reset</button><button onClick={completeFocus} disabled={!focusTaskId} className="ghost-btn">Complete</button></div>
+       <Link href="/focus" className="text-btn" style={{display:"inline-block",marginTop:6}}>Open full Focus Mode →</Link>
      </div>
    </article>
 
