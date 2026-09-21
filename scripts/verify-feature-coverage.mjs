@@ -114,7 +114,7 @@ const checks=[
  ["S14 Screenshot Settings",has("app/settings/page.tsx","dailyFocus","weeklyFocus","Privacy / PIN","Export JSON","Export CSV","Activity")],
  ["AA Life clock + retirement by 40",exists("components/life-clock.tsx")&&has("components/life-clock.tsx","Age now","Retirement target","1-YEAR GOAL","5-YEAR GOAL","DAILY PUSH")&&has("app/page.tsx","LifeClock")],
  ["AB Life plan cloud settings",has("app/settings/page.tsx","birth_date","retirement_age","one_year_goal","five_year_goal","Save life plan")],
- ["AC Login-first routing",has("middleware.ts","/login","searchParams.set(\"next\"","!user && !isPublic")&&has("components/app-shell.tsx","publicShell")],
+ ["AC Login-first routing",has("middleware.ts","/login","searchParams.set(\"next\"","!user && !isPublic","isPublicPath","requestedPath")&&has("app/login/page.tsx","safeNextPath")&&has("components/app-shell.tsx","publicShell")&&exists("lib/auth-routing.ts")],
  ["AD Focus target from profile",has("app/page.tsx","weekly_focus_target","weeklyFocusTarget","weekly target")],
 ];
 
