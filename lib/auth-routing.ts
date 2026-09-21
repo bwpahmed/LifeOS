@@ -1,5 +1,6 @@
 export function isPublicPath(path:string){
-  return path==="/login" ||
+  return path==="/" ||
+    path==="/login" ||
     path.startsWith("/auth/") ||
     path.startsWith("/join") ||
     path.startsWith("/api/") ||
