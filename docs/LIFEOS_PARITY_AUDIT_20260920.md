@@ -95,8 +95,9 @@ Status legend:
 | Sticky permanent notes | ✅ | No DELETE RLS policy; edit/pin/archive/cloud sync |
 | Dark + light mode | ✅ | Cloud setting + local cache for instant/offline rendering |
 | Login-first website flow | ✅🧪 | Signed-out private routes redirect to Login; login uses a tested safe internal return path; auth/PWA assets remain public. |
+| Password recovery / owner login | ✅🧪 | Owner account is confirmed; Login now has secure reset + magic-link fallbacks; recovery callback reuses the canonical Supabase server client; new-password route requires a strong password and returns to the private dashboard. |
 | Life Clock + motivation | ✅🧪 | DOB-based age/days-lived, retirement-by-40 countdown, 1-year goal, 5-year goal and rotating original Daily Push on Home. |
-| Google Calendar in LifeOS website | ⚠ optional | Full OAuth/sync code exists. The uploaded specification explicitly places Google Calendar integration later; core LifeOS Calendar does not depend on it. |
+| Google Calendar in LifeOS website | ✅🧪 | Connected Google account is mirrored read-only into Supabase `calendar_items`; Calendar reads the secure bridge when direct website OAuth is unavailable, while direct OAuth remains supported as an upgrade path. |
 
 ## Production backend verification
 
@@ -150,6 +151,13 @@ A separate transaction:
 - switched the JWT subject to a non-member fake user;
 - proved that user could not read the owner Waste Guard, Health Planner or Sticky Note rows.
 
+### Google bridge runtime smoke
+
+- Connected Google Calendar access was verified for the owner account and owned calendars.
+- Google events were mirrored into production `calendar_items` using provider/event IDs and read-only metadata.
+- Calendar status recognizes the bridge even when Vercel Google OAuth secrets are not configured.
+- Native LifeOS calendar/task records are not overwritten by the mirror.
+
 ### Reminder smoke
 Transactional scheduler tests proved:
 - a due critical task generates a `critical` notification;
@@ -161,7 +169,7 @@ No smoke-test records remain because all verification transactions were rolled b
 Production now validates 24-hour HH:MM values for task reminders, health routines, meal times, sleep times, profile planning/review times, quiet hours and DND blocks.
 
 ### Current external limitations
-- **Google Calendar website account link:** optional later integration from the uploaded specification. OAuth/sync code exists, but a Google connection has not been completed.
+- **Google Calendar:** the connected account bridge is active and mirrored into Supabase. Direct website-held Google OAuth remains optional; it requires Vercel Google OAuth client secrets and user consent, but Calendar no longer depends on that setup.
 - **Native Android/iOS widget:** a standard PWA cannot expose a true native home-screen widget. LifeOS provides the supported web equivalent: installable PWA, compact `/mobile` Tasks & Notes screen and manifest shortcuts.
 - **Supabase leaked-password protection:** advisor reports this Auth-dashboard setting is disabled. The connected Supabase tool does not expose Auth configuration updates.
 - **SECURITY DEFINER advisor warnings:** eight boolean authorization/storage helper functions are intentionally callable by authenticated users and bind decisions to `auth.uid()`. They were re-inspected on 2026-09-21; the generic advisor warning remains, so future schema work should preserve the current membership checks and avoid weakening these helpers.
