@@ -1,15 +1,10 @@
 {
-  "name": "LifeOS — Personal & Family Command Center",
-  "short_name": "LifeOS",
-  "description": "Right thing. Right time. Consistently.",
-  "start_url": "/",
-  "scope": "/",
-  "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#07101d",
-  "theme_color": "#0b1220",
-  "icons": [
-    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  "name":"LifeOS — Personal & Family Command Center","short_name":"LifeOS","description":"Right thing. Right time. Consistently.","start_url":"/","scope":"/","display":"standalone","orientation":"portrait","background_color":"#07101d","theme_color":"#0b1220",
+  "icons":[{"src":"/icons/icon-192.png","sizes":"192x192","type":"image/png"},{"src":"/icons/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}],
+  "shortcuts":[
+    {"name":"Tasks","short_name":"Tasks","url":"/tasks","description":"Open task list"},
+    {"name":"Quick Note","short_name":"Note","url":"/quick-add","description":"Capture a task or note"},
+    {"name":"Health","short_name":"Health","url":"/health","description":"Log weight, water, medicine, diet or sleep"},
+    {"name":"Expense","short_name":"Expense","url":"/expenses","description":"Log spending and mark waste"}
   ]
 }
