@@ -11,6 +11,7 @@ import { ageParts,daysUntilRetirement,retirementDate,retirementProgress } from "
 import { expenseMonthStats } from "./waste";
 import { activeForIsoDay,clampWaterGoal,parseReminderTimes,sleepMinutes,waterTotalForDate } from "./health-planner";
 import { isPublicPath,requestedPath,safeNextPath } from "./auth-routing";
+import { passwordMeetsLifeOSPolicy } from "./password-policy";
 
 describe("priority score (prototype parity)", () => {
   it("completed tasks score 0", () => {
@@ -162,5 +163,14 @@ describe("login routing", () => {
     expect(safeNextPath("https://evil.example")).toBe("/");
     expect(safeNextPath("//evil.example")).toBe("/");
     expect(safeNextPath("/\\evil")).toBe("/");
+  });
+});
+
+
+describe("password recovery policy", () => {
+  it("requires a strong replacement password", () => {
+    expect(passwordMeetsLifeOSPolicy("short")).toBe(false);
+    expect(passwordMeetsLifeOSPolicy("longbutalllowercase1!")).toBe(false);
+    expect(passwordMeetsLifeOSPolicy("LifeOS-Safe-2026!")).toBe(true);
   });
 });
