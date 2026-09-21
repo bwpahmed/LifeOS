@@ -1,9 +1,9 @@
-# LifeOS parity audit — 2026-09-20
+# LifeOS parity audit — refreshed 2026-09-21
 
 Source of truth for this audit:
 - Uploaded LifeOS Advanced specification (64 numbered sections)
 - Uploaded reference screenshots
-- Current branch: `fix/production-core-20260919`
+- Current branch: `feature/spec-parity-20260921` (baseline `main` commit `bdf46cd8f3edae4b0f45c2f17f660ee2b3992719`)
 - Production Supabase project: `fdtbftuxziicubztgcde`
 
 Status legend:
@@ -16,7 +16,7 @@ Status legend:
 | # | Requirement | Status | Implementation / verification |
 |---:|---|---|---|
 | 1 | Core hierarchy | ✅🧪 | Supabase: life areas/goals/projects/milestones/tasks/habits; feature verifier |
-| 2 | Command Center | ✅🧪 | `app/page.tsx`; canonical dashboard + configurable widgets |
+| 2 | Command Center | ✅🧪 | `app/page.tsx`; Top 3 Must Win + Secondary Tasks + configurable widgets + Life Clock |
 | 3 | AI Priority Engine | ✅🧪 | `lib/priority.ts`; visible score + Why |
 | 4 | Daily AI Planner | ✅🧪 | `/api/ai/daily-plan` + Today AI plan; no silent mutation |
 | 5 | Inbox / Brain Dump | ✅🧪 | Quick Add + Smart Capture + browser voice |
@@ -64,7 +64,7 @@ Status legend:
 | 47 | Journal | ✅🧪 | Text/voice/photo/private offline queue |
 | 48 | Search Everything | ✅🧪 | Tasks/payments/follow-ups/projects/journal/attachments |
 | 49 | Universal Timeline | ✅🧪 | `/timeline` |
-| 50 | Dashboard Widgets | ✅🧪 | User-selectable Home widgets |
+| 50 | Dashboard Widgets | ✅🧪 | User-selectable Home widgets including the specification's Habits widget |
 | 51 | Mobile App Experience | ✅🧪 | PWA + bottom nav + app shortcuts + compact Tasks & Notes |
 | 52 | Offline Mode | ✅🧪 | Cache + task/habit queue + encrypted private journal queue |
 | 53 | Multi-Device | ✅🧪 | Supabase Realtime + cloud source |
@@ -76,7 +76,7 @@ Status legend:
 | 59 | Smart Rules Builder | ✅🧪 | Trigger/action rules |
 | 60 | Achievement System | ✅🧪 | Meaningful milestone achievements |
 | 61 | Future AI Agent hooks | ✅ | Daily/weekly AI hooks, coach, drafting architecture; Gmail scanning remains optional future integration |
-| 62 | Home Final Layout | ✅🧪 | Canonical command center |
+| 62 | Home Final Layout | ✅🧪 | Canonical command center with Must Win, Secondary Tasks, Money, Health, Family, Europe and focus status |
 | 63 | Weekly Planning Mode | ✅🧪 | Sunday-style checklist + outcomes + snapshots |
 | 64 | Main Principle / user control | ✅🧪 | User approval required for important AI changes |
 
@@ -94,7 +94,9 @@ Status legend:
 | One source of truth | ✅🧪 | Supabase authoritative; local device storage only cache/temporary offline queues/preferences |
 | Sticky permanent notes | ✅ | No DELETE RLS policy; edit/pin/archive/cloud sync |
 | Dark + light mode | ✅ | Cloud setting + local cache for instant/offline rendering |
-| Google Calendar in LifeOS website | ⚠ | Full OAuth/sync code exists, but production `external_connections` has no Google Calendar row yet. User must complete Google OAuth consent after Vercel Google credentials are configured. ChatGPT's Calendar connector is separate and cannot serve as the website's OAuth token. |
+| Login-first website flow | ✅🧪 | Signed-out private routes redirect to Login; login uses a tested safe internal return path; auth/PWA assets remain public. |
+| Life Clock + motivation | ✅🧪 | DOB-based age/days-lived, retirement-by-40 countdown, 1-year goal, 5-year goal and rotating original Daily Push on Home. |
+| Google Calendar in LifeOS website | ⚠ optional | Full OAuth/sync code exists. The uploaded specification explicitly places Google Calendar integration later; core LifeOS Calendar does not depend on it. |
 
 ## Production backend verification
 
@@ -159,9 +161,10 @@ No smoke-test records remain because all verification transactions were rolled b
 Production now validates 24-hour HH:MM values for task reminders, health routines, meal times, sleep times, profile planning/review times, quiet hours and DND blocks.
 
 ### Current external limitations
-- **Google Calendar website account link:** OAuth/sync code is implemented, but production `external_connections` currently contains no Google Calendar connection. The user still needs Google OAuth credentials configured on the website deployment and must complete Google consent.
+- **Google Calendar website account link:** optional later integration from the uploaded specification. OAuth/sync code exists, but a Google connection has not been completed.
 - **Native Android/iOS widget:** a standard PWA cannot expose a true native home-screen widget. LifeOS provides the supported web equivalent: installable PWA, compact `/mobile` Tasks & Notes screen and manifest shortcuts.
 - **Supabase leaked-password protection:** advisor reports this Auth-dashboard setting is disabled. The connected Supabase tool does not expose Auth configuration updates.
+- **SECURITY DEFINER advisor warnings:** eight boolean authorization/storage helper functions are intentionally callable by authenticated users and bind decisions to `auth.uid()`. They were re-inspected on 2026-09-21; the generic advisor warning remains, so future schema work should preserve the current membership checks and avoid weakening these helpers.
 
 ### Latest engineering gates
 The current branch must keep all of these green:
@@ -173,4 +176,4 @@ The current branch must keep all of these green:
 - AI Policy Gate
 - Vercel deployment status
 
-Do not merge PR #4 without explicit user approval.
+PR #6 may merge only after unit tests, TypeScript, SQL verifier, feature/spec verifier, production build, AI Policy Gate and Vercel deployment status are all green.
