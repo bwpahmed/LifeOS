@@ -105,12 +105,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const title = pageTitle(pathname);
   const[clock,setClock]=useState({date:"",greeting:"LifeOS"});
+  const publicShell=pathname==="/login"||pathname.startsWith("/auth/")||pathname.startsWith("/join");
   useEffect(()=>{
     const update=()=>{const now=new Date();const hour=now.getHours();setClock({date:formatDateLine(now),greeting:hour<12?"Good Morning":hour<18?"Good Afternoon":"Good Evening"});};
     update();
     const timer=setInterval(update,60_000);
     return()=>clearInterval(timer);
   },[]);
+
+  if(publicShell)return <div className="auth-shell">{children}</div>;
 
   return (
     <div className="app-shell">
