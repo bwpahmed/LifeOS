@@ -72,11 +72,11 @@ export default function LoginPage(){
       </label>
       <label className="mt-3 block text-xs text-slate-400">Password
         <div className="mt-1 flex gap-2">
-          <input value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&password.length>=8)void signIn();}} type={showPassword?"text":"password"} autoComplete="current-password" className="min-w-0 flex-1 rounded-lg border border-white/10 bg-[#0a1524] p-2"/>
+          <input value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&password.length>0)void signIn();}} type={showPassword?"text":"password"} autoComplete="current-password" className="min-w-0 flex-1 rounded-lg border border-white/10 bg-[#0a1524] p-2"/>
           <button type="button" onClick={()=>setShowPassword(v=>!v)} className="ghost-btn">{showPassword?"Hide":"Show"}</button>
         </div>
       </label>
-      <button onClick={signIn} disabled={loading||password.length<8} className="mt-3 w-full rounded-lg bg-[#77adff] p-2 font-bold text-[#06101f] disabled:opacity-50">{loading?"Working…":"Sign in"}</button>
+      <button onClick={signIn} disabled={loading||password.length===0} className="mt-3 w-full rounded-lg bg-[#77adff] p-2 font-bold text-[#06101f] disabled:opacity-50">{loading?"Working…":"Sign in"}</button>
       <button onClick={sendPasswordReset} disabled={loading} className="mt-2 w-full rounded-lg border border-white/10 p-2 text-sm">Reset password</button>
       <button onClick={magicLink} disabled={loading} className="mt-2 w-full rounded-lg border border-white/10 p-2 text-sm">Send magic sign-in link</button>
       {msg&&<p role="status" className="mt-3 rounded-lg border border-white/10 p-3 text-sm text-slate-300">{msg}</p>}
