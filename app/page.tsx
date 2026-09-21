@@ -9,6 +9,7 @@ import { currentWorkspace } from "@/lib/supabase/workspace";
 import { todayInTZ } from "@/lib/timezone";
 import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
 import { LifeClock } from "@/components/life-clock";
+import { safeNextPath } from "@/lib/auth-routing";
 
 type Task={
   id:string;name:string;area:string|null;status:TaskStatus;importance:number|null;
@@ -133,12 +134,25 @@ export default function Home(){
     const search=new URLSearchParams(location.search);
     const hash=new URLSearchParams(location.hash.replace(/^#/,""));
     const code=search.get("code");
-    const recovery=search.get("type")==="recovery"||hash.get("type")==="recovery";
-    const hasAuthPayload=Boolean(code||hash.get("access_token")||hash.get("refresh_token")||recovery);
+    const storedMode=sessionStorage.getItem("lifeos_auth_mode");
+    const storedNext=safeNextPath(sessionStorage.getItem("lifeos_auth_next"));
+    const recovery=storedMode==="recovery"||search.get("type")==="recovery"||hash.get("type")==="recovery";
+    const hasAuthPayload=Boolean(code||hash.get("access_token")||hash.get("refresh_token")||recovery||storedMode);
+    const clearAuthHints=()=>{sessionStorage.removeItem("lifeos_auth_mode");sessionStorage.removeItem("lifeos_auth_next");};
     const cleanAuthUrl=()=>{if(location.search||location.hash)history.replaceState({},"","/");};
     const acceptSession=()=>{
       if(!alive)return;
+      if(recovery){
+        clearAuthHints();
+        location.replace("/auth/update-password");
+        return;
+      }
       cleanAuthUrl();
+      clearAuthHints();
+      if(storedNext&&storedNext!=="/"){
+        location.replace(storedNext);
+        return;
+      }
       setSignedIn(true);
       setAuthReady(true);
     };
@@ -160,14 +174,12 @@ export default function Home(){
     void(async()=>{
       const first=await sb.auth.getSession();
       if(first.data.session){
-        if(recovery){location.replace("/auth/update-password");return;}
         acceptSession();
         return;
       }
       if(code){
         const exchanged=await sb.auth.exchangeCodeForSession(code);
         if(!exchanged.error&&exchanged.data.session){
-          if(recovery){location.replace("/auth/update-password");return;}
           acceptSession();
           return;
         }
@@ -176,7 +188,6 @@ export default function Home(){
       retry=window.setTimeout(()=>{void(async()=>{
         const again=await sb.auth.getSession();
         if(again.data.session){
-          if(recovery){location.replace("/auth/update-password");return;}
           acceptSession();
         }else failToLogin();
       })();},1800);
