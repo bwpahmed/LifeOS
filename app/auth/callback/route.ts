@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { safeNextPath } from "@/lib/auth-routing";
 
 type CookieToSet = { name: string; value: string; options: CookieOptions };
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
-  const next = url.searchParams.get("next") || "/";
-  const safeNext = next.startsWith("/") && !next.startsWith("//") && !next.includes("\\") ? next : "/";
+  const safeNext = safeNextPath(url.searchParams.get("next"));
   const redirectTo = new URL(safeNext, url.origin);
 
   if (!code) return NextResponse.redirect(new URL("/login?error=missing_code", url.origin));
