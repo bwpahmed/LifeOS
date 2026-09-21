@@ -55,8 +55,9 @@ export default function Home(){
   const[activityWeek,setActivityWeek]=useState(0);
   const[wasteMonth,setWasteMonth]=useState(0);
   const[wasteLessons,setWasteLessons]=useState<WasteLesson[]>([]);
-  const[homeWidgets,setHomeWidgets]=useState<string[]>(["top3","money","health","focus","family","europe","business","calendar","alerts","waiting","goals","week","waste"]);const[lifeScoreEnabled,setLifeScoreEnabled]=useState(true);
+  const[homeWidgets,setHomeWidgets]=useState<string[]>(["top3","money","health","habits","focus","family","europe","business","calendar","alerts","waiting","goals","week","waste"]);const[lifeScoreEnabled,setLifeScoreEnabled]=useState(true);
   const[timezone,setTimezone]=useState("Asia/Dubai");
+  const[weeklyFocusTarget,setWeeklyFocusTarget]=useState(600);
   const[error,setError]=useState("");
 
   const today=todayInTZ(timezone);
@@ -69,8 +70,10 @@ export default function Home(){
       if(!ctx){setSignedIn(false);return;}
       setSignedIn(true);setWorkspaceId(ctx.workspaceId);
 
-      const profile=await sb.from("profiles").select("timezone").eq("id",ctx.user.id).maybeSingle();
+      const profile=await sb.from("profiles").select("timezone,weekly_focus_target").eq("id",ctx.user.id).maybeSingle();
+      if(profile.error)throw profile.error;
       const tz=profile.data?.timezone||"Asia/Dubai";
+      setWeeklyFocusTarget(Math.max(60,Number(profile.data?.weekly_focus_target||600)));
       setTimezone(tz);
       const localToday=todayInTZ(tz);
       const localWeekStart=weekStart(localToday);
@@ -129,14 +132,16 @@ export default function Home(){
     Boolean(workspaceId)
   );
 
-  const top=useMemo(()=>tasks
+  const ranked=useMemo(()=>tasks
     .filter(t=>t.status!=="Waiting"&&t.status!=="Blocked")
     .map(task=>({task,score:priorityScore({
       status:task.status,deadline:task.deadline,importance:task.importance,value:task.financial_value,
       area:task.area,goalId:task.goal_id,blockedBy:task.blocked_by,createdAt:task.created_at,estimateMin:task.estimate_min
     })}))
     .sort((a,b)=>b.score-a.score)
-    .slice(0,3),[tasks]);
+    .slice(0,6),[tasks]);
+  const top=ranked.slice(0,3);
+  const secondary=ranked.slice(3,6);
 
   const money=useMemo(()=>{
     let overdue=0,count=0,totalOpen=0;
@@ -150,6 +155,7 @@ export default function Home(){
 
   const healthHabits=habits.filter(h=>h.area==="Health");
   const healthDone=healthHabits.filter(h=>habitDone.has(h.id)).length;
+  const allHabitDone=habits.filter(h=>habitDone.has(h.id)).length;
   const readyDocs=docs.filter(d=>d.status==="Ready").length;
   const overdueBusiness=tasks.filter(t=>["Business","Work"].includes(t.area||"")&&t.deadline&&t.deadline<today).length;
   const overdueFamily=familyTasks.filter(t=>t.due_date&&t.due_date<today).length;
@@ -160,10 +166,10 @@ export default function Home(){
     const moneyScore=money.totalOpen?clamp(Math.round((1-money.overdue/money.totalOpen)*100),25,100):100;
     const family=clamp(100-overdueFamily*20,30,100);
     const europe=docs.length?Math.round(readyDocs/docs.length*100):60;
-    const growth=clamp(Math.round(focusWeek/600*100),35,100);
+    const growth=clamp(Math.round(focusWeek/weeklyFocusTarget*100),35,100);
     const life=Math.round((health+work+moneyScore+family+europe+growth)/6);
     return{health,work,money:moneyScore,family,europe,growth,life};
-  },[healthHabits.length,healthDone,overdueBusiness,money,overdueFamily,docs.length,readyDocs,focusWeek]);
+  },[healthHabits.length,healthDone,overdueBusiness,money,overdueFamily,docs.length,readyDocs,focusWeek,weeklyFocusTarget]);
 
   const show=(key:string)=>homeWidgets.includes(key);
   const familyPending=familyTasks.filter(x=>x.status!=="Completed").length;
@@ -217,7 +223,8 @@ export default function Home(){
     <div className="grid g4 mt">
       {show("money")&&<Link href="/money" className="metric-card accent-red"><span>Money overdue</span><strong>{aed(money.overdue)}</strong><small>{money.count} overdue account{money.count===1?"":"s"}</small></Link>}
       {show("health")&&<Link href="/health" className="metric-card accent-green"><span>Health today</span><strong>{healthDone} / {healthHabits.length}</strong><small>{scores.health}% health habits completed</small></Link>}
-      {show("focus")&&<Link href="/focus" className="metric-card accent-blue"><span>Deep work</span><strong>{Math.floor(focusWeek/60)}h {focusWeek%60}m</strong><small>weekly focus logged</small></Link>}
+      {show("habits")&&<Link href="/habits" className="metric-card accent-green"><span>Habits today</span><strong>{allHabitDone} / {habits.length}</strong><small>all scheduled habits logged today</small></Link>}
+      {show("focus")&&<Link href="/focus" className="metric-card accent-blue"><span>Deep work</span><strong>{Math.floor(focusWeek/60)}h {focusWeek%60}m</strong><small>of {Math.floor(weeklyFocusTarget/60)}h {weeklyFocusTarget%60}m weekly target</small></Link>}
       {show("europe")&&<Link href="/europe" className="metric-card accent-amber"><span>Europe docs</span><strong>{readyDocs}/{docs.length}</strong><small>{scores.europe}% ready</small></Link>}
       {show("family")&&<Link href="/family" className="metric-card"><span>Family</span><strong>{familyPending}</strong><small>pending responsibilities</small></Link>}
       {show("business")&&<Link href="/business" className="metric-card"><span>Business</span><strong>{overdueBusiness}</strong><small>overdue business tasks</small></Link>}
@@ -237,6 +244,11 @@ export default function Home(){
             <div><strong>{task.name}</strong><small>{task.area||"Personal"} · {task.deadline||"No deadline"}</small></div>
             <span className="priority-score">{score}/100</span>
           </Link>):<div className="empty-state"><b>No open priorities</b>Add a task and LifeOS will rank it here.</div>}
+          {secondary.length>0&&<><div className="label" style={{marginTop:10}}>SECONDARY TASKS</div>{secondary.map(({task,score},i)=><Link href="/tasks" className="priority-item" key={task.id}>
+            <span className="priority-number">{i+4}</span>
+            <div><strong>{task.name}</strong><small>{task.area||"Personal"} · {task.deadline||"No deadline"}</small></div>
+            <span className="priority-score">{score}/100</span>
+          </Link>)}</>}
         </div>
       </article>}
 

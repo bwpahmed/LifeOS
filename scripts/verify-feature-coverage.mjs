@@ -55,7 +55,7 @@ const checks=[
  ["47 Journal text/voice/photo",has("app/journal/page.tsx","Voice","Photo / Camera","journal_entries")],
  ["48 Search everything",exists("app/search/page.tsx")],
  ["49 Universal timeline",exists("app/timeline/page.tsx")],
- ["50 Dashboard widgets",has("app/settings/page.tsx","Home dashboard widgets")&&has("app/page.tsx","homeWidgets")],
+ ["50 Dashboard widgets",has("app/settings/page.tsx","Home dashboard widgets","[\"habits\",\"Habits\"]")&&has("app/page.tsx","homeWidgets","show(\"habits\")","Habits today")],
  ["51 Mobile PWA",exists("public/manifest.webmanifest")&&exists("app/mobile/page.tsx")],
  ["52 Offline mode",exists("lib/sync-queue.ts")&&exists("lib/private-offline.ts")&&exists("components/offline-sync.tsx")],
  ["53 Multi-device realtime",exists("lib/use-realtime-refresh.ts")],
@@ -67,7 +67,7 @@ const checks=[
  ["59 Smart rules builder",has("app/automations/page.tsx","trigger","action")],
  ["60 Achievement system",exists("app/progress/page.tsx")],
  ["61 Future agent hooks",exists("app/api/ai/daily-plan/route.ts")&&exists("app/api/ai/weekly-review/route.ts")],
- ["62 Final home layout",exists("app/page.tsx")],
+ ["62 Final home layout",has("app/page.tsx","MUST WIN TODAY","SECONDARY TASKS","Money overdue","Health today","Family","Europe docs")],
  ["63 Weekly planning mode",has("app/reviews/page.tsx","weekly")],
  ["64 Principle / user control",has("app/quick-add/page.tsx","Nothing is saved until you confirm.")],
  ["A Waste Guard",exists("app/expenses/page.tsx")&&has("app/expenses/page.tsx","money_expenses","avoid_next_time")],
@@ -114,7 +114,8 @@ const checks=[
  ["S14 Screenshot Settings",has("app/settings/page.tsx","dailyFocus","weeklyFocus","Privacy / PIN","Export JSON","Export CSV","Activity")],
  ["AA Life clock + retirement by 40",exists("components/life-clock.tsx")&&has("components/life-clock.tsx","Age now","Retirement target","1-YEAR GOAL","5-YEAR GOAL","DAILY PUSH")&&has("app/page.tsx","LifeClock")],
  ["AB Life plan cloud settings",has("app/settings/page.tsx","birth_date","retirement_age","one_year_goal","five_year_goal","Save life plan")],
- ["AC Login-first routing",has("middleware.ts","/login","searchParams.set(\"next\"","!user && !isPublic")&&has("components/app-shell.tsx","publicShell")],
+ ["AC Login-first routing",has("middleware.ts","/login","searchParams.set(\"next\"","!user && !isPublic","isPublicPath","requestedPath")&&has("app/login/page.tsx","safeNextPath")&&has("components/app-shell.tsx","publicShell")&&exists("lib/auth-routing.ts")],
+ ["AD Focus target from profile",has("app/page.tsx","weekly_focus_target","weeklyFocusTarget","weekly target")],
 ];
 
 const failed=checks.filter(([,ok])=>!ok);

@@ -23,7 +23,7 @@ const featureLinks=[
 type GoogleStatus={authenticated:boolean;configured:boolean;connected:boolean;accountEmail?:string|null};
 type DndBlock={id:string;label:string;start_time:string;end_time:string;days_of_week:number[];active:boolean};
 type BackupFile={name:string;updated_at?:string|null;created_at?:string|null};
-const HOME_WIDGETS=[["top3","Today Top 3"],["money","Money Due"],["health","Health"],["focus","Deep Work"],["family","Family"],["europe","Europe Progress"],["business","Business"],["calendar","Calendar"],["alerts","Alerts"],["waiting","Waiting For"],["goals","Goals"],["week","This Week"],["waste","Waste Guard"]] as const;
+const HOME_WIDGETS=[["top3","Today Top 3 + Secondary"],["money","Money Due"],["health","Health"],["habits","Habits"],["focus","Deep Work"],["family","Family"],["europe","Europe Progress"],["business","Business"],["calendar","Calendar"],["alerts","Alerts"],["waiting","Waiting For"],["goals","Goals"],["week","This Week"],["waste","Waste Guard"]] as const;
 
 export default function SettingsPage(){
  const[preview,setPreview]=useState("");const[backup,setBackup]=useState<Record<string,unknown>|null>(null);const[result,setResult]=useState<LegacyImportResult|null>(null);const[loading,setLoading]=useState(false);const[error,setError]=useState("");const[msg,setMsg]=useState("");

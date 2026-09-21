@@ -3,6 +3,7 @@
 import { useEffect,useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { BackHome,Panel } from "@/components/ui";
+import { safeNextPath } from "@/lib/auth-routing";
 
 const LIFEOS_EMAIL="bwpahmed@gmail.com";
 
@@ -15,7 +16,7 @@ export default function LoginPage(){
 
   useEffect(()=>{
     const next=new URLSearchParams(location.search).get("next");
-    if(next&&next.startsWith("/")&&!next.startsWith("//")&&!next.includes("\\"))setNextPath(next);
+    setNextPath(safeNextPath(next));
   },[]);
 
   async function signIn(){

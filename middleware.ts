@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isPublicPath,requestedPath } from "@/lib/auth-routing";
 
 type CookieToSet = { name: string; value: string; options: CookieOptions };
 
@@ -31,12 +32,12 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
   const path = request.nextUrl.pathname;
-  const isPublic = path === "/login" || path.startsWith("/auth/") || path.startsWith("/join") || path.startsWith("/api/") || path === "/offline.html" || path === "/manifest.webmanifest" || path === "/sw.js";
+  const isPublic = isPublicPath(path);
 
   if (!user && !isPublic) {
     const login = request.nextUrl.clone();
     login.pathname = "/login";
-    login.searchParams.set("next", path + request.nextUrl.search);
+    login.searchParams.set("next", requestedPath(path, request.nextUrl.search));
     return NextResponse.redirect(login);
   }
   if (user && path === "/login") {
