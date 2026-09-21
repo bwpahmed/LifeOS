@@ -6,6 +6,7 @@ import { BackHome,Panel } from "@/components/ui";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { currentWorkspace } from "@/lib/supabase/workspace";
 import { todayInTZ } from "@/lib/timezone";
+import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
 
 type Item={id:string;date:string;title:string;kind:string;editable?:boolean;sourceId?:string;url?:string|null;calendarName?:string};
 type GoogleStatus={authenticated:boolean;configured:boolean;connected:boolean;mode?:"oauth"|"bridge"|null;accountEmail?:string|null;updatedAt?:string|null;error?:string};
@@ -97,6 +98,7 @@ export default function CalendarPage(){
   },[]);
 
   useEffect(()=>{void load();void loadGoogle();},[load,loadGoogle]);
+  useRealtimeRefresh(["calendar_items","tasks","receivables","family_tasks","migration_documents"],load,Boolean(workspaceId));
 
   const displayedGoogleItems=google.mode==="oauth"?googleItems:mirrorItems;
   const allItems=useMemo(()=>[...items,...displayedGoogleItems].sort((a,b)=>a.date.localeCompare(b.date)),[items,displayedGoogleItems]);
