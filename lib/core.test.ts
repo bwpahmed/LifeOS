@@ -155,7 +155,7 @@ describe("login routing", () => {
     expect(isPublicPath("/manifest.webmanifest")).toBe(true);
     expect(isPublicPath("/sw.js")).toBe(true);
     expect(isPublicPath("/tasks")).toBe(false);
-    expect(isPublicPath("/")).toBe(false);
+    expect(isPublicPath("/")).toBe(true);
   });
   it("returns signed-in users only to safe internal destinations", () => {
     expect(safeNextPath("/tasks?status=Today")).toBe("/tasks?status=Today");

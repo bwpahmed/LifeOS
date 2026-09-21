@@ -42,8 +42,9 @@ export default function LoginPage(){
     setLoading(true);setMsg("");
     try{
       const sb=supabaseBrowser();
-      const redirectTo=`${location.origin}/auth/callback?next=${encodeURIComponent("/auth/update-password")}`;
-      const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo});
+      sessionStorage.setItem("lifeos_auth_mode","recovery");
+      sessionStorage.setItem("lifeos_auth_next","/");
+      const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+"/"});
       if(error)throw error;
       setMsg("Password reset email sent. Open the newest email, set a new password, then LifeOS will return you to the dashboard.");
     }catch(e){setMsg(e instanceof Error?e.message:"Could not send password reset email");}
@@ -54,9 +55,11 @@ export default function LoginPage(){
     setLoading(true);setMsg("");
     try{
       const sb=supabaseBrowser();
+      sessionStorage.setItem("lifeos_auth_mode","magic");
+      sessionStorage.setItem("lifeos_auth_next",nextPath);
       const{error}=await sb.auth.signInWithOtp({
         email,
-        options:{emailRedirectTo:`${location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`}
+        options:{emailRedirectTo:location.origin+"/"}
       });
       if(error)throw error;
       setMsg("Magic sign-in link sent to your Gmail.");

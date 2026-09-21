@@ -9,6 +9,7 @@ import { currentWorkspace } from "@/lib/supabase/workspace";
 import { todayInTZ } from "@/lib/timezone";
 import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
 import { LifeClock } from "@/components/life-clock";
+import { safeNextPath } from "@/lib/auth-routing";
 
 type Task={
   id:string;name:string;area:string|null;status:TaskStatus;importance:number|null;
@@ -42,6 +43,7 @@ function aed(n:number){return "AED "+Math.round(n).toLocaleString("en-US");}
 
 export default function Home(){
   const[signedIn,setSignedIn]=useState<boolean|null>(null);
+  const[authReady,setAuthReady]=useState(false);
   const[workspaceId,setWorkspaceId]=useState("");
   const[tasks,setTasks]=useState<Task[]>([]);
   const[recs,setRecs]=useState<Rec[]>([]);
@@ -125,7 +127,76 @@ export default function Home(){
     }
   },[]);
 
-  useEffect(()=>{void load();},[load]);
+  useEffect(()=>{
+    let alive=true;
+    let retry:number|undefined;
+    const sb=supabaseBrowser();
+    const search=new URLSearchParams(location.search);
+    const hash=new URLSearchParams(location.hash.replace(/^#/,""));
+    const code=search.get("code");
+    const storedMode=sessionStorage.getItem("lifeos_auth_mode");
+    const storedNext=safeNextPath(sessionStorage.getItem("lifeos_auth_next"));
+    const recovery=storedMode==="recovery"||search.get("type")==="recovery"||hash.get("type")==="recovery";
+    const hasAuthPayload=Boolean(code||hash.get("access_token")||hash.get("refresh_token")||recovery||storedMode);
+    const clearAuthHints=()=>{sessionStorage.removeItem("lifeos_auth_mode");sessionStorage.removeItem("lifeos_auth_next");};
+    const cleanAuthUrl=()=>{if(location.search||location.hash)history.replaceState({},"","/");};
+    const acceptSession=()=>{
+      if(!alive)return;
+      if(recovery){
+        clearAuthHints();
+        location.replace("/auth/update-password");
+        return;
+      }
+      cleanAuthUrl();
+      clearAuthHints();
+      if(storedNext&&storedNext!=="/"){
+        location.replace(storedNext);
+        return;
+      }
+      setSignedIn(true);
+      setAuthReady(true);
+    };
+    const failToLogin=()=>{
+      if(!alive)return;
+      setSignedIn(false);
+      setAuthReady(true);
+      location.replace("/login");
+    };
+
+    const{data:{subscription}}=sb.auth.onAuthStateChange((event,session)=>{
+      if(event==="PASSWORD_RECOVERY"){
+        location.replace("/auth/update-password");
+        return;
+      }
+      if(session)acceptSession();
+    });
+
+    void(async()=>{
+      const first=await sb.auth.getSession();
+      if(first.data.session){
+        acceptSession();
+        return;
+      }
+      if(code){
+        const exchanged=await sb.auth.exchangeCodeForSession(code);
+        if(!exchanged.error&&exchanged.data.session){
+          acceptSession();
+          return;
+        }
+      }
+      if(!hasAuthPayload){failToLogin();return;}
+      retry=window.setTimeout(()=>{void(async()=>{
+        const again=await sb.auth.getSession();
+        if(again.data.session){
+          acceptSession();
+        }else failToLogin();
+      })();},1800);
+    })();
+
+    return()=>{alive=false;subscription.unsubscribe();if(retry)window.clearTimeout(retry);};
+  },[]);
+
+  useEffect(()=>{if(authReady&&signedIn)void load();},[load,authReady,signedIn]);
   useRealtimeRefresh(
     ["tasks","receivables","receivable_payments","money_expenses","habits","habit_logs","focus_sessions","family_tasks","migration_documents","goals","activity_log","user_settings"],
     load,
@@ -201,8 +272,12 @@ export default function Home(){
     .sort((a,b)=>daysBetween(b.start_date,today)-daysBetween(a.start_date,today))
     .slice(0,4),[tasks,today]);
 
+  if(!authReady||signedIn===null){
+    return <main className="page-root"><div className="panel p-6"><span className="label">SECURE SIGN-IN</span><h2 className="mt-2 text-xl font-bold">Opening LifeOS…</h2><p className="mt-2 text-sm text-slate-400">Verifying the private session before loading your dashboard.</p></div></main>;
+  }
+
   if(signedIn===false){
-    return <main className="page-root"><div className="hero-card"><div><div className="hero-kicker">PERSONAL + FAMILY COMMAND CENTER</div><h2>Do the right thing first.</h2><p>Sign in to activate your private cloud command center, reminders, recovery CRM and family system.</p></div><Link href="/login" className="primary-btn" style={{position:"relative",zIndex:2}}>Sign in</Link></div></main>;
+    return <main className="page-root"><div className="hero-card"><div><div className="hero-kicker">PERSONAL + FAMILY COMMAND CENTER</div><h2>Sign in required.</h2><p>LifeOS is private. Redirecting to the owner login.</p></div><Link href="/login" className="primary-btn" style={{position:"relative",zIndex:2}}>Sign in</Link></div></main>;
   }
 
   return <main className="page-root">
