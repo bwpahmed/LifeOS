@@ -29,6 +29,8 @@ export default function LoginPage(){
       const sb=supabaseBrowser();
       const{error}=await sb.auth.signInWithPassword({email,password});
       if(error)throw error;
+      sessionStorage.removeItem("lifeos_auth_mode");
+      sessionStorage.removeItem("lifeos_auth_next");
       location.assign(nextPath);
     }catch(e){
       const raw=e instanceof Error?e.message:"Sign-in failed";
@@ -47,7 +49,7 @@ export default function LoginPage(){
       const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+"/"});
       if(error)throw error;
       setMsg("Password reset email sent. Open the newest email, set a new password, then LifeOS will return you to the dashboard.");
-    }catch(e){setMsg(e instanceof Error?e.message:"Could not send password reset email");}
+    }catch(e){sessionStorage.removeItem("lifeos_auth_mode");sessionStorage.removeItem("lifeos_auth_next");setMsg(e instanceof Error?e.message:"Could not send password reset email");}
     finally{setLoading(false);}
   }
 
@@ -63,7 +65,7 @@ export default function LoginPage(){
       });
       if(error)throw error;
       setMsg("Magic sign-in link sent to your Gmail.");
-    }catch(e){setMsg(e instanceof Error?e.message:"Magic-link sign-in failed");}
+    }catch(e){sessionStorage.removeItem("lifeos_auth_mode");sessionStorage.removeItem("lifeos_auth_next");setMsg(e instanceof Error?e.message:"Magic-link sign-in failed");}
     finally{setLoading(false);}
   }
 
