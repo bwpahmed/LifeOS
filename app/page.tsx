@@ -177,6 +177,15 @@ export default function Home(){
         acceptSession();
         return;
       }
+      const accessToken=hash.get("access_token");
+      const refreshToken=hash.get("refresh_token");
+      if(accessToken&&refreshToken){
+        const restored=await sb.auth.setSession({access_token:accessToken,refresh_token:refreshToken});
+        if(!restored.error&&restored.data.session){
+          acceptSession();
+          return;
+        }
+      }
       if(code){
         const exchanged=await sb.auth.exchangeCodeForSession(code);
         if(!exchanged.error&&exchanged.data.session){
