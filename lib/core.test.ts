@@ -7,6 +7,7 @@ import { habitConsistency, habitConsistencyForFrequency, habitPeriodStreak, reco
 import { canSeeModule } from "./permissions";
 import { serverWins } from "./sync-queue";
 import { deterministicParse, validateParsed } from "./ai/service";
+import { ageParts,daysUntilRetirement,retirementDate,retirementProgress } from "./life-clock";
 import { expenseMonthStats } from "./waste";
 import { activeForIsoDay,clampWaterGoal,parseReminderTimes,sleepMinutes,waterTotalForDate } from "./health-planner";
 
@@ -130,5 +131,16 @@ describe("health planner helpers", () => {
   it("sums water by date and selects routines for the current ISO day", () => {
     expect(waterTotalForDate([{date:"2026-09-20",amount_ml:250},{date:"2026-09-20",amount_ml:500},{date:"2026-09-19",amount_ml:999}],"2026-09-20")).toBe(750);
     expect(activeForIsoDay([{active:true,days_of_week:[1,7],name:"a"},{active:false,days_of_week:[7],name:"b"}],7).map(x=>x.name)).toEqual(["a"]);
+  });
+});
+
+
+describe("life clock", () => {
+  it("calculates Ahmed's age and retirement target deterministically", () => {
+    const now = new Date("2026-09-21T00:00:00Z");
+    expect(ageParts("1992-02-25", now)).toEqual({ years: 34, months: 6, days: 27 });
+    expect(retirementDate("1992-02-25", 40)).toBe("2032-02-25");
+    expect(daysUntilRetirement("1992-02-25", 40, now)).toBeGreaterThan(1900);
+    expect(retirementProgress("1992-02-25", 40, now)).toBeGreaterThan(80);
   });
 });
