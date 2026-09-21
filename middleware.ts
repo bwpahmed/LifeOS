@@ -29,7 +29,22 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
+  const path = request.nextUrl.pathname;
+  const isPublic = path === "/login" || path.startsWith("/auth/") || path.startsWith("/join") || path.startsWith("/api/") || path === "/offline.html";
+
+  if (!user && !isPublic) {
+    const login = request.nextUrl.clone();
+    login.pathname = "/login";
+    login.searchParams.set("next", path + request.nextUrl.search);
+    return NextResponse.redirect(login);
+  }
+  if (user && path === "/login") {
+    const home = request.nextUrl.clone();
+    home.pathname = "/";
+    home.search = "";
+    return NextResponse.redirect(home);
+  }
   return response;
 }
 
