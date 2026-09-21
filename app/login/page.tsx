@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect,useState } from "react";
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { supabaseBrowser,supabaseEmailAuthClient } from "@/lib/supabase/client";
 import { Panel } from "@/components/ui";
 import { safeNextPath } from "@/lib/auth-routing";
 
@@ -41,7 +41,7 @@ export default function LoginPage(){
   async function sendPasswordReset(){
     setLoading(true);setMsg("");
     try{
-      const sb=supabaseBrowser();
+      const sb=supabaseEmailAuthClient();
       sessionStorage.setItem("lifeos_auth_mode","recovery");
       sessionStorage.setItem("lifeos_auth_next","/");
       const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+"/"});
@@ -54,12 +54,12 @@ export default function LoginPage(){
   async function magicLink(){
     setLoading(true);setMsg("");
     try{
-      const sb=supabaseBrowser();
+      const sb=supabaseEmailAuthClient();
       sessionStorage.setItem("lifeos_auth_mode","magic");
       sessionStorage.setItem("lifeos_auth_next",nextPath);
       const{error}=await sb.auth.signInWithOtp({
         email,
-        options:{emailRedirectTo:location.origin+"/"}
+        options:{emailRedirectTo:location.origin+"/",shouldCreateUser:false}
       });
       if(error)throw error;
       setMsg("Magic sign-in link sent to your Gmail.");
