@@ -3,10 +3,8 @@
 import { FormEvent,useEffect,useState } from "react";
 import { Panel } from "@/components/ui";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { LIFEOS_PASSWORD_HINT,passwordMeetsLifeOSPolicy } from "@/lib/password-policy";
 
-function strongEnough(v:string){
-  return v.length>=12&&/[a-z]/.test(v)&&/[A-Z]/.test(v)&&/\d/.test(v)&&/[^A-Za-z0-9]/.test(v);
-}
 
 export default function UpdatePasswordPage(){
   const[password,setPassword]=useState("");
@@ -31,7 +29,7 @@ export default function UpdatePasswordPage(){
     e.preventDefault();
     if(!ready)return;
     if(password!==confirmPassword){setMsg("Passwords do not match.");return;}
-    if(!strongEnough(password)){setMsg("Use at least 12 characters with uppercase, lowercase, number and symbol.");return;}
+    if(!passwordMeetsLifeOSPolicy(password)){setMsg(LIFEOS_PASSWORD_HINT);return;}
     setLoading(true);setMsg("");
     try{
       const sb=supabaseBrowser();
@@ -55,7 +53,7 @@ export default function UpdatePasswordPage(){
         </label>
         <button disabled={!ready||loading||!password||!confirmPassword} className="w-full rounded-lg bg-[#77adff] p-2 font-bold text-[#06101f] disabled:opacity-50">{loading?"Updating…":"Save new password"}</button>
       </form>
-      <p className="mt-3 text-xs text-slate-500">Minimum: 12 characters with uppercase, lowercase, number and symbol.</p>
+      <p className="mt-3 text-xs text-slate-500">{LIFEOS_PASSWORD_HINT}</p>
       <a href="/login" className="mt-3 inline-block text-sm text-[#8ab6ff]">Back to Login</a>
     </Panel>
   </main>;
