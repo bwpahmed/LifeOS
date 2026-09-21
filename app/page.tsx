@@ -8,6 +8,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { currentWorkspace } from "@/lib/supabase/workspace";
 import { todayInTZ } from "@/lib/timezone";
 import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
+import { LifeClock } from "@/components/life-clock";
 
 type Task={
   id:string;name:string;area:string|null;status:TaskStatus;importance:number|null;
@@ -289,6 +290,8 @@ export default function Home(){
         </div>
       </article>}
     </div>
+
+    <LifeClock/>
 
     {wasteLessons.length>0&&<article className="panel mt">
       <div className="panel-head"><div><span className="label">WASTE GUARD MEMORY</span><h3>Rules worth remembering</h3></div><Link className="text-btn" href="/expenses">Open Waste Guard →</Link></div>
