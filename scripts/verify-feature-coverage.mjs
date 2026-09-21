@@ -112,6 +112,9 @@ const checks=[
  ["S12 Screenshot Automations",has("app/automations/page.tsx","Save rule","Run enabled automations now","Enabled","Delete")],
  ["S13 Screenshot Reviews",has("app/reviews/page.tsx","Save weekly snapshot","Save daily review","weekly","monthly")],
  ["S14 Screenshot Settings",has("app/settings/page.tsx","dailyFocus","weeklyFocus","Privacy / PIN","Export JSON","Export CSV","Activity")],
+ ["AA Life clock + retirement by 40",exists("components/life-clock.tsx")&&has("components/life-clock.tsx","Age now","Retirement target","1-YEAR GOAL","5-YEAR GOAL","DAILY PUSH")&&has("app/page.tsx","LifeClock")],
+ ["AB Life plan cloud settings",has("app/settings/page.tsx","birth_date","retirement_age","one_year_goal","five_year_goal","Save life plan")],
+ ["AC Login-first routing",has("middleware.ts","/login","searchParams.set(\"next\"","!user && !isPublic")&&has("components/app-shell.tsx","publicShell")],
 ];
 
 const failed=checks.filter(([,ok])=>!ok);
