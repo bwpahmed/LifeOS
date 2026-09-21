@@ -6,6 +6,7 @@ alter table public.calendar_items
   add column if not exists external_provider text,
   add column if not exists external_account text,
   add column if not exists external_calendar_id text,
+  add column if not exists external_calendar_name text,
   add column if not exists external_event_id text,
   add column if not exists external_url text,
   add column if not exists external_updated_at timestamptz,
