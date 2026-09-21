@@ -1,13 +1,38 @@
 import { NextResponse } from "next/server";
-import { deterministicParse, providerFromEnv, validateParsed } from "@/lib/ai/service";
+import { parseCapture } from "@/lib/ai/service";
+import { supabaseServer } from "@/lib/supabase/server";
 
-// POST /api/ai/parse { text, todayISO } -> structured capture (validated server-side).
-// Uses live provider when configured; otherwise deterministic fallback. Never blindly trusts AI.
 export async function POST(req: Request) {
-  const { text, todayISO } = (await req.json().catch(() => ({}))) as { text?: string; todayISO?: string };
-  if (!text || text.trim().length < 2) return NextResponse.json({ error: "Empty input" }, { status: 400 });
-  const provider = providerFromEnv(process.env);
-  void provider; // wiring point for openai/openrouter fetch (keys server-only)
-  const parsed = validateParsed(deterministicParse(text, todayISO || new Date().toISOString().slice(0, 10)));
-  return NextResponse.json({ parsed, provider, label: provider === "deterministic" ? "Rule-based parse (AI not configured)" : "AI parse" });
+  const supabase = await supabaseServer();
+  const { data: auth, error: authError } = await supabase.auth.getUser();
+  if (authError || !auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { text, todayISO } = (await req.json().catch(() => ({}))) as {
+    text?: string;
+    todayISO?: string;
+  };
+
+  if (!text || text.trim().length < 2) {
+    return NextResponse.json({ error: "Empty input" }, { status: 400 });
+  }
+  if (text.length > 4000) {
+    return NextResponse.json({ error: "Input is too long" }, { status: 413 });
+  }
+
+  const result = await parseCapture(
+    text,
+    todayISO || new Date().toISOString().slice(0, 10),
+    process.env
+  );
+
+  return NextResponse.json({
+    parsed: result.parsed,
+    provider: result.provider,
+    live: result.live,
+    label: result.live
+      ? `Live AI parse via ${result.provider}`
+      : result.attemptedProvider
+        ? `Rule-based fallback after ${result.attemptedProvider} error`
+        : "Rule-based parse (AI not configured)",
+  });
 }

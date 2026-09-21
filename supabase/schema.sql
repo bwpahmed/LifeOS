@@ -30,7 +30,7 @@ create table tasks (
   id uuid primary key default uuid_generate_v4(), workspace_id uuid references workspaces(id) on delete cascade,
   name text not null, description text, area text, goal_id uuid references goals(id) on delete set null,
   project_id uuid references projects(id) on delete set null, milestone_id uuid references goal_milestones(id) on delete set null,
-  status text default 'Inbox', importance int default 3, ai_score int,
+  status text default 'Inbox', importance int default 3, ai_score int, responsible text default 'Me', business_section text,
   start_date date, deadline date, reminder_time text, recurrence jsonb default '{"kind":"none"}',
   estimate_min int default 30, actual_min int default 0, financial_value numeric default 0,
   assigned_to uuid references auth.users, waiting_for text, blocked_by uuid references tasks(id) on delete set null,
@@ -72,7 +72,7 @@ create table family_tasks (id uuid primary key default uuid_generate_v4(), works
 create table baby_records (id uuid primary key default uuid_generate_v4(), workspace_id uuid references workspaces(id) on delete cascade, date date, type text, title text, value text, notes text, created_by uuid references auth.users, created_at timestamptz default now());
 
 create table migration_countries (id uuid primary key default uuid_generate_v4(), workspace_id uuid references workspaces(id) on delete cascade, country text, route text, status text default 'Research', progress int default 0, notes text, created_by uuid references auth.users, created_at timestamptz default now());
-create table migration_routes (id uuid primary key default uuid_generate_v4(), country_id uuid references migration_countries(id) on delete cascade, route text, requirements text, cost_estimate numeric, documents text, language text, timeline text, next_action text);
+create table migration_routes (id uuid primary key default uuid_generate_v4(), country_id uuid references migration_countries(id) on delete cascade, route text, requirements text, cost_estimate numeric, documents text, language text, timeline text, next_action text, residency_pathway text, pr_route text, citizenship_timeline text, job_opportunities text, business_potential text, education text, family_suitability text);
 create table migration_documents (id uuid primary key default uuid_generate_v4(), workspace_id uuid references workspaces(id) on delete cascade, country_id uuid references migration_countries(id) on delete set null, name text, owner text, status text default 'Missing', issue_date date, expiry_date date, needs_attestation boolean default false, attachment text, notes text, created_by uuid references auth.users, created_at timestamptz default now());
 create table migration_tasks (id uuid primary key default uuid_generate_v4(), workspace_id uuid references workspaces(id) on delete cascade, country_id uuid references migration_countries(id) on delete cascade, title text, due_date date, status text default 'Pending', created_by uuid references auth.users, created_at timestamptz default now());
 
@@ -84,7 +84,7 @@ create table monthly_reviews (id uuid primary key default uuid_generate_v4(), wo
 
 create table automation_rules (id uuid primary key default uuid_generate_v4(), workspace_id uuid references workspaces(id) on delete cascade, name text, trigger text, conditions jsonb default '{}', action text, enabled boolean default true, created_by uuid references auth.users, created_at timestamptz default now());
 create table automation_runs (id uuid primary key default uuid_generate_v4(), rule_id uuid references automation_rules(id) on delete cascade, changes int default 0, created_at timestamptz default now());
-create table notifications (id uuid primary key default uuid_generate_v4(), workspace_id uuid references workspaces(id) on delete cascade, user_id uuid references auth.users(id) on delete cascade, title text, body text, severity text default 'normal', ref_table text, ref_id uuid, snoozed_until timestamptz, read_at timestamptz, created_at timestamptz default now());
+create table notifications (id uuid primary key default uuid_generate_v4(), workspace_id uuid references workspaces(id) on delete cascade, user_id uuid references auth.users(id) on delete cascade, title text, body text, severity text default 'normal', ref_table text, ref_id uuid, snoozed_until timestamptz, read_at timestamptz, created_at timestamptz default now(), push_sent_at timestamptz, push_attempted_at timestamptz, push_attempts integer not null default 0, push_error text);
 create table notification_preferences (user_id uuid primary key references auth.users(id) on delete cascade, quiet_start text default '22:30', quiet_end text default '07:00', allow_critical_in_quiet boolean default false, push_endpoint jsonb);
 create table push_subscriptions (id uuid primary key default uuid_generate_v4(), user_id uuid references auth.users(id) on delete cascade, endpoint text unique, keys jsonb, created_at timestamptz default now());
 create table attachments (id uuid primary key default uuid_generate_v4(), workspace_id uuid references workspaces(id) on delete cascade, owner_table text, owner_id uuid, path text, created_by uuid references auth.users, created_at timestamptz default now());
@@ -94,31 +94,1478 @@ create table ai_suggestions (id uuid primary key default uuid_generate_v4(), con
 create table user_settings (user_id uuid primary key references auth.users(id) on delete cascade, settings jsonb default '{}', updated_at timestamptz default now());
 create table sync_queue (id uuid primary key default uuid_generate_v4(), user_id uuid references auth.users(id) on delete cascade, table_name text, op text, row jsonb, client_updated_at timestamptz, created_at timestamptz default now());
 
--- RLS: enable + workspace-membership checks (representative; repeat per table in migration runner)
-alter table profiles enable row level security;
-alter table tasks enable row level security;
-alter table receivables enable row level security;
-alter table health_entries enable row level security;
-alter table urge_logs enable row level security;
-alter table journal_entries enable row level security;
+-- Production RLS, auth bootstrap and private storage policies.
+-- Kept in sync with supabase/migrations/20260919_security_bootstrap.sql.
+-- LifeOS production hardening: full RLS coverage + automatic personal workspace bootstrap.
+-- Safe to run after the baseline schema. No destructive table/data changes.
+begin;
 
-create policy "own profile" on profiles for all using (auth.uid() = id);
-create policy "workspace member tasks" on tasks for all using (
-  exists (select 1 from workspace_members m where m.workspace_id = tasks.workspace_id and m.user_id = auth.uid())
+create or replace function public.is_workspace_member(ws uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.workspace_members m
+    where m.workspace_id = ws and m.user_id = auth.uid()
+  );
+$$;
+
+create or replace function public.is_workspace_writer(ws uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.workspace_members m
+    where m.workspace_id = ws
+      and m.user_id = auth.uid()
+      and m.role in ('owner','admin','member')
+  );
+$$;
+
+create or replace function public.is_workspace_admin(ws uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.workspace_members m
+    where m.workspace_id = ws
+      and m.user_id = auth.uid()
+      and m.role in ('owner','admin')
+  );
+$$;
+
+create or replace function public.can_access_module(ws uuid, module_name text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.workspace_members m
+    where m.workspace_id = ws
+      and m.user_id = auth.uid()
+      and (m.role in ('owner','admin') or module_name = any(m.modules))
+  );
+$$;
+
+grant execute on function public.is_workspace_member(uuid) to authenticated;
+grant execute on function public.is_workspace_writer(uuid) to authenticated;
+grant execute on function public.is_workspace_admin(uuid) to authenticated;
+grant execute on function public.can_access_module(uuid,text) to authenticated;
+
+
+create or replace function public.can_access_private_row(
+  ws uuid, owner_id uuid, privacy_level text, area_name text
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.workspace_members m
+    where m.workspace_id = ws
+      and m.user_id = auth.uid()
+      and (
+        coalesce(privacy_level,'family') <> 'private'
+        or owner_id = auth.uid()
+        or m.role in ('owner','admin')
+        or (area_name = 'Health' and 'health' = any(m.modules))
+        or (area_name = 'Self-control' and 'self_control' = any(m.modules))
+      )
+  );
+$$;
+
+grant execute on function public.can_access_private_row(uuid,uuid,text,text) to authenticated;
+
+create or replace function public.handle_new_lifeos_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  ws uuid;
+begin
+  insert into public.profiles (id, email, display_name)
+  values (new.id, new.email, coalesce(new.raw_user_meta_data->>'display_name','Me'))
+  on conflict (id) do nothing;
+
+  if not exists (select 1 from public.workspace_members where user_id = new.id) then
+    insert into public.workspaces (name, type, created_by)
+    values ('My LifeOS', 'personal', new.id)
+    returning id into ws;
+
+    insert into public.workspace_members (workspace_id, user_id, role, modules)
+    values (
+      ws, new.id, 'owner',
+      array['tasks','money','health','self_control','journal','family','baby','calendar','europe','business']
+    );
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created_lifeos on auth.users;
+create trigger on_auth_user_created_lifeos
+after insert on auth.users
+for each row execute procedure public.handle_new_lifeos_user();
+
+-- Backfill existing authenticated users who pre-date the bootstrap trigger.
+do $$
+declare
+  u record;
+  ws uuid;
+begin
+  for u in select id, email, raw_user_meta_data from auth.users loop
+    insert into public.profiles (id, email, display_name)
+    values (u.id, u.email, coalesce(u.raw_user_meta_data->>'display_name','Me'))
+    on conflict (id) do nothing;
+
+    if not exists (select 1 from public.workspace_members where user_id = u.id) then
+      insert into public.workspaces (name, type, created_by)
+      values ('My LifeOS', 'personal', u.id)
+      returning id into ws;
+      insert into public.workspace_members (workspace_id, user_id, role, modules)
+      values (
+        ws, u.id, 'owner',
+        array['tasks','money','health','self_control','journal','family','baby','calendar','europe','business']
+      );
+    end if;
+  end loop;
+end $$;
+
+-- Enable RLS on every application table.
+do $$
+declare
+  t text;
+begin
+  foreach t in array array[
+    'profiles','workspaces','workspace_members','life_areas','goals','goal_milestones','goal_updates',
+    'projects','project_members','tasks','task_dependencies','task_comments','task_activity',
+    'habits','habit_logs','focus_sessions','health_entries','health_documents','lab_results','hair_photos','urge_logs',
+    'contacts','receivables','receivable_payments','receivable_followups','receivable_documents',
+    'family_members','family_tasks','baby_records','migration_countries','migration_routes','migration_documents','migration_tasks',
+    'calendar_items','journal_entries','daily_reviews','weekly_reviews','monthly_reviews',
+    'automation_rules','automation_runs','notifications','notification_preferences','push_subscriptions',
+    'attachments','activity_log','ai_conversations','ai_suggestions','user_settings','sync_queue'
+  ] loop
+    execute format('alter table public.%I enable row level security', t);
+  end loop;
+end $$;
+
+drop policy if exists "own profile" on public.profiles;
+create policy "own profile" on public.profiles
+for all using (auth.uid() = id) with check (auth.uid() = id);
+
+drop policy if exists "workspace read" on public.workspaces;
+drop policy if exists "workspace create" on public.workspaces;
+drop policy if exists "workspace admin update" on public.workspaces;
+drop policy if exists "workspace admin delete" on public.workspaces;
+create policy "workspace read" on public.workspaces for select using (public.is_workspace_member(id));
+create policy "workspace create" on public.workspaces for insert with check (created_by = auth.uid());
+create policy "workspace admin update" on public.workspaces for update using (public.is_workspace_admin(id)) with check (public.is_workspace_admin(id));
+create policy "workspace admin delete" on public.workspaces for delete using (public.is_workspace_admin(id));
+
+drop policy if exists "workspace members read" on public.workspace_members;
+drop policy if exists "workspace members admin insert" on public.workspace_members;
+drop policy if exists "workspace members admin update" on public.workspace_members;
+drop policy if exists "workspace members admin delete" on public.workspace_members;
+create policy "workspace members read" on public.workspace_members for select using (public.is_workspace_member(workspace_id));
+create policy "workspace members admin insert" on public.workspace_members for insert with check (public.is_workspace_admin(workspace_id));
+create policy "workspace members admin update" on public.workspace_members for update using (public.is_workspace_admin(workspace_id)) with check (public.is_workspace_admin(workspace_id));
+create policy "workspace members admin delete" on public.workspace_members for delete using (public.is_workspace_admin(workspace_id));
+
+-- Workspace tables: members can read, writers can mutate.
+do $$
+declare
+  t text;
+begin
+  foreach t in array array[
+    'life_areas','goals','projects','tasks','habits','focus_sessions','contacts','receivables',
+    'family_members','family_tasks','baby_records','migration_countries','migration_documents','migration_tasks',
+    'calendar_items','daily_reviews','weekly_reviews','monthly_reviews','automation_rules',
+    'attachments','activity_log','ai_conversations'
+  ] loop
+    execute format('drop policy if exists "workspace select" on public.%I', t);
+    execute format('drop policy if exists "workspace insert" on public.%I', t);
+    execute format('drop policy if exists "workspace update" on public.%I', t);
+    execute format('drop policy if exists "workspace delete" on public.%I', t);
+    execute format('create policy "workspace select" on public.%I for select using (public.is_workspace_member(workspace_id))', t);
+    execute format('create policy "workspace insert" on public.%I for insert with check (public.is_workspace_writer(workspace_id))', t);
+    execute format('create policy "workspace update" on public.%I for update using (public.is_workspace_writer(workspace_id)) with check (public.is_workspace_writer(workspace_id))', t);
+    execute format('create policy "workspace delete" on public.%I for delete using (public.is_workspace_writer(workspace_id))', t);
+  end loop;
+end $$;
+
+
+-- Row-level privacy for generic hierarchy tables that can contain sensitive Health/Self-control items.
+do $$
+declare
+  t text;
+begin
+  foreach t in array array['goals','projects','tasks','habits'] loop
+    execute format('drop policy if exists "workspace select" on public.%I', t);
+    execute format('drop policy if exists "workspace insert" on public.%I', t);
+    execute format('drop policy if exists "workspace update" on public.%I', t);
+    execute format('drop policy if exists "workspace delete" on public.%I', t);
+    execute format('drop policy if exists "private row select" on public.%I', t);
+    execute format('drop policy if exists "private row insert" on public.%I', t);
+    execute format('drop policy if exists "private row update" on public.%I', t);
+    execute format('drop policy if exists "private row delete" on public.%I', t);
+    execute format('create policy "private row select" on public.%I for select using (public.can_access_private_row(workspace_id,created_by,privacy,area))', t);
+    execute format('create policy "private row insert" on public.%I for insert with check (public.is_workspace_writer(workspace_id) and public.can_access_private_row(workspace_id,created_by,privacy,area))', t);
+    execute format('create policy "private row update" on public.%I for update using (public.is_workspace_writer(workspace_id) and public.can_access_private_row(workspace_id,created_by,privacy,area)) with check (public.is_workspace_writer(workspace_id) and public.can_access_private_row(workspace_id,created_by,privacy,area))', t);
+    execute format('create policy "private row delete" on public.%I for delete using (public.is_workspace_writer(workspace_id) and public.can_access_private_row(workspace_id,created_by,privacy,area))', t);
+  end loop;
+end $$;
+
+-- Private modules require owner/admin or an explicit module grant.
+do $$
+declare
+  t text;
+begin
+  foreach t in array array['health_entries','health_documents','lab_results','hair_photos'] loop
+    execute format('drop policy if exists "private module select" on public.%I', t);
+    execute format('drop policy if exists "private module insert" on public.%I', t);
+    execute format('drop policy if exists "private module update" on public.%I', t);
+    execute format('drop policy if exists "private module delete" on public.%I', t);
+    execute format('create policy "private module select" on public.%I for select using (public.can_access_module(workspace_id,''health''))', t);
+    execute format('create policy "private module insert" on public.%I for insert with check (public.can_access_module(workspace_id,''health'') and public.is_workspace_writer(workspace_id))', t);
+    execute format('create policy "private module update" on public.%I for update using (public.can_access_module(workspace_id,''health'') and public.is_workspace_writer(workspace_id)) with check (public.can_access_module(workspace_id,''health'') and public.is_workspace_writer(workspace_id))', t);
+    execute format('create policy "private module delete" on public.%I for delete using (public.can_access_module(workspace_id,''health'') and public.is_workspace_writer(workspace_id))', t);
+  end loop;
+end $$;
+
+drop policy if exists "private urges" on public.urge_logs;
+create policy "private urges" on public.urge_logs for all
+using (public.can_access_module(workspace_id,'self_control'))
+with check (public.can_access_module(workspace_id,'self_control') and public.is_workspace_writer(workspace_id));
+
+drop policy if exists "private journal" on public.journal_entries;
+create policy "private journal" on public.journal_entries for all
+using (public.can_access_module(workspace_id,'journal'))
+with check (public.can_access_module(workspace_id,'journal') and public.is_workspace_writer(workspace_id));
+
+-- Child-table access follows the parent workspace.
+drop policy if exists "goal milestone access" on public.goal_milestones;
+create policy "goal milestone access" on public.goal_milestones for all
+using (exists(select 1 from public.goals g where g.id=goal_id and public.is_workspace_member(g.workspace_id)))
+with check (exists(select 1 from public.goals g where g.id=goal_id and public.is_workspace_writer(g.workspace_id)));
+
+drop policy if exists "goal update access" on public.goal_updates;
+create policy "goal update access" on public.goal_updates for all
+using (exists(select 1 from public.goals g where g.id=goal_id and public.is_workspace_member(g.workspace_id)))
+with check (exists(select 1 from public.goals g where g.id=goal_id and public.is_workspace_writer(g.workspace_id)));
+
+drop policy if exists "project member access" on public.project_members;
+create policy "project member access" on public.project_members for all
+using (exists(select 1 from public.projects p where p.id=project_id and public.is_workspace_member(p.workspace_id)))
+with check (exists(select 1 from public.projects p where p.id=project_id and public.is_workspace_admin(p.workspace_id)));
+
+drop policy if exists "task dependency access" on public.task_dependencies;
+create policy "task dependency access" on public.task_dependencies for all
+using (exists(select 1 from public.tasks t where t.id=task_id and public.is_workspace_member(t.workspace_id)))
+with check (exists(select 1 from public.tasks t where t.id=task_id and public.is_workspace_writer(t.workspace_id)));
+
+drop policy if exists "task comment access" on public.task_comments;
+create policy "task comment access" on public.task_comments for all
+using (exists(select 1 from public.tasks t where t.id=task_id and public.is_workspace_member(t.workspace_id)))
+with check (exists(select 1 from public.tasks t where t.id=task_id and public.is_workspace_writer(t.workspace_id)));
+
+drop policy if exists "task activity access" on public.task_activity;
+create policy "task activity access" on public.task_activity for all
+using (exists(select 1 from public.tasks t where t.id=task_id and public.is_workspace_member(t.workspace_id)))
+with check (exists(select 1 from public.tasks t where t.id=task_id and public.is_workspace_writer(t.workspace_id)));
+
+drop policy if exists "habit log access" on public.habit_logs;
+create policy "habit log access" on public.habit_logs for all
+using (exists(select 1 from public.habits h where h.id=habit_id and public.is_workspace_member(h.workspace_id)))
+with check (exists(select 1 from public.habits h where h.id=habit_id and public.is_workspace_writer(h.workspace_id)));
+
+do $$
+declare
+  t text;
+begin
+  foreach t in array array['receivable_payments','receivable_followups','receivable_documents'] loop
+    execute format('drop policy if exists "receivable child access" on public.%I', t);
+    execute format(
+      'create policy "receivable child access" on public.%I for all using (exists(select 1 from public.receivables r where r.id=receivable_id and public.is_workspace_member(r.workspace_id))) with check (exists(select 1 from public.receivables r where r.id=receivable_id and public.is_workspace_writer(r.workspace_id)))',
+      t
+    );
+  end loop;
+end $$;
+
+drop policy if exists "migration route access" on public.migration_routes;
+create policy "migration route access" on public.migration_routes for all
+using (exists(select 1 from public.migration_countries c where c.id=country_id and public.is_workspace_member(c.workspace_id)))
+with check (exists(select 1 from public.migration_countries c where c.id=country_id and public.is_workspace_writer(c.workspace_id)));
+
+drop policy if exists "automation run access" on public.automation_runs;
+create policy "automation run access" on public.automation_runs for all
+using (exists(select 1 from public.automation_rules r where r.id=rule_id and public.is_workspace_member(r.workspace_id)))
+with check (exists(select 1 from public.automation_rules r where r.id=rule_id and public.is_workspace_writer(r.workspace_id)));
+
+drop policy if exists "ai suggestion access" on public.ai_suggestions;
+create policy "ai suggestion access" on public.ai_suggestions for all
+using (exists(select 1 from public.ai_conversations c where c.id=conversation_id and public.is_workspace_member(c.workspace_id)))
+with check (exists(select 1 from public.ai_conversations c where c.id=conversation_id and public.is_workspace_writer(c.workspace_id)));
+
+drop policy if exists "workspace select" on public.notifications;
+drop policy if exists "workspace insert" on public.notifications;
+drop policy if exists "workspace update" on public.notifications;
+drop policy if exists "workspace delete" on public.notifications;
+drop policy if exists "own notifications select" on public.notifications;
+drop policy if exists "own notifications update" on public.notifications;
+drop policy if exists "own notifications delete" on public.notifications;
+create policy "own notifications select" on public.notifications for select
+using (user_id = auth.uid());
+create policy "own notifications update" on public.notifications for update
+using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "own notifications delete" on public.notifications for delete
+using (user_id = auth.uid());
+
+drop policy if exists "own notification preferences" on public.notification_preferences;
+create policy "own notification preferences" on public.notification_preferences for all
+using (user_id=auth.uid()) with check (user_id=auth.uid());
+
+drop policy if exists "own push subscriptions" on public.push_subscriptions;
+create policy "own push subscriptions" on public.push_subscriptions for all
+using (user_id=auth.uid()) with check (user_id=auth.uid());
+
+drop policy if exists "own user settings" on public.user_settings;
+create policy "own user settings" on public.user_settings for all
+using (user_id=auth.uid()) with check (user_id=auth.uid());
+
+drop policy if exists "own sync queue" on public.sync_queue;
+create policy "own sync queue" on public.sync_queue for all
+using (user_id=auth.uid()) with check (user_id=auth.uid());
+
+
+-- Private workspace storage. New objects use:
+-- <workspace_id>/<uploader_user_id>/<health|hair|money>/...
+-- Legacy <user_id>/... paths remain readable/manageable by that same user.
+create or replace function public.private_storage_workspace(object_name text)
+returns uuid
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  raw_id text;
+begin
+  raw_id := split_part(object_name, '/', 1);
+  if raw_id = coalesce(auth.uid()::text, '') then
+    return null;
+  end if;
+  begin
+    return raw_id::uuid;
+  exception when invalid_text_representation then
+    return null;
+  end;
+end;
+$$;
+
+create or replace function public.private_storage_module(object_name text)
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select case split_part(object_name, '/', 3)
+    when 'health' then 'health'
+    when 'hair' then 'health'
+    when 'money' then 'money'
+    when 'tasks' then 'tasks'
+    when 'journal' then 'journal'
+    when 'family' then 'family'
+    when 'europe' then 'europe'
+    else null
+  end;
+$$;
+
+create or replace function public.can_read_private_storage(object_name text)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  ws uuid;
+  module_name text;
+begin
+  if split_part(object_name, '/', 1) = coalesce(auth.uid()::text, '') then
+    return true;
+  end if;
+  ws := public.private_storage_workspace(object_name);
+  module_name := public.private_storage_module(object_name);
+  return ws is not null
+    and module_name is not null
+    and public.can_access_module(ws, module_name);
+end;
+$$;
+
+create or replace function public.can_insert_private_storage(object_name text)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  ws uuid;
+  module_name text;
+begin
+  if split_part(object_name, '/', 1) = coalesce(auth.uid()::text, '') then
+    return true;
+  end if;
+  ws := public.private_storage_workspace(object_name);
+  module_name := public.private_storage_module(object_name);
+  return ws is not null
+    and module_name is not null
+    and split_part(object_name, '/', 2) = coalesce(auth.uid()::text, '')
+    and public.is_workspace_writer(ws)
+    and public.can_access_module(ws, module_name);
+end;
+$$;
+
+create or replace function public.can_manage_private_storage(object_name text)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  ws uuid;
+  module_name text;
+begin
+  if split_part(object_name, '/', 1) = coalesce(auth.uid()::text, '') then
+    return true;
+  end if;
+  ws := public.private_storage_workspace(object_name);
+  module_name := public.private_storage_module(object_name);
+  return ws is not null
+    and module_name is not null
+    and public.is_workspace_writer(ws)
+    and public.can_access_module(ws, module_name);
+end;
+$$;
+
+revoke all on function public.private_storage_workspace(text) from public;
+revoke all on function public.private_storage_module(text) from public;
+revoke all on function public.can_read_private_storage(text) from public;
+revoke all on function public.can_insert_private_storage(text) from public;
+revoke all on function public.can_manage_private_storage(text) from public;
+grant execute on function public.private_storage_workspace(text) to authenticated;
+grant execute on function public.private_storage_module(text) to authenticated;
+grant execute on function public.can_read_private_storage(text) to authenticated;
+grant execute on function public.can_insert_private_storage(text) to authenticated;
+grant execute on function public.can_manage_private_storage(text) to authenticated;
+
+insert into storage.buckets (id, name, public)
+values ('lifeos-private', 'lifeos-private', false)
+on conflict (id) do update set public = false;
+
+drop policy if exists "lifeos private storage select" on storage.objects;
+drop policy if exists "lifeos private storage insert" on storage.objects;
+drop policy if exists "lifeos private storage update" on storage.objects;
+drop policy if exists "lifeos private storage delete" on storage.objects;
+
+create policy "lifeos private storage select" on storage.objects
+for select to authenticated
+using (bucket_id = 'lifeos-private' and public.can_read_private_storage(name));
+
+create policy "lifeos private storage insert" on storage.objects
+for insert to authenticated
+with check (bucket_id = 'lifeos-private' and public.can_insert_private_storage(name));
+
+create policy "lifeos private storage update" on storage.objects
+for update to authenticated
+using (bucket_id = 'lifeos-private' and public.can_manage_private_storage(name))
+with check (bucket_id = 'lifeos-private' and public.can_manage_private_storage(name));
+
+create policy "lifeos private storage delete" on storage.objects
+for delete to authenticated
+using (bucket_id = 'lifeos-private' and public.can_manage_private_storage(name));
+
+
+-- Realtime publication for multi-device LifeOS refresh.
+do $$
+declare
+  t text;
+begin
+  foreach t in array array[
+    'tasks','habits','habit_logs','receivables','receivable_payments','receivable_followups',
+    'goals','goal_milestones','projects','family_tasks','baby_records','health_entries','health_documents','lab_results','hair_photos',
+    'urge_logs','migration_countries','migration_routes','migration_documents','focus_sessions','journal_entries',
+    'notifications','automation_rules','receivable_documents'
+  ] loop
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end $$;
+
+
+-- Workspace invitations and explicit module-level access.
+create table if not exists public.workspace_invitations (
+  id uuid primary key default uuid_generate_v4(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  email text not null,
+  role text not null default 'member',
+  modules text[] not null default '{}',
+  token uuid not null unique default uuid_generate_v4(),
+  expires_at timestamptz not null default (now() + interval '7 days'),
+  accepted_at timestamptz,
+  accepted_by uuid references auth.users(id) on delete set null,
+  created_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now()
 );
-create policy "workspace member receivables" on receivables for all using (
-  exists (select 1 from workspace_members m where m.workspace_id = receivables.workspace_id and m.user_id = auth.uid())
+alter table public.workspace_invitations enable row level security;
+
+drop policy if exists "workspace invitations admin select" on public.workspace_invitations;
+drop policy if exists "workspace invitations admin insert" on public.workspace_invitations;
+drop policy if exists "workspace invitations admin update" on public.workspace_invitations;
+drop policy if exists "workspace invitations admin delete" on public.workspace_invitations;
+create policy "workspace invitations admin select" on public.workspace_invitations for select
+using (public.is_workspace_admin(workspace_id));
+create policy "workspace invitations admin insert" on public.workspace_invitations for insert
+with check (public.is_workspace_admin(workspace_id) and created_by = auth.uid());
+create policy "workspace invitations admin update" on public.workspace_invitations for update
+using (public.is_workspace_admin(workspace_id)) with check (public.is_workspace_admin(workspace_id));
+create policy "workspace invitations admin delete" on public.workspace_invitations for delete
+using (public.is_workspace_admin(workspace_id));
+
+-- Preserve the old broad member behavior for existing members; new invites use explicit grants.
+update public.workspace_members
+set modules = array['tasks','money','family','baby','calendar','europe','business']
+where role in ('member','viewer') and coalesce(array_length(modules,1),0)=0;
+
+-- Module-aware hierarchy rows. Health and Self-control rows require their own grants.
+do $$
+declare
+  t text;
+begin
+  foreach t in array array['goals','projects','tasks','habits'] loop
+    execute format('drop policy if exists "private row select" on public.%I', t);
+    execute format('drop policy if exists "private row insert" on public.%I', t);
+    execute format('drop policy if exists "private row update" on public.%I', t);
+    execute format('drop policy if exists "private row delete" on public.%I', t);
+    execute format(
+      'create policy "private row select" on public.%I for select using (
+        public.can_access_module(workspace_id, case when area = ''Health'' then ''health'' when area = ''Self-control'' then ''self_control'' when area = ''Money'' then ''money'' when area = ''Family'' then ''family'' when area = ''Europe'' then ''europe'' when area in (''Business'',''Work'') then ''business'' else ''tasks'' end)
+        and public.can_access_private_row(workspace_id,created_by,privacy,area)
+      )', t
+    );
+    execute format(
+      'create policy "private row insert" on public.%I for insert with check (
+        public.is_workspace_writer(workspace_id)
+        and public.can_access_module(workspace_id, case when area = ''Health'' then ''health'' when area = ''Self-control'' then ''self_control'' when area = ''Money'' then ''money'' when area = ''Family'' then ''family'' when area = ''Europe'' then ''europe'' when area in (''Business'',''Work'') then ''business'' else ''tasks'' end)
+        and public.can_access_private_row(workspace_id,created_by,privacy,area)
+      )', t
+    );
+    execute format(
+      'create policy "private row update" on public.%I for update using (
+        public.is_workspace_writer(workspace_id)
+        and public.can_access_module(workspace_id, case when area = ''Health'' then ''health'' when area = ''Self-control'' then ''self_control'' when area = ''Money'' then ''money'' when area = ''Family'' then ''family'' when area = ''Europe'' then ''europe'' when area in (''Business'',''Work'') then ''business'' else ''tasks'' end)
+        and public.can_access_private_row(workspace_id,created_by,privacy,area)
+      ) with check (
+        public.is_workspace_writer(workspace_id)
+        and public.can_access_module(workspace_id, case when area = ''Health'' then ''health'' when area = ''Self-control'' then ''self_control'' when area = ''Money'' then ''money'' when area = ''Family'' then ''family'' when area = ''Europe'' then ''europe'' when area in (''Business'',''Work'') then ''business'' else ''tasks'' end)
+        and public.can_access_private_row(workspace_id,created_by,privacy,area)
+      )', t
+    );
+    execute format(
+      'create policy "private row delete" on public.%I for delete using (
+        public.is_workspace_writer(workspace_id)
+        and public.can_access_module(workspace_id, case when area = ''Health'' then ''health'' when area = ''Self-control'' then ''self_control'' when area = ''Money'' then ''money'' when area = ''Family'' then ''family'' when area = ''Europe'' then ''europe'' when area in (''Business'',''Work'') then ''business'' else ''tasks'' end)
+        and public.can_access_private_row(workspace_id,created_by,privacy,area)
+      )', t
+    );
+  end loop;
+end $$;
+
+-- Module-level policies for non-private workspace tables.
+do $$
+declare
+  tables text[] := array[
+    'life_areas','focus_sessions','contacts','receivables','family_members','family_tasks',
+    'baby_records','migration_countries','migration_documents','migration_tasks','calendar_items',
+    'daily_reviews','weekly_reviews','monthly_reviews','automation_rules','activity_log','ai_conversations'
+  ];
+  modules text[] := array[
+    'tasks','tasks','money','money','family','family',
+    'baby','europe','europe','europe','calendar',
+    'tasks','tasks','tasks','tasks','tasks','tasks'
+  ];
+  i int;
+  t text;
+  m text;
+begin
+  for i in 1..array_length(tables,1) loop
+    t := tables[i]; m := modules[i];
+    execute format('drop policy if exists "workspace select" on public.%I', t);
+    execute format('drop policy if exists "workspace insert" on public.%I', t);
+    execute format('drop policy if exists "workspace update" on public.%I', t);
+    execute format('drop policy if exists "workspace delete" on public.%I', t);
+    execute format('drop policy if exists "module select" on public.%I', t);
+    execute format('drop policy if exists "module insert" on public.%I', t);
+    execute format('drop policy if exists "module update" on public.%I', t);
+    execute format('drop policy if exists "module delete" on public.%I', t);
+    execute format('create policy "module select" on public.%I for select using (public.can_access_module(workspace_id,%L))', t, m);
+    execute format('create policy "module insert" on public.%I for insert with check (public.is_workspace_writer(workspace_id) and public.can_access_module(workspace_id,%L))', t, m);
+    execute format('create policy "module update" on public.%I for update using (public.is_workspace_writer(workspace_id) and public.can_access_module(workspace_id,%L)) with check (public.is_workspace_writer(workspace_id) and public.can_access_module(workspace_id,%L))', t, m, m);
+    execute format('create policy "module delete" on public.%I for delete using (public.is_workspace_writer(workspace_id) and public.can_access_module(workspace_id,%L))', t, m);
+  end loop;
+end $$;
+
+-- Generic attachments are owner/admin only unless a dedicated parent policy exists.
+drop policy if exists "workspace select" on public.attachments;
+drop policy if exists "workspace insert" on public.attachments;
+drop policy if exists "workspace update" on public.attachments;
+drop policy if exists "workspace delete" on public.attachments;
+drop policy if exists "attachment owner select" on public.attachments;
+drop policy if exists "attachment owner insert" on public.attachments;
+drop policy if exists "attachment owner update" on public.attachments;
+drop policy if exists "attachment owner delete" on public.attachments;
+create policy "attachment owner select" on public.attachments for select
+using (created_by = auth.uid() or public.is_workspace_admin(workspace_id));
+create policy "attachment owner insert" on public.attachments for insert
+with check ((created_by = auth.uid() or public.is_workspace_admin(workspace_id)) and public.is_workspace_writer(workspace_id));
+create policy "attachment owner update" on public.attachments for update
+using ((created_by = auth.uid() or public.is_workspace_admin(workspace_id)) and public.is_workspace_writer(workspace_id))
+with check ((created_by = auth.uid() or public.is_workspace_admin(workspace_id)) and public.is_workspace_writer(workspace_id));
+create policy "attachment owner delete" on public.attachments for delete
+using ((created_by = auth.uid() or public.is_workspace_admin(workspace_id)) and public.is_workspace_writer(workspace_id));
+
+-- Tighten child tables so direct queries cannot bypass module grants.
+drop policy if exists "goal milestone access" on public.goal_milestones;
+create policy "goal milestone access" on public.goal_milestones for all
+using (exists(select 1 from public.goals g where g.id=goal_id and public.can_access_module(g.workspace_id,case when g.area='Health' then 'health' when g.area='Self-control' then 'self_control' when g.area='Money' then 'money' when g.area='Family' then 'family' when g.area='Europe' then 'europe' when g.area in ('Business','Work') then 'business' else 'tasks' end)))
+with check (exists(select 1 from public.goals g where g.id=goal_id and public.is_workspace_writer(g.workspace_id) and public.can_access_module(g.workspace_id,case when g.area='Health' then 'health' when g.area='Self-control' then 'self_control' when g.area='Money' then 'money' when g.area='Family' then 'family' when g.area='Europe' then 'europe' when g.area in ('Business','Work') then 'business' else 'tasks' end)));
+
+drop policy if exists "goal update access" on public.goal_updates;
+create policy "goal update access" on public.goal_updates for all
+using (exists(select 1 from public.goals g where g.id=goal_id and public.can_access_module(g.workspace_id,case when g.area='Health' then 'health' when g.area='Self-control' then 'self_control' when g.area='Money' then 'money' when g.area='Family' then 'family' when g.area='Europe' then 'europe' when g.area in ('Business','Work') then 'business' else 'tasks' end)))
+with check (exists(select 1 from public.goals g where g.id=goal_id and public.is_workspace_writer(g.workspace_id) and public.can_access_module(g.workspace_id,case when g.area='Health' then 'health' when g.area='Self-control' then 'self_control' when g.area='Money' then 'money' when g.area='Family' then 'family' when g.area='Europe' then 'europe' when g.area in ('Business','Work') then 'business' else 'tasks' end)));
+
+drop policy if exists "project member access" on public.project_members;
+create policy "project member access" on public.project_members for all
+using (exists(select 1 from public.projects p where p.id=project_id and public.can_access_module(p.workspace_id,case when p.area='Health' then 'health' when p.area='Self-control' then 'self_control' when p.area='Money' then 'money' when p.area='Family' then 'family' when p.area='Europe' then 'europe' when p.area in ('Business','Work') then 'business' else 'tasks' end)))
+with check (exists(select 1 from public.projects p where p.id=project_id and public.is_workspace_admin(p.workspace_id)));
+
+drop policy if exists "task dependency access" on public.task_dependencies;
+create policy "task dependency access" on public.task_dependencies for all
+using (exists(select 1 from public.tasks t where t.id=task_id and public.can_access_module(t.workspace_id,case when t.area='Health' then 'health' when t.area='Self-control' then 'self_control' when t.area='Money' then 'money' when t.area='Family' then 'family' when t.area='Europe' then 'europe' when t.area in ('Business','Work') then 'business' else 'tasks' end)))
+with check (exists(select 1 from public.tasks t where t.id=task_id and public.is_workspace_writer(t.workspace_id) and public.can_access_module(t.workspace_id,case when t.area='Health' then 'health' when t.area='Self-control' then 'self_control' when t.area='Money' then 'money' when t.area='Family' then 'family' when t.area='Europe' then 'europe' when t.area in ('Business','Work') then 'business' else 'tasks' end)));
+
+drop policy if exists "task comment access" on public.task_comments;
+create policy "task comment access" on public.task_comments for all
+using (exists(select 1 from public.tasks t where t.id=task_id and public.can_access_module(t.workspace_id,case when t.area='Health' then 'health' when t.area='Self-control' then 'self_control' when t.area='Money' then 'money' when t.area='Family' then 'family' when t.area='Europe' then 'europe' when t.area in ('Business','Work') then 'business' else 'tasks' end)))
+with check (exists(select 1 from public.tasks t where t.id=task_id and public.is_workspace_writer(t.workspace_id) and public.can_access_module(t.workspace_id,case when t.area='Health' then 'health' when t.area='Self-control' then 'self_control' when t.area='Money' then 'money' when t.area='Family' then 'family' when t.area='Europe' then 'europe' when t.area in ('Business','Work') then 'business' else 'tasks' end)));
+
+drop policy if exists "task activity access" on public.task_activity;
+create policy "task activity access" on public.task_activity for all
+using (exists(select 1 from public.tasks t where t.id=task_id and public.can_access_module(t.workspace_id,case when t.area='Health' then 'health' when t.area='Self-control' then 'self_control' when t.area='Money' then 'money' when t.area='Family' then 'family' when t.area='Europe' then 'europe' when t.area in ('Business','Work') then 'business' else 'tasks' end)))
+with check (exists(select 1 from public.tasks t where t.id=task_id and public.is_workspace_writer(t.workspace_id) and public.can_access_module(t.workspace_id,case when t.area='Health' then 'health' when t.area='Self-control' then 'self_control' when t.area='Money' then 'money' when t.area='Family' then 'family' when t.area='Europe' then 'europe' when t.area in ('Business','Work') then 'business' else 'tasks' end)));
+
+drop policy if exists "habit log access" on public.habit_logs;
+create policy "habit log access" on public.habit_logs for all
+using (exists(select 1 from public.habits h where h.id=habit_id and public.can_access_module(h.workspace_id,case when h.area='Health' then 'health' when h.area='Self-control' then 'self_control' when h.area='Money' then 'money' when h.area='Family' then 'family' when h.area='Europe' then 'europe' when h.area in ('Business','Work') then 'business' else 'tasks' end)))
+with check (exists(select 1 from public.habits h where h.id=habit_id and public.is_workspace_writer(h.workspace_id) and public.can_access_module(h.workspace_id,case when h.area='Health' then 'health' when h.area='Self-control' then 'self_control' when h.area='Money' then 'money' when h.area='Family' then 'family' when h.area='Europe' then 'europe' when h.area in ('Business','Work') then 'business' else 'tasks' end)));
+
+do $$
+declare
+  t text;
+begin
+  foreach t in array array['receivable_payments','receivable_followups','receivable_documents'] loop
+    execute format('drop policy if exists "receivable child access" on public.%I', t);
+    execute format('create policy "receivable child access" on public.%I for all using (exists(select 1 from public.receivables r where r.id=receivable_id and public.can_access_module(r.workspace_id,''money''))) with check (exists(select 1 from public.receivables r where r.id=receivable_id and public.is_workspace_writer(r.workspace_id) and public.can_access_module(r.workspace_id,''money'')))', t);
+  end loop;
+end $$;
+
+drop policy if exists "migration route access" on public.migration_routes;
+create policy "migration route access" on public.migration_routes for all
+using (exists(select 1 from public.migration_countries c where c.id=country_id and public.can_access_module(c.workspace_id,'europe')))
+with check (exists(select 1 from public.migration_countries c where c.id=country_id and public.is_workspace_writer(c.workspace_id) and public.can_access_module(c.workspace_id,'europe')));
+
+drop policy if exists "automation run access" on public.automation_runs;
+create policy "automation run access" on public.automation_runs for all
+using (exists(select 1 from public.automation_rules r where r.id=rule_id and public.can_access_module(r.workspace_id,'tasks')))
+with check (exists(select 1 from public.automation_rules r where r.id=rule_id and public.is_workspace_writer(r.workspace_id) and public.can_access_module(r.workspace_id,'tasks')));
+
+drop policy if exists "ai suggestion access" on public.ai_suggestions;
+create policy "ai suggestion access" on public.ai_suggestions for all
+using (exists(select 1 from public.ai_conversations c where c.id=conversation_id and public.can_access_module(c.workspace_id,'tasks')))
+with check (exists(select 1 from public.ai_conversations c where c.id=conversation_id and public.is_workspace_writer(c.workspace_id) and public.can_access_module(c.workspace_id,'tasks')));
+
+
+-- Tighten SECURITY DEFINER helper execution.
+-- RLS policies require selected helpers for authenticated users, but anonymous callers do not.
+
+revoke execute on function public.is_workspace_member(uuid) from public, anon;
+revoke execute on function public.is_workspace_writer(uuid) from public, anon;
+revoke execute on function public.is_workspace_admin(uuid) from public, anon;
+revoke execute on function public.can_access_module(uuid,text) from public, anon;
+revoke execute on function public.can_access_private_row(uuid,uuid,text,text) from public, anon;
+revoke execute on function public.can_read_private_storage(text) from public, anon;
+revoke execute on function public.can_insert_private_storage(text) from public, anon;
+revoke execute on function public.can_manage_private_storage(text) from public, anon;
+revoke execute on function public.private_storage_workspace(text) from public, anon, authenticated;
+revoke execute on function public.private_storage_module(text) from public, anon, authenticated;
+revoke execute on function public.handle_new_lifeos_user() from public, anon, authenticated;
+
+grant execute on function public.is_workspace_member(uuid) to authenticated;
+grant execute on function public.is_workspace_writer(uuid) to authenticated;
+grant execute on function public.is_workspace_admin(uuid) to authenticated;
+grant execute on function public.can_access_module(uuid,text) to authenticated;
+grant execute on function public.can_access_private_row(uuid,uuid,text,text) to authenticated;
+grant execute on function public.can_read_private_storage(text) to authenticated;
+grant execute on function public.can_insert_private_storage(text) to authenticated;
+grant execute on function public.can_manage_private_storage(text) to authenticated;
+
+
+
+create table if not exists public.sticky_notes (
+  id uuid primary key default uuid_generate_v4(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  created_by uuid not null references auth.users(id),
+  title text not null default 'Important note',
+  body text not null default '',
+  color text not null default 'yellow',
+  pinned boolean not null default true,
+  archived boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
--- Private tables: additionally require owner/admin OR explicit module grant
-create policy "private health" on health_entries for all using (
-  exists (select 1 from workspace_members m where m.workspace_id = health_entries.workspace_id and m.user_id = auth.uid()
-    and (m.role in ('owner','admin') or 'health' = any(m.modules)))
+
+alter table public.sticky_notes enable row level security;
+
+drop policy if exists "sticky notes select" on public.sticky_notes;
+drop policy if exists "sticky notes insert" on public.sticky_notes;
+drop policy if exists "sticky notes update" on public.sticky_notes;
+
+create policy "sticky notes select" on public.sticky_notes
+for select to authenticated
+using (
+  created_by = auth.uid()
+  and public.is_workspace_member(workspace_id)
 );
-create policy "private urges" on urge_logs for all using (
-  exists (select 1 from workspace_members m where m.workspace_id = urge_logs.workspace_id and m.user_id = auth.uid()
-    and (m.role in ('owner','admin') or 'self_control' = any(m.modules)))
+
+create policy "sticky notes insert" on public.sticky_notes
+for insert to authenticated
+with check (
+  created_by = auth.uid()
+  and public.is_workspace_writer(workspace_id)
 );
-create policy "private journal" on journal_entries for all using (
-  exists (select 1 from workspace_members m where m.workspace_id = journal_entries.workspace_id and m.user_id = auth.uid()
-    and (m.role in ('owner','admin') or 'journal' = any(m.modules)))
+
+create policy "sticky notes update" on public.sticky_notes
+for update to authenticated
+using (
+  created_by = auth.uid()
+  and public.is_workspace_writer(workspace_id)
+)
+with check (
+  created_by = auth.uid()
+  and public.is_workspace_writer(workspace_id)
 );
+
+-- Intentionally no DELETE policy. Sticky notes are permanent records.
+-- Users may archive/unarchive or edit them, but not permanently delete them.
+
+create index if not exists sticky_notes_workspace_updated_idx
+  on public.sticky_notes(workspace_id, archived, updated_at desc);
+
+
+
+
+create table if not exists public.external_connections (
+  id uuid primary key default uuid_generate_v4(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  provider text not null,
+  account_email text,
+  access_token_enc text,
+  refresh_token_enc text,
+  token_expires_at timestamptz,
+  scopes text[] not null default '{}',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(user_id, provider)
+);
+
+alter table public.external_connections enable row level security;
+
+drop policy if exists "external connection own select" on public.external_connections;
+-- No client SELECT policy: OAuth tokens stay server-only.
+
+create policy "external connection own insert" on public.external_connections
+for insert to authenticated
+with check (user_id = auth.uid() and public.is_workspace_writer(workspace_id));
+
+create policy "external connection own update" on public.external_connections
+for update to authenticated
+using (user_id = auth.uid() and public.is_workspace_writer(workspace_id))
+with check (user_id = auth.uid() and public.is_workspace_writer(workspace_id));
+
+create index if not exists external_connections_user_provider_idx
+on public.external_connections(user_id,provider);
+
+
+
+drop policy if exists "external connection own select" on public.external_connections;
+create policy "external connection own select" on public.external_connections
+for select to authenticated
+using (user_id = auth.uid() and public.is_workspace_member(workspace_id));
+
+
+create or replace function public.enforce_lifeos_single_owner()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+begin
+  if new.email is null or lower(new.email) <> 'bwpahmed@gmail.com' then
+    raise exception 'LifeOS is restricted to the configured owner account';
+  end if;
+  return new;
+end;
+$$;
+revoke all on function public.enforce_lifeos_single_owner() from public, anon, authenticated;
+drop trigger if exists lifeos_single_owner_guard on auth.users;
+create trigger lifeos_single_owner_guard before insert on auth.users for each row execute procedure public.enforce_lifeos_single_owner();
+
+
+
+create table if not exists public.money_expenses (
+  id uuid primary key default uuid_generate_v4(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  created_by uuid not null references auth.users(id) on delete cascade,
+  date date not null default current_date,
+  amount numeric not null check (amount > 0),
+  category text not null default 'Other',
+  merchant text,
+  note text,
+  is_waste boolean not null default false,
+  waste_reason text,
+  avoid_next_time text,
+  recurring boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.health_routines (
+  id uuid primary key default uuid_generate_v4(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  created_by uuid not null references auth.users(id) on delete cascade,
+  kind text not null check (kind in ('water','medicine','sleep','meal','other')),
+  title text not null,
+  details jsonb not null default '{}'::jsonb,
+  reminder_times text[] not null default '{}',
+  days_of_week int[] not null default '{1,2,3,4,5,6,7}',
+  active boolean not null default true,
+  start_date date,
+  end_date date,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.health_routine_logs (
+  id uuid primary key default uuid_generate_v4(),
+  routine_id uuid not null references public.health_routines(id) on delete cascade,
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  created_by uuid not null references auth.users(id) on delete cascade,
+  date date not null,
+  scheduled_time text not null default '',
+  status text not null default 'done' check (status in ('done','skipped','missed')),
+  value numeric,
+  unit text,
+  note text,
+  completed_at timestamptz default now(),
+  created_at timestamptz not null default now(),
+  unique(routine_id,date,scheduled_time)
+);
+
+create table if not exists public.water_logs (
+  id uuid primary key default uuid_generate_v4(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  created_by uuid not null references auth.users(id) on delete cascade,
+  date date not null,
+  amount_ml int not null check (amount_ml > 0 and amount_ml <= 5000),
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.diet_plan_items (
+  id uuid primary key default uuid_generate_v4(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  created_by uuid not null references auth.users(id) on delete cascade,
+  meal_type text not null default 'Meal',
+  meal_time text,
+  title text not null,
+  details text,
+  calories int,
+  protein_g numeric,
+  days_of_week int[] not null default '{1,2,3,4,5,6,7}',
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.sleep_sessions (
+  id uuid primary key default uuid_generate_v4(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  created_by uuid not null references auth.users(id) on delete cascade,
+  date date not null,
+  bed_time text,
+  wake_time text,
+  duration_min int check (duration_min is null or (duration_min >= 0 and duration_min <= 1440)),
+  quality int check (quality is null or quality between 1 and 10),
+  note text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+do $$
+declare t text;
+begin
+  foreach t in array array['money_expenses','health_routines','health_routine_logs','water_logs','diet_plan_items','sleep_sessions'] loop
+    execute format('alter table public.%I enable row level security',t);
+  end loop;
+end $$;
+
+drop policy if exists "money expenses select" on public.money_expenses;
+drop policy if exists "money expenses insert" on public.money_expenses;
+drop policy if exists "money expenses update" on public.money_expenses;
+drop policy if exists "money expenses delete" on public.money_expenses;
+create policy "money expenses select" on public.money_expenses for select
+using (public.can_access_module(workspace_id,'money'));
+create policy "money expenses insert" on public.money_expenses for insert
+with check (public.is_workspace_writer(workspace_id) and public.can_access_module(workspace_id,'money') and created_by=auth.uid());
+create policy "money expenses update" on public.money_expenses for update
+using (public.is_workspace_writer(workspace_id) and public.can_access_module(workspace_id,'money'))
+with check (public.is_workspace_writer(workspace_id) and public.can_access_module(workspace_id,'money'));
+create policy "money expenses delete" on public.money_expenses for delete
+using (public.is_workspace_writer(workspace_id) and public.can_access_module(workspace_id,'money'));
+
+do $$
+declare t text;
+begin
+  foreach t in array array['health_routines','health_routine_logs','water_logs','diet_plan_items','sleep_sessions'] loop
+    execute format('drop policy if exists "health planner select" on public.%I',t);
+    execute format('drop policy if exists "health planner insert" on public.%I',t);
+    execute format('drop policy if exists "health planner update" on public.%I',t);
+    execute format('drop policy if exists "health planner delete" on public.%I',t);
+    execute format('create policy "health planner select" on public.%I for select using (public.can_access_module(workspace_id,''health''))',t);
+    execute format('create policy "health planner insert" on public.%I for insert with check (public.is_workspace_writer(workspace_id) and public.can_access_module(workspace_id,''health'') and created_by=auth.uid())',t);
+    execute format('create policy "health planner update" on public.%I for update using (public.is_workspace_writer(workspace_id) and public.can_access_module(workspace_id,''health'')) with check (public.is_workspace_writer(workspace_id) and public.can_access_module(workspace_id,''health''))',t);
+    execute format('create policy "health planner delete" on public.%I for delete using (public.is_workspace_writer(workspace_id) and public.can_access_module(workspace_id,''health''))',t);
+  end loop;
+end $$;
+
+create index if not exists money_expenses_ws_date_idx on public.money_expenses(workspace_id,date desc);
+create index if not exists money_expenses_ws_waste_idx on public.money_expenses(workspace_id,is_waste,date desc);
+create index if not exists health_routines_ws_kind_idx on public.health_routines(workspace_id,kind,active);
+create index if not exists health_routine_logs_ws_date_idx on public.health_routine_logs(workspace_id,date desc);
+create index if not exists water_logs_ws_date_idx on public.water_logs(workspace_id,date desc);
+create index if not exists diet_plan_items_ws_active_idx on public.diet_plan_items(workspace_id,active);
+create index if not exists sleep_sessions_ws_date_idx on public.sleep_sessions(workspace_id,date desc);
+
+do $$
+declare t text;
+begin
+  foreach t in array array['money_expenses','health_routines','health_routine_logs','water_logs','diet_plan_items','sleep_sessions'] loop
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname='supabase_realtime' and schemaname='public' and tablename=t
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I',t);
+    end if;
+  end loop;
+end $$;
+
+
+
+
+create table if not exists public.time_entries (
+  id uuid primary key default uuid_generate_v4(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  created_by uuid not null references auth.users(id) on delete cascade,
+  date date not null,
+  category text not null check (category in ('Work','Family','Health','Growth','Social media','Admin','Other')),
+  minutes int not null check (minutes > 0 and minutes <= 1440),
+  task_id uuid references public.tasks(id) on delete set null,
+  note text,
+  source text not null default 'manual',
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.morning_checkins (
+  id uuid primary key default uuid_generate_v4(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  created_by uuid not null references auth.users(id) on delete cascade,
+  date date not null,
+  sleep_hours numeric,
+  energy int check (energy is null or energy between 1 and 10),
+  mood int check (mood is null or mood between 1 and 10),
+  sleep_quality int check (sleep_quality is null or sleep_quality between 1 and 10),
+  main_goal text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(workspace_id,created_by,date)
+);
+
+alter table public.time_entries enable row level security;
+alter table public.morning_checkins enable row level security;
+
+drop policy if exists "time entries module" on public.time_entries;
+create policy "time entries module" on public.time_entries for all
+using (public.can_access_module(workspace_id,'tasks'))
+with check (public.is_workspace_writer(workspace_id) and public.can_access_module(workspace_id,'tasks') and created_by=auth.uid());
+
+drop policy if exists "morning checkin module" on public.morning_checkins;
+create policy "morning checkin module" on public.morning_checkins for all
+using (public.can_access_module(workspace_id,'tasks'))
+with check (public.is_workspace_writer(workspace_id) and public.can_access_module(workspace_id,'tasks') and created_by=auth.uid());
+
+create index if not exists time_entries_ws_date_idx on public.time_entries(workspace_id,date desc);
+create index if not exists morning_checkins_ws_date_idx on public.morning_checkins(workspace_id,date desc);
+
+do $$
+declare t text;
+begin
+  foreach t in array array['time_entries','morning_checkins'] loop
+    if not exists (select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename=t) then
+      execute format('alter publication supabase_realtime add table public.%I',t);
+    end if;
+  end loop;
+end $$;
+
+
+
+
+create table if not exists public.notification_dnd_blocks (
+  id uuid primary key default uuid_generate_v4(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  label text not null,
+  start_time text not null,
+  end_time text not null,
+  days_of_week int[] not null default '{1,2,3,4,5,6,7}',
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+alter table public.notification_dnd_blocks enable row level security;
+drop policy if exists "own dnd blocks" on public.notification_dnd_blocks;
+create policy "own dnd blocks" on public.notification_dnd_blocks for all
+using (user_id=auth.uid() and public.is_workspace_member(workspace_id))
+with check (user_id=auth.uid() and public.is_workspace_writer(workspace_id));
+create index if not exists notification_dnd_user_idx on public.notification_dnd_blocks(user_id,active);
+
+
+create extension if not exists pg_cron;
+
+create or replace function public.generate_due_health_notifications()
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  inserted_count integer := 0;
+begin
+  insert into public.notifications (
+    workspace_id,user_id,title,body,severity,ref_table,ref_id,created_at
+  )
+  select
+    r.workspace_id,
+    wm.user_id,
+    case
+      when r.kind='medicine' then 'LifeOS medicine reminder'
+      when r.kind='water' then 'LifeOS water reminder'
+      when r.kind='sleep' then 'LifeOS sleep reminder'
+      when r.kind='meal' then 'LifeOS meal reminder'
+      else 'LifeOS health reminder'
+    end,
+    'A private health routine needs attention.',
+    case when r.kind='medicine' then 'important' else 'normal' end,
+    'health_routines',
+    r.id,
+    now()
+  from public.health_routines r
+  join public.workspace_members wm on wm.workspace_id=r.workspace_id
+  left join public.profiles p on p.id=wm.user_id
+  left join public.notification_preferences np on np.user_id=wm.user_id
+  where r.active=true
+    and (r.start_date is null or r.start_date <= (now() at time zone coalesce(p.timezone,'Asia/Dubai'))::date)
+    and (r.end_date is null or r.end_date >= (now() at time zone coalesce(p.timezone,'Asia/Dubai'))::date)
+    and extract(isodow from (now() at time zone coalesce(p.timezone,'Asia/Dubai')))::int = any(r.days_of_week)
+    and exists (
+      select 1 from unnest(r.reminder_times) as rt
+      where (
+        (extract(hour from (now() at time zone coalesce(p.timezone,'Asia/Dubai')))::int*60
+         + extract(minute from (now() at time zone coalesce(p.timezone,'Asia/Dubai')))::int)
+        - (split_part(rt,':',1)::int*60 + split_part(rt,':',2)::int)
+      ) between 0 and 14
+    )
+    and not (
+      (coalesce(np.quiet_start,'22:30') <= coalesce(np.quiet_end,'07:00')
+       and to_char((now() at time zone coalesce(p.timezone,'Asia/Dubai')),'HH24:MI') >= coalesce(np.quiet_start,'22:30')
+       and to_char((now() at time zone coalesce(p.timezone,'Asia/Dubai')),'HH24:MI') < coalesce(np.quiet_end,'07:00'))
+      or
+      (coalesce(np.quiet_start,'22:30') > coalesce(np.quiet_end,'07:00')
+       and (to_char((now() at time zone coalesce(p.timezone,'Asia/Dubai')),'HH24:MI') >= coalesce(np.quiet_start,'22:30')
+            or to_char((now() at time zone coalesce(p.timezone,'Asia/Dubai')),'HH24:MI') < coalesce(np.quiet_end,'07:00')))
+    )
+    and not exists (
+      select 1 from public.notification_dnd_blocks d
+      where d.user_id=wm.user_id and d.active=true
+        and extract(isodow from (now() at time zone coalesce(p.timezone,'Asia/Dubai')))::int = any(d.days_of_week)
+        and (
+          (d.start_time <= d.end_time
+           and to_char((now() at time zone coalesce(p.timezone,'Asia/Dubai')),'HH24:MI') >= d.start_time
+           and to_char((now() at time zone coalesce(p.timezone,'Asia/Dubai')),'HH24:MI') < d.end_time)
+          or
+          (d.start_time > d.end_time
+           and (to_char((now() at time zone coalesce(p.timezone,'Asia/Dubai')),'HH24:MI') >= d.start_time
+                or to_char((now() at time zone coalesce(p.timezone,'Asia/Dubai')),'HH24:MI') < d.end_time))
+        )
+    )
+    and not exists (
+      select 1 from public.notifications n
+      where n.user_id=wm.user_id and n.ref_table='health_routines' and n.ref_id=r.id
+        and n.created_at > now() - interval '20 minutes'
+    );
+  get diagnostics inserted_count = row_count;
+  return inserted_count;
+end;
+$$;
+
+revoke all on function public.generate_due_health_notifications() from public, anon, authenticated;
+
+do $$
+begin
+  if exists(select 1 from cron.job where jobname='lifeos-health-reminders-15m') then
+    perform cron.unschedule((select jobid from cron.job where jobname='lifeos-health-reminders-15m' limit 1));
+  end if;
+  perform cron.schedule('lifeos-health-reminders-15m','*/15 * * * *','select public.generate_due_health_notifications();');
+end $$;
+
+
+create or replace function public.generate_due_lifeos_notifications()
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  ctx record;
+  item record;
+  local_ts timestamp;
+  local_date date;
+  local_time text;
+  local_hour integer;
+  local_dow integer;
+  quiet boolean;
+  dnd_active boolean;
+  allow_critical boolean;
+  sev text;
+  reminder_hour integer;
+  overdue_days integer;
+  promise_missed boolean;
+  reminder_days integer;
+  days_to_due integer;
+  inserted_count integer := 0;
+begin
+  for ctx in
+    select distinct wm.user_id, wm.workspace_id,
+      coalesce(p.timezone,'Asia/Dubai') as timezone,
+      coalesce(np.quiet_start,'22:30') as quiet_start,
+      coalesce(np.quiet_end,'07:00') as quiet_end,
+      coalesce(np.allow_critical_in_quiet,false) as allow_critical
+    from public.workspace_members wm
+    left join public.profiles p on p.id=wm.user_id
+    left join public.notification_preferences np on np.user_id=wm.user_id
+  loop
+    local_ts := now() at time zone ctx.timezone;
+    local_date := local_ts::date;
+    local_time := to_char(local_ts,'HH24:MI');
+    local_hour := extract(hour from local_ts)::int;
+    local_dow := extract(isodow from local_ts)::int;
+    allow_critical := ctx.allow_critical;
+
+    quiet :=
+      case
+        when ctx.quiet_start <= ctx.quiet_end
+          then local_time >= ctx.quiet_start and local_time < ctx.quiet_end
+        else local_time >= ctx.quiet_start or local_time < ctx.quiet_end
+      end;
+
+    select exists(
+      select 1 from public.notification_dnd_blocks d
+      where d.user_id=ctx.user_id and d.active=true
+        and local_dow = any(d.days_of_week)
+        and (
+          (d.start_time <= d.end_time and local_time >= d.start_time and local_time < d.end_time)
+          or
+          (d.start_time > d.end_time and (local_time >= d.start_time or local_time < d.end_time))
+        )
+    ) into dnd_active;
+    quiet := quiet or dnd_active;
+
+    -- Tasks: reminder hour, noon and 5pm escalation.
+    for item in
+      select id,name,area,importance,reminder_time
+      from public.tasks
+      where workspace_id=ctx.workspace_id
+        and deadline=local_date
+        and status not in ('Completed','Cancelled')
+    loop
+      reminder_hour := coalesce(nullif(split_part(coalesce(item.reminder_time,'09:00'),':',1),''),'9')::int;
+      if local_hour not in (reminder_hour,12,17) or local_hour < reminder_hour then continue; end if;
+
+      sev := case
+        when coalesce(item.importance,3) >= 5 then 'critical'
+        when coalesce(item.importance,3) >= 4 then 'urgent'
+        when coalesce(item.importance,3) >= 3 then 'important'
+        else 'normal'
+      end;
+      if local_hour >= 17 then
+        sev := case sev when 'urgent' then 'critical' when 'important' then 'urgent' when 'normal' then 'important' else sev end;
+      elsif local_hour >= 12 then
+        sev := case sev when 'important' then 'urgent' when 'normal' then 'important' else sev end;
+      end if;
+      if quiet and not (sev='critical' and allow_critical) then continue; end if;
+
+      if not exists(
+        select 1 from public.notifications n
+        where n.user_id=ctx.user_id and n.ref_table='tasks' and n.ref_id=item.id
+          and n.created_at > now()-interval '2 hours'
+      ) then
+        insert into public.notifications(workspace_id,user_id,title,body,severity,ref_table,ref_id,created_at)
+        values(
+          ctx.workspace_id,ctx.user_id,
+          case when local_hour=reminder_hour then 'LifeOS task reminder' else 'LifeOS task follow-up' end,
+          case when item.area in ('Health','Self-control') then 'A private LifeOS item needs attention.' else item.name end,
+          sev,'tasks',item.id,now()
+        );
+        inserted_count := inserted_count + 1;
+      end if;
+    end loop;
+
+    -- Money: 9am, noon, 5pm.
+    if local_hour in (9,12,17) then
+      for item in
+        select id,due_date,promise_date
+        from public.receivables
+        where workspace_id=ctx.workspace_id
+          and status <> 'Paid'
+          and next_followup is not null
+          and next_followup <= local_date
+      loop
+        overdue_days := case when item.due_date is null then 0 else greatest(0,local_date-item.due_date) end;
+        promise_missed := item.promise_date is not null and item.promise_date < local_date;
+        sev := case
+          when promise_missed or overdue_days >= 10 then 'critical'
+          when overdue_days >= 5 then 'urgent'
+          when overdue_days >= 2 then 'important'
+          else 'normal'
+        end;
+        if quiet and not (sev='critical' and allow_critical) then continue; end if;
+        if not exists(
+          select 1 from public.notifications n
+          where n.user_id=ctx.user_id and n.ref_table='receivables' and n.ref_id=item.id
+            and n.created_at > now()-interval '2 hours'
+        ) then
+          insert into public.notifications(workspace_id,user_id,title,body,severity,ref_table,ref_id,created_at)
+          values(ctx.workspace_id,ctx.user_id,
+            case when sev in ('urgent','critical') then 'LifeOS urgent money follow-up' else 'LifeOS money follow-up' end,
+            'A money follow-up is due.',sev,'receivables',item.id,now());
+          inserted_count := inserted_count + 1;
+        end if;
+      end loop;
+    end if;
+
+    -- Family: chosen lead-time and due day at 8am.
+    if local_hour=8 and not quiet then
+      for item in
+        select id,title,due_date,coalesce(reminder_days,2) as reminder_days
+        from public.family_tasks
+        where workspace_id=ctx.workspace_id
+          and status <> 'Completed'
+          and due_date between local_date and local_date+90
+      loop
+        reminder_days := greatest(0,item.reminder_days);
+        days_to_due := item.due_date-local_date;
+        if days_to_due not in (0,reminder_days) then continue; end if;
+        if not exists(
+          select 1 from public.notifications n
+          where n.user_id=ctx.user_id and n.ref_table='family_tasks' and n.ref_id=item.id
+            and n.created_at > now()-interval '20 hours'
+        ) then
+          insert into public.notifications(workspace_id,user_id,title,body,severity,ref_table,ref_id,created_at)
+          values(ctx.workspace_id,ctx.user_id,
+            case when days_to_due=0 then 'LifeOS family task due today' else 'LifeOS family reminder' end,
+            item.title,case when days_to_due=0 then 'important' else 'normal' end,
+            'family_tasks',item.id,now());
+          inserted_count := inserted_count + 1;
+        end if;
+      end loop;
+    end if;
+
+    -- Europe documents: 30/14/7/3/1/0 day reminders at 9am.
+    if local_hour=9 then
+      for item in
+        select id,name,expiry_date
+        from public.migration_documents
+        where workspace_id=ctx.workspace_id
+          and status <> 'Ready'
+          and expiry_date is not null
+          and expiry_date >= local_date
+      loop
+        days_to_due := item.expiry_date-local_date;
+        if days_to_due not in (30,14,7,3,1,0) then continue; end if;
+        sev := case when days_to_due <= 3 then 'critical' when days_to_due <= 7 then 'urgent' else 'important' end;
+        if quiet and not (sev='critical' and allow_critical) then continue; end if;
+        if not exists(
+          select 1 from public.notifications n
+          where n.user_id=ctx.user_id and n.ref_table='migration_documents' and n.ref_id=item.id
+            and n.created_at > now()-interval '20 hours'
+        ) then
+          insert into public.notifications(workspace_id,user_id,title,body,severity,ref_table,ref_id,created_at)
+          values(ctx.workspace_id,ctx.user_id,'LifeOS document reminder',
+            item.name||' expires in '||days_to_due||' day'||case when days_to_due=1 then '' else 's' end||'.',
+            sev,'migration_documents',item.id,now());
+          inserted_count := inserted_count + 1;
+        end if;
+      end loop;
+    end if;
+  end loop;
+
+  return inserted_count;
+end;
+$$;
+
+revoke all on function public.generate_due_lifeos_notifications() from public,anon,authenticated;
+
+do $$
+begin
+  if exists(select 1 from cron.job where jobname='lifeos-general-reminders-hourly') then
+    perform cron.unschedule((select jobid from cron.job where jobname='lifeos-general-reminders-hourly' limit 1));
+  end if;
+  perform cron.schedule(
+    'lifeos-general-reminders-hourly',
+    '7 * * * *',
+    'select public.generate_due_lifeos_notifications();'
+  );
+end $$;
+
+
+create or replace function public.lifeos_vapid_config()
+returns table(public_key text, private_key text, subject text)
+language sql
+security definer
+set search_path = public, vault
+as $$
+  select
+    (select decrypted_secret from vault.decrypted_secrets where name='lifeos_vapid_public' limit 1),
+    (select decrypted_secret from vault.decrypted_secrets where name='lifeos_vapid_private' limit 1),
+    (select decrypted_secret from vault.decrypted_secrets where name='lifeos_vapid_subject' limit 1);
+$$;
+revoke all on function public.lifeos_vapid_config() from public, anon, authenticated;
+grant execute on function public.lifeos_vapid_config() to service_role;
+create index if not exists notifications_push_dispatch_idx
+  on public.notifications(user_id, push_sent_at, created_at desc)
+  where read_at is null;
+
+
+
+create or replace function public.lifeos_valid_hhmm(value text)
+returns boolean
+language sql
+immutable
+set search_path = public
+as $$
+  select value is not null
+    and value ~ '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$';
+$$;
+
+create or replace function public.lifeos_valid_hhmm_array(items text[])
+returns boolean
+language sql
+immutable
+set search_path = public
+as $$
+  select coalesce(bool_and(public.lifeos_valid_hhmm(v)),true)
+  from unnest(coalesce(items,'{}'::text[])) as v;
+$$;
+
+do $$
+begin
+  if not exists(select 1 from pg_constraint where conname='tasks_reminder_time_valid') then
+    alter table public.tasks add constraint tasks_reminder_time_valid
+      check (reminder_time is null or public.lifeos_valid_hhmm(reminder_time));
+  end if;
+  if not exists(select 1 from pg_constraint where conname='health_routines_times_valid') then
+    alter table public.health_routines add constraint health_routines_times_valid
+      check (public.lifeos_valid_hhmm_array(reminder_times));
+  end if;
+  if not exists(select 1 from pg_constraint where conname='diet_plan_meal_time_valid') then
+    alter table public.diet_plan_items add constraint diet_plan_meal_time_valid
+      check (meal_time is null or public.lifeos_valid_hhmm(meal_time));
+  end if;
+  if not exists(select 1 from pg_constraint where conname='sleep_bed_time_valid') then
+    alter table public.sleep_sessions add constraint sleep_bed_time_valid
+      check (bed_time is null or public.lifeos_valid_hhmm(bed_time));
+  end if;
+  if not exists(select 1 from pg_constraint where conname='sleep_wake_time_valid') then
+    alter table public.sleep_sessions add constraint sleep_wake_time_valid
+      check (wake_time is null or public.lifeos_valid_hhmm(wake_time));
+  end if;
+  if not exists(select 1 from pg_constraint where conname='profile_morning_time_valid') then
+    alter table public.profiles add constraint profile_morning_time_valid
+      check (morning_planning_time is null or public.lifeos_valid_hhmm(morning_planning_time));
+  end if;
+  if not exists(select 1 from pg_constraint where conname='profile_night_time_valid') then
+    alter table public.profiles add constraint profile_night_time_valid
+      check (night_review_time is null or public.lifeos_valid_hhmm(night_review_time));
+  end if;
+  if not exists(select 1 from pg_constraint where conname='notification_quiet_start_valid') then
+    alter table public.notification_preferences add constraint notification_quiet_start_valid
+      check (quiet_start is null or public.lifeos_valid_hhmm(quiet_start));
+  end if;
+  if not exists(select 1 from pg_constraint where conname='notification_quiet_end_valid') then
+    alter table public.notification_preferences add constraint notification_quiet_end_valid
+      check (quiet_end is null or public.lifeos_valid_hhmm(quiet_end));
+  end if;
+  if not exists(select 1 from pg_constraint where conname='dnd_start_time_valid') then
+    alter table public.notification_dnd_blocks add constraint dnd_start_time_valid
+      check (public.lifeos_valid_hhmm(start_time));
+  end if;
+  if not exists(select 1 from pg_constraint where conname='dnd_end_time_valid') then
+    alter table public.notification_dnd_blocks add constraint dnd_end_time_valid
+      check (public.lifeos_valid_hhmm(end_time));
+  end if;
+end $$;
+
+
+commit;

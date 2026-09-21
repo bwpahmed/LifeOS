@@ -1,5 +1,4 @@
-// Offline queue: IndexedDB/local cache holds unsynced ops only; Supabase is source of truth.
-// Last-write-wins by updated_at for simple rows; complex edits surface conflict UI.
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export interface QueuedOp {
   id: string;
@@ -19,19 +18,59 @@ export function loadQueue(): QueuedOp[] {
   } catch { return []; }
 }
 
+function saveQueue(q: QueuedOp[]) {
+  try { if (typeof localStorage !== "undefined") localStorage.setItem(KEY, JSON.stringify(q)); } catch {}
+}
+
 export function enqueue(op: QueuedOp): QueuedOp[] {
-  const q = [...loadQueue(), op];
-  try { localStorage.setItem(KEY, JSON.stringify(q)); } catch {}
+  const current = loadQueue();
+  const q = [...current.filter((x) => x.id !== op.id), op];
+  saveQueue(q);
   return q;
 }
 
 export function dequeue(id: string): QueuedOp[] {
   const q = loadQueue().filter((o) => o.id !== id);
-  try { localStorage.setItem(KEY, JSON.stringify(q)); } catch {}
+  saveQueue(q);
   return q;
 }
 
-/** Simple-row conflict: server row wins if server.updated_at >= client.updated_at. */
+export function queueUpsert(table: string, row: Record<string, unknown>, id?: string) {
+  const opId = id || `${table}:${String(row.id || globalThis.crypto?.randomUUID?.() || Date.now())}`;
+  return enqueue({ id: opId, table, op: "upsert", row, clientUpdatedAt: new Date().toISOString(), attempts: 0 });
+}
+
+export function queueDelete(table: string, row: Record<string, unknown>, id?: string) {
+  const opId = id || `${table}:delete:${String(row.id || Date.now())}`;
+  return enqueue({ id: opId, table, op: "delete", row, clientUpdatedAt: new Date().toISOString(), attempts: 0 });
+}
+
+export async function replayQueue(client: SupabaseClient) {
+  const queue = loadQueue();
+  let synced = 0;
+  const remaining: QueuedOp[] = [];
+  for (const op of queue) {
+    try {
+      let error: { message?: string } | null = null;
+      if (op.op === "delete") {
+        if (!op.row.id) throw new Error("Queued delete is missing row.id");
+        const result = await client.from(op.table).delete().eq("id", op.row.id);
+        error = result.error;
+      } else {
+        const conflict = op.table === "habit_logs" ? "habit_id,date" : "id";
+        const result = await client.from(op.table).upsert(op.row, { onConflict: conflict });
+        error = result.error;
+      }
+      if (error) throw new Error(error.message || "Sync failed");
+      synced += 1;
+    } catch {
+      remaining.push({ ...op, attempts: Number(op.attempts || 0) + 1 });
+    }
+  }
+  saveQueue(remaining);
+  return { synced, remaining: remaining.length };
+}
+
 export function serverWins(serverUpdatedAt: string, clientUpdatedAt: string): boolean {
   return new Date(serverUpdatedAt).getTime() >= new Date(clientUpdatedAt).getTime();
 }

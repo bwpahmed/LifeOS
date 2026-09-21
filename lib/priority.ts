@@ -16,6 +16,7 @@ export interface ScoredTask {
   goalId?: string | null;
   blockedBy?: string | null;
   createdAt?: string | null;
+  estimateMin?: number | null; // estimated effort in minutes
 }
 
 const DAY = 86_400_000;
@@ -49,7 +50,14 @@ export function priorityScore(t: ScoredTask, today = new Date()): number {
     ? Math.max(0, Math.round((today.getTime() - new Date(t.createdAt).getTime()) / DAY))
     : 0;
   const age = Math.min(4, Math.floor(ageDays / 14));
-  const raw = deadline + importance + money + area + overdue + blocked + dependency + goalAlign + age;
+  // Effort is intentionally a small tie-breaker, never a replacement for importance.
+  const estimate = Number(t.estimateMin || 0);
+  const effort = estimate > 0 && estimate <= 15 ? 4
+    : estimate <= 30 && estimate > 0 ? 3
+    : estimate <= 60 && estimate > 0 ? 1
+    : estimate > 120 ? -2
+    : 0;
+  const raw = deadline + importance + money + area + overdue + blocked + dependency + goalAlign + age + effort;
   return Math.max(0, Math.min(100, Math.round(raw)));
 }
 
@@ -65,5 +73,8 @@ export function whyPriority(t: ScoredTask, today = new Date()): string[] {
   if (t.status === "Blocked") reasons.push("Currently blocked");
   if (t.blockedBy) reasons.push("Has an open dependency");
   if (t.goalId) reasons.push("Aligned to a goal");
+  const estimate = Number(t.estimateMin || 0);
+  if (estimate > 0 && estimate <= 30) reasons.push(`Quick win · ${estimate} min`);
+  else if (estimate > 120) reasons.push(`Large effort · ${estimate} min`);
   return reasons;
 }
