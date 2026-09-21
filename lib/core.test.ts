@@ -10,6 +10,7 @@ import { deterministicParse, validateParsed } from "./ai/service";
 import { ageParts,daysUntilRetirement,retirementDate,retirementProgress } from "./life-clock";
 import { expenseMonthStats } from "./waste";
 import { activeForIsoDay,clampWaterGoal,parseReminderTimes,sleepMinutes,waterTotalForDate } from "./health-planner";
+import { isPublicPath,requestedPath,safeNextPath } from "./auth-routing";
 
 describe("priority score (prototype parity)", () => {
   it("completed tasks score 0", () => {
@@ -142,5 +143,24 @@ describe("life clock", () => {
     expect(retirementDate("1992-02-25", 40)).toBe("2032-02-25");
     expect(daysUntilRetirement("1992-02-25", 40, now)).toBeGreaterThan(1900);
     expect(retirementProgress("1992-02-25", 40, now)).toBeGreaterThan(80);
+  });
+});
+
+
+describe("login routing", () => {
+  it("keeps auth and PWA assets public while protecting app pages", () => {
+    expect(isPublicPath("/login")).toBe(true);
+    expect(isPublicPath("/auth/callback")).toBe(true);
+    expect(isPublicPath("/manifest.webmanifest")).toBe(true);
+    expect(isPublicPath("/sw.js")).toBe(true);
+    expect(isPublicPath("/tasks")).toBe(false);
+    expect(isPublicPath("/")).toBe(false);
+  });
+  it("returns signed-in users only to safe internal destinations", () => {
+    expect(safeNextPath("/tasks?status=Today")).toBe("/tasks?status=Today");
+    expect(requestedPath("/goals","?view=active")).toBe("/goals?view=active");
+    expect(safeNextPath("https://evil.example")).toBe("/");
+    expect(safeNextPath("//evil.example")).toBe("/");
+    expect(safeNextPath("/\\evil")).toBe("/");
   });
 });
