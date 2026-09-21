@@ -8,7 +8,7 @@ import { currentWorkspace } from "@/lib/supabase/workspace";
 import { todayInTZ } from "@/lib/timezone";
 
 type Item={id:string;date:string;title:string;kind:string;editable?:boolean;sourceId?:string;url?:string|null;calendarName?:string};
-type GoogleStatus={authenticated:boolean;configured:boolean;connected:boolean;accountEmail?:string|null;error?:string};
+type GoogleStatus={authenticated:boolean;configured:boolean;connected:boolean;mode?:"oauth"|"bridge"|null;accountEmail?:string|null;updatedAt?:string|null;error?:string};
 type View="day"|"week"|"month"|"timeline";
 
 function addDays(iso:string,n:number){const d=new Date(iso+"T12:00:00");d.setDate(d.getDate()+n);return d.toISOString().slice(0,10);}
@@ -24,11 +24,17 @@ function monthCells(first:string){
   return Array.from({length:42},(_,i)=>{const x=new Date(start);x.setDate(start.getDate()+i);return x.toISOString().slice(0,10);});
 }
 function kindClass(kind:string){return kind==="Money"?"money":kind==="Family"?"family":kind==="Google"?"google":"";}
+function dateInDubai(value:string){
+  const parts=new Intl.DateTimeFormat("en-GB",{timeZone:"Asia/Dubai",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date(value));
+  const v=Object.fromEntries(parts.map(p=>[p.type,p.value]));
+  return `${v.year}-${v.month}-${v.day}`;
+}
 
 export default function CalendarPage(){
   const[workspaceId,setWorkspaceId]=useState("");
   const[items,setItems]=useState<Item[]>([]);
   const[googleItems,setGoogleItems]=useState<Item[]>([]);
+  const[mirrorItems,setMirrorItems]=useState<Item[]>([]);
   const[google,setGoogle]=useState<GoogleStatus>({authenticated:false,configured:false,connected:false});
   const[error,setError]=useState("");
   const[range,setRange]=useState<"7"|"30"|"90">("30");
@@ -44,13 +50,24 @@ export default function CalendarPage(){
       if(!ctx){setWorkspaceId("");return;}
       setWorkspaceId(ctx.workspaceId);
       const from=addDays(todayInTZ(),-120),to=addDays(todayInTZ(),400);
-      const[t,r,f,m]=await Promise.all([
+      const[t,r,f,m,c]=await Promise.all([
         sb.from("tasks").select("id,name,deadline,status").eq("workspace_id",ctx.workspaceId).gte("deadline",from).lte("deadline",to).not("status","in",'("Completed","Cancelled")'),
         sb.from("receivables").select("id,name,next_followup,status").eq("workspace_id",ctx.workspaceId).gte("next_followup",from).lte("next_followup",to).neq("status","Paid"),
         sb.from("family_tasks").select("id,title,due_date,status").eq("workspace_id",ctx.workspaceId).gte("due_date",from).lte("due_date",to).neq("status","Completed"),
-        sb.from("migration_documents").select("id,name,expiry_date,status").eq("workspace_id",ctx.workspaceId).gte("expiry_date",from).lte("expiry_date",to)
+        sb.from("migration_documents").select("id,name,expiry_date,status").eq("workspace_id",ctx.workspaceId).gte("expiry_date",from).lte("expiry_date",to),
+        sb.from("calendar_items")
+          .select("id,title,starts_at,ends_at,external_account,external_calendar_name,external_url,external_updated_at")
+          .eq("workspace_id",ctx.workspaceId)
+          .eq("external_provider","google_calendar")
+          .gte("starts_at",from+"T00:00:00+04:00")
+          .lte("starts_at",to+"T23:59:59+04:00")
+          .order("starts_at")
       ]);
-      for(const q of[t,r,f,m])if(q.error)throw q.error;
+      for(const q of[t,r,f,m,c])if(q.error)throw q.error;
+      setMirrorItems((c.data||[]).map((x:any)=>({
+        id:`google-mirror-${x.id}`,date:dateInDubai(x.starts_at),title:x.title||"(No title)",kind:"Google",
+        url:x.external_url||null,calendarName:x.external_calendar_name||"Google Calendar"
+      })));
       setItems([
         ...(t.data||[]).map((x:any)=>({id:`task-${x.id}`,date:x.deadline,title:x.name,kind:"Task",editable:true,sourceId:x.id})),
         ...(r.data||[]).map((x:any)=>({id:`money-${x.id}`,date:x.next_followup,title:`Follow up: ${x.name}`,kind:"Money"})),
@@ -66,13 +83,13 @@ export default function CalendarPage(){
       const statusRes=await fetch("/api/integrations/google-calendar/status",{cache:"no-store"});
       const status=await statusRes.json() as GoogleStatus;
       setGoogle(status);
-      if(!status.connected){setGoogleItems([]);return;}
+      if(!status.connected||status.mode!=="oauth"){setGoogleItems([]);return;}
       const from=addDays(todayInTZ(),-120),to=addDays(todayInTZ(),400);
       const res=await fetch(`/api/integrations/google-calendar/events?from=${encodeURIComponent(isoStart(from))}&to=${encodeURIComponent(isoEnd(to))}`,{cache:"no-store"});
       const data=await res.json();
       if(!res.ok)throw new Error(data.error||"Google Calendar sync failed");
       setGoogleItems((data.events||[]).map((x:any)=>({
-        id:x.id,date:String(x.start).slice(0,10),title:x.title,kind:"Google",
+        id:x.id,date:dateInDubai(String(x.start)),title:x.title,kind:"Google",
         url:x.url||null,calendarName:x.calendarName||"Google Calendar"
       })));
     }catch(e){setError(e instanceof Error?e.message:"Google Calendar sync failed");}
@@ -81,7 +98,8 @@ export default function CalendarPage(){
 
   useEffect(()=>{void load();void loadGoogle();},[load,loadGoogle]);
 
-  const allItems=useMemo(()=>[...items,...googleItems].sort((a,b)=>a.date.localeCompare(b.date)),[items,googleItems]);
+  const displayedGoogleItems=google.mode==="oauth"?googleItems:mirrorItems;
+  const allItems=useMemo(()=>[...items,...displayedGoogleItems].sort((a,b)=>a.date.localeCompare(b.date)),[items,displayedGoogleItems]);
   const visible=useMemo(()=>{const end=addDays(todayInTZ(),Number(range));return allItems.filter(x=>x.date>=todayInTZ()&&x.date<=end);},[allItems,range]);
   const grouped=useMemo(()=>visible.reduce<Record<string,Item[]>>((a,x)=>{(a[x.date]??=[]).push(x);return a;},{}),[visible]);
   const cells=useMemo(()=>monthCells(cursor),[cursor]);
@@ -103,19 +121,20 @@ export default function CalendarPage(){
         <button onClick={()=>setView("week")} className={view==="week"?"primary-btn":"ghost-btn"}>Week</button>
         <button onClick={()=>setView("month")} className={view==="month"?"primary-btn":"ghost-btn"}>Month</button>
         <button onClick={()=>setView("timeline")} className={view==="timeline"?"primary-btn":"ghost-btn"}>Timeline</button>
-        {google.configured&&google.connected?<button onClick={()=>loadGoogle()} className="ghost-btn">{loadingGoogle?"Syncing…":"Sync Google"}</button>:
+        {google.mode==="oauth"?<button onClick={()=>loadGoogle()} className="ghost-btn">{loadingGoogle?"Syncing…":"Sync Google"}</button>:
+          google.mode==="bridge"?<span className="pill blue">Google bridge synced</span>:
           google.configured?<Link href="/api/integrations/google-calendar/connect?next=/calendar" className="primary-btn">Connect Google Calendar</Link>:
-          <Link href="/settings#google-calendar" className="ghost-btn">Configure Google Calendar</Link>}
+          <Link href="/settings#google-calendar" className="ghost-btn">Google setup</Link>}
       </div>
     </div>
 
     <div className="grid g3">
-      <article className="metric-card accent-blue"><span>Google Calendar</span><strong>{google.connected?"Connected":"Not connected"}</strong><small>{google.accountEmail||"Primary Gmail calendar"}</small></article>
+      <article className="metric-card accent-blue"><span>Google Calendar</span><strong>{google.connected?"Connected":"Not connected"}</strong><small>{google.accountEmail||"Primary Gmail calendar"}{google.mode==="bridge"?" · secure bridge":google.mode==="oauth"?" · direct OAuth":""}</small></article>
       <article className="metric-card accent-green"><span>LifeOS items</span><strong>{items.length}</strong><small>Tasks, money, family and documents</small></article>
-      <article className="metric-card accent-amber"><span>Google events</span><strong>{googleItems.length}</strong><small>Owned calendars in sync window</small></article>
+      <article className="metric-card accent-amber"><span>Google events</span><strong>{displayedGoogleItems.length}</strong><small>{google.updatedAt?`Last sync ${new Date(google.updatedAt).toLocaleString()}`:"Owned calendars in sync window"}</small></article>
     </div>
 
-    {!google.configured&&<div className="panel mt">
+    {!google.configured&&!google.connected&&<div className="panel mt">
       <span className="label">GOOGLE OAUTH</span><h3 style={{margin:"6px 0"}}>Calendar code is ready, server credentials are not configured yet</h3>
       <p className="small-copy">Add GOOGLE_CALENDAR_CLIENT_ID, GOOGLE_CALENDAR_CLIENT_SECRET and GOOGLE_CALENDAR_TOKEN_KEY in Vercel. Then connect your Gmail calendar here.</p>
     </div>}
