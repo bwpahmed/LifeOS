@@ -5,7 +5,7 @@ import { PrivacyGate } from "@/components/privacy-gate";
 import Link from "next/link";
 import { BackHome, Panel } from "@/components/ui";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { currentWorkspace } from "@/lib/supabase/workspace";
+import { currentWorkspace,peekWorkspaceContext } from "@/lib/supabase/workspace";
 import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
 import { todayInTZ } from "@/lib/timezone";
 
@@ -16,7 +16,7 @@ function avg(values:(number|null)[]){const v=values.filter((x):x is number=>type
 function Trend({values,label}:{values:(number|null)[];label:string}){const clean=values.map(v=>v==null?null:Number(v));const numeric=clean.filter((v):v is number=>v!=null&&Number.isFinite(v));if(numeric.length<2)return <div className="rounded-lg border border-white/10 p-3 text-xs text-slate-500">{label}: not enough data</div>;const min=Math.min(...numeric),max=Math.max(...numeric),span=max-min||1;const pts=clean.map((v,i)=>v==null?null:[i/(clean.length-1)*100,38-((v-min)/span)*34] as [number,number]).filter((x):x is [number,number]=>x!==null);return <div className="rounded-lg border border-white/10 p-3"><div className="flex justify-between text-xs"><b>{label}</b><span className="text-slate-500">avg {avg(numeric)?.toFixed(1)}</span></div><svg viewBox="0 0 100 40" className="mt-2 h-16 w-full text-[#8ab6ff]" preserveAspectRatio="none"><polyline fill="none" stroke="currentColor" strokeWidth="1.5" vectorEffect="non-scaling-stroke" points={pts.map(([x,y])=>`${x},${y}`).join(" ")}/></svg></div>;}
 
 function HealthContent(){
- const[workspaceId,setWorkspaceId]=useState("");const[userId,setUserId]=useState("");const[entries,setEntries]=useState<HealthEntry[]>([]);const[labs,setLabs]=useState<Lab[]>([]);const[error,setError]=useState("");
+ const cachedWorkspace=peekWorkspaceContext();const[workspaceId,setWorkspaceId]=useState(cachedWorkspace?.workspaceId||"");const[userId,setUserId]=useState(cachedWorkspace?.user.id||"");const[entries,setEntries]=useState<HealthEntry[]>([]);const[labs,setLabs]=useState<Lab[]>([]);const[error,setError]=useState("");
  const[sleep,setSleep]=useState(7);const[energy,setEnergy]=useState(7);const[mood,setMood]=useState(7);const[stress,setStress]=useState(4);const[steps,setSteps]=useState(0);const[weight,setWeight]=useState<number|undefined>();const[waist,setWaist]=useState<number|undefined>();const[exercise,setExercise]=useState("");const[protein,setProtein]=useState("");const[notes,setNotes]=useState("");
  const[testName,setTestName]=useState("");const[result,setResult]=useState("");const[unit,setUnit]=useState("");const[refRange,setRefRange]=useState("");const[doctorNotes,setDoctorNotes]=useState("");const[range,setRange]=useState(90);
 
