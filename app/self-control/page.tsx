@@ -5,7 +5,7 @@ import { PrivacyGate } from "@/components/privacy-gate";
 import Link from "next/link";
 import { BackHome, Panel } from "@/components/ui";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { currentWorkspace } from "@/lib/supabase/workspace";
+import { currentWorkspace,peekWorkspaceContext } from "@/lib/supabase/workspace";
 import { todayInTZ } from "@/lib/timezone";
 
 type Urge={id:string;date:string;time:string|null;level:number|null;trigger:string|null;response:string|null;outcome:string|null;notes:string|null};
@@ -13,7 +13,7 @@ const triggers=["Boredom","Stress","Porn","Social media","Loneliness","Late-nigh
 const responses=["Ignored","Walk","Exercise","Shower","Phone away","Family time","Work","Sleep","Other"];
 
 function SelfControlContent(){
-  const[workspaceId,setWorkspaceId]=useState("");const[userId,setUserId]=useState("");const[rows,setRows]=useState<Urge[]>([]);const[error,setError]=useState("");
+  const cachedWorkspace=peekWorkspaceContext();const[workspaceId,setWorkspaceId]=useState(cachedWorkspace?.workspaceId||"");const[userId,setUserId]=useState(cachedWorkspace?.user.id||"");const[rows,setRows]=useState<Urge[]>([]);const[error,setError]=useState("");
   const[level,setLevel]=useState(5);const[trigger,setTrigger]=useState("Boredom");const[response,setResponse]=useState("Phone away");const[outcome,setOutcome]=useState("Controlled");const[notes,setNotes]=useState("");
   const load=useCallback(async()=>{try{const sb=supabaseBrowser();const ctx=await currentWorkspace(sb);if(!ctx){setWorkspaceId("");return;}setWorkspaceId(ctx.workspaceId);setUserId(ctx.user.id);const{data,error:q}=await sb.from("urge_logs").select("id,date,time,level,trigger,response,outcome,notes").eq("workspace_id",ctx.workspaceId).order("created_at",{ascending:false}).limit(100);if(q)throw q;setRows((data||[]) as Urge[]);}catch(e){setError(e instanceof Error?e.message:"Could not load urge log");}},[]);
   useEffect(()=>{void load();},[load]);
