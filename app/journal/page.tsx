@@ -5,7 +5,7 @@ import { PrivacyGate } from "@/components/privacy-gate";
 import Link from "next/link";
 import { BackHome, Panel } from "@/components/ui";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { currentWorkspace } from "@/lib/supabase/workspace";
+import { currentWorkspace,peekWorkspaceContext } from "@/lib/supabase/workspace";
 import { todayInTZ } from "@/lib/timezone";
 import { queuePrivateJournal,privateQueueCount } from "@/lib/private-offline";
 import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
@@ -14,7 +14,7 @@ type Entry={id:string;date:string;mood:string|null;body:string;tags:string[]|nul
 type Photo={id:string;owner_id:string;path:string;created_at:string;url?:string|null};
 
 function JournalContent(){
- const[workspaceId,setWorkspaceId]=useState("");const[userId,setUserId]=useState("");const[rows,setRows]=useState<Entry[]>([]);const[photos,setPhotos]=useState<Photo[]>([]);const[editingId,setEditingId]=useState<string|null>(null);const[body,setBody]=useState("");const[mood,setMood]=useState("Neutral");const[tags,setTags]=useState("");const[q,setQ]=useState("");const[error,setError]=useState("");const[msg,setMsg]=useState("");const[listening,setListening]=useState(false);const[pendingPhoto,setPendingPhoto]=useState<File|null>(null);const[pendingOffline,setPendingOffline]=useState(0);
+ const cachedWorkspace=peekWorkspaceContext();const[workspaceId,setWorkspaceId]=useState(cachedWorkspace?.workspaceId||"");const[userId,setUserId]=useState(cachedWorkspace?.user.id||"");const[rows,setRows]=useState<Entry[]>([]);const[photos,setPhotos]=useState<Photo[]>([]);const[editingId,setEditingId]=useState<string|null>(null);const[body,setBody]=useState("");const[mood,setMood]=useState("Neutral");const[tags,setTags]=useState("");const[q,setQ]=useState("");const[error,setError]=useState("");const[msg,setMsg]=useState("");const[listening,setListening]=useState(false);const[pendingPhoto,setPendingPhoto]=useState<File|null>(null);const[pendingOffline,setPendingOffline]=useState(0);
  const load=useCallback(async()=>{try{const sb=supabaseBrowser();const ctx=await currentWorkspace(sb);if(!ctx){setWorkspaceId("");return;}setWorkspaceId(ctx.workspaceId);setUserId(ctx.user.id);const{data,error:x}=await sb.from("journal_entries").select("id,date,mood,body,tags,created_at").eq("workspace_id",ctx.workspaceId).order("created_at",{ascending:false}).limit(200);if(x)throw x;const entries=(data||[]) as Entry[];setRows(entries);const ids=entries.map(x=>x.id);if(ids.length){const a=await sb.from("attachments").select("id,owner_id,path,created_at").eq("workspace_id",ctx.workspaceId).eq("owner_table","journal_entries").in("owner_id",ids);if(a.error)throw a.error;const signed=await Promise.all(((a.data||[]) as Photo[]).map(async p=>{const s=await sb.storage.from("lifeos-private").createSignedUrl(p.path,900);return{...p,url:s.data?.signedUrl||null};}));setPhotos(signed);}else setPhotos([]);}catch(e){setError(e instanceof Error?e.message:"Could not load journal");}finally{void privateQueueCount().then(setPendingOffline).catch(()=>{});}},[]);useEffect(()=>{void load();},[load]);useRealtimeRefresh(["journal_entries","attachments"],load,Boolean(workspaceId));
  async function add(e:FormEvent){
   e.preventDefault();if(!body.trim())return;setMsg("");setError("");const sb=supabaseBrowser();const payload={mood,body:body.trim(),tags:tags.split(",").map(x=>x.trim()).filter(Boolean),privacy:"private"};
