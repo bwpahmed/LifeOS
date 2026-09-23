@@ -4,7 +4,7 @@ import { useCallback,useEffect,useMemo,useState } from "react";
 import Link from "next/link";
 import { BackHome,Panel } from "@/components/ui";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { currentWorkspace } from "@/lib/supabase/workspace";
+import { currentWorkspace,peekWorkspaceContext } from "@/lib/supabase/workspace";
 import { todayInTZ } from "@/lib/timezone";
 import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
 
@@ -32,7 +32,7 @@ function dateInDubai(value:string){
 }
 
 export default function CalendarPage(){
-  const[workspaceId,setWorkspaceId]=useState("");
+  const cachedWorkspace=peekWorkspaceContext();const[workspaceId,setWorkspaceId]=useState(cachedWorkspace?.workspaceId||"");
   const[items,setItems]=useState<Item[]>([]);
   const[googleItems,setGoogleItems]=useState<Item[]>([]);
   const[mirrorItems,setMirrorItems]=useState<Item[]>([]);

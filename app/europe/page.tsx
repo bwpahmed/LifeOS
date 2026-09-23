@@ -4,7 +4,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { BackHome, Panel } from "@/components/ui";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { currentWorkspace } from "@/lib/supabase/workspace";
+import { currentWorkspace,peekWorkspaceContext } from "@/lib/supabase/workspace";
 import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
 
 type Country={id:string;country:string;route:string|null;status:string;progress:number|null;notes:string|null};
@@ -13,7 +13,7 @@ type Doc={id:string;country_id:string|null;name:string;owner:string|null;status:
 const PIPELINE=["Research","Shortlisted","Preparing","Application","Submitted","Waiting","Approved","Rejected"];
 
 export default function EuropePage(){
- const[workspaceId,setWorkspaceId]=useState("");const[userId,setUserId]=useState("");const[countries,setCountries]=useState<Country[]>([]);const[routes,setRoutes]=useState<Route[]>([]);const[docs,setDocs]=useState<Doc[]>([]);const[error,setError]=useState("");
+ const cachedWorkspace=peekWorkspaceContext();const[workspaceId,setWorkspaceId]=useState(cachedWorkspace?.workspaceId||"");const[userId,setUserId]=useState(cachedWorkspace?.user.id||"");const[countries,setCountries]=useState<Country[]>([]);const[routes,setRoutes]=useState<Route[]>([]);const[docs,setDocs]=useState<Doc[]>([]);const[error,setError]=useState("");
  const[country,setCountry]=useState("");const[route,setRoute]=useState("Study");
  const[routeCountry,setRouteCountry]=useState("");const[routeName,setRouteName]=useState("Study");const[requirements,setRequirements]=useState("");const[cost,setCost]=useState<number|undefined>();const[language,setLanguage]=useState("");const[timeline,setTimeline]=useState("");const[nextAction,setNextAction]=useState("");const[residency,setResidency]=useState("");const[prRoute,setPrRoute]=useState("");const[citizenship,setCitizenship]=useState("");const[jobs,setJobs]=useState("");const[businessPotential,setBusinessPotential]=useState("");const[education,setEducation]=useState("");const[familyFit,setFamilyFit]=useState("");
  const[docName,setDocName]=useState("");const[docCountry,setDocCountry]=useState("");const[docOwner,setDocOwner]=useState("Me");const[docStatus,setDocStatus]=useState("Missing");const[docExpiry,setDocExpiry]=useState("");const[attest,setAttest]=useState(false);

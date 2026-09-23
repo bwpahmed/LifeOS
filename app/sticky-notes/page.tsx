@@ -4,7 +4,7 @@ import { FormEvent,useCallback,useEffect,useMemo,useState } from "react";
 import Link from "next/link";
 import { BackHome,Empty,Panel } from "@/components/ui";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { currentWorkspace } from "@/lib/supabase/workspace";
+import { currentWorkspace,peekWorkspaceContext } from "@/lib/supabase/workspace";
 import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
 
 type Sticky={
@@ -15,8 +15,8 @@ type Sticky={
 const COLORS=["yellow","blue","green","pink"];
 
 export default function StickyNotesPage(){
-  const[workspaceId,setWorkspaceId]=useState("");
-  const[userId,setUserId]=useState("");
+  const cachedWorkspace=peekWorkspaceContext();const[workspaceId,setWorkspaceId]=useState(cachedWorkspace?.workspaceId||"");
+  const[userId,setUserId]=useState(cachedWorkspace?.user.id||"");
   const[rows,setRows]=useState<Sticky[]>([]);
   const[title,setTitle]=useState("");
   const[body,setBody]=useState("");

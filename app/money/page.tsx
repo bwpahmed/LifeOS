@@ -5,7 +5,7 @@ import Link from "next/link";
 import { BackHome, Panel } from "@/components/ui";
 import { escalation, remaining, type PaymentTx } from "@/lib/money";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { currentWorkspace } from "@/lib/supabase/workspace";
+import { currentWorkspace,peekWorkspaceContext } from "@/lib/supabase/workspace";
 import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
 import { todayInTZ } from "@/lib/timezone";
 
@@ -22,7 +22,7 @@ function daysLate(date:string|null){if(!date)return 0;const today=new Date(today
 function digits(v:string|null){return String(v||"").replace(/\D/g,"");}
 
 export default function MoneyPage(){
- const[rows,setRows]=useState<ReceivableRow[]>([]);const[workspaceId,setWorkspaceId]=useState("");const[userId,setUserId]=useState("");const[loading,setLoading]=useState(true);const[error,setError]=useState("");const[openId,setOpenId]=useState<string|null>(null);
+ const[rows,setRows]=useState<ReceivableRow[]>([]);const cachedWorkspace=peekWorkspaceContext();const[workspaceId,setWorkspaceId]=useState(cachedWorkspace?.workspaceId||"");const[userId,setUserId]=useState(cachedWorkspace?.user.id||"");const[loading,setLoading]=useState(true);const[error,setError]=useState("");const[openId,setOpenId]=useState<string|null>(null);
  const[name,setName]=useState("");const[company,setCompany]=useState("");const[phone,setPhone]=useState("");const[whatsapp,setWhatsapp]=useState("");const[email,setEmail]=useState("");const[total,setTotal]=useState(0);const[dueDate,setDueDate]=useState(todayInTZ());const[nextFollowup,setNextFollowup]=useState(todayInTZ());const[notes,setNotes]=useState("");
 
  const load=useCallback(async()=>{setLoading(true);setError("");try{const sb=supabaseBrowser();const ctx=await currentWorkspace(sb);if(!ctx){setWorkspaceId("");setRows([]);return;}setWorkspaceId(ctx.workspaceId);setUserId(ctx.user.id);

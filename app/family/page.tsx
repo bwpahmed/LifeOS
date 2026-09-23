@@ -4,7 +4,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { BackHome, Panel } from "@/components/ui";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { currentWorkspace } from "@/lib/supabase/workspace";
+import { currentWorkspace,peekWorkspaceContext } from "@/lib/supabase/workspace";
 import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
 import { todayInTZ } from "@/lib/timezone";
 
@@ -13,7 +13,7 @@ type FamilyTask={id:string;title:string;due_date:string|null;responsible:string|
 type BabyRecord={id:string;date:string;type:string|null;title:string;value:string|null;notes:string|null};
 
 export default function FamilyPage(){
-  const[workspaceId,setWorkspaceId]=useState("");const[userId,setUserId]=useState("");
+  const cachedWorkspace=peekWorkspaceContext();const[workspaceId,setWorkspaceId]=useState(cachedWorkspace?.workspaceId||"");const[userId,setUserId]=useState(cachedWorkspace?.user.id||"");
   const[members,setMembers]=useState<Member[]>([]);const[tasks,setTasks]=useState<FamilyTask[]>([]);const[baby,setBaby]=useState<BabyRecord[]>([]);
   const[error,setError]=useState("");const[memberName,setMemberName]=useState("");const[relation,setRelation]=useState("Family");
   const[taskTitle,setTaskTitle]=useState("");const[memberId,setMemberId]=useState("");const[due,setDue]=useState(todayInTZ());const[responsible,setResponsible]=useState("Me");const[reminderDays,setReminderDays]=useState(2);

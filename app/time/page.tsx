@@ -4,7 +4,7 @@ import { FormEvent,useCallback,useEffect,useMemo,useState } from "react";
 import Link from "next/link";
 import { BackHome,Panel } from "@/components/ui";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { currentWorkspace } from "@/lib/supabase/workspace";
+import { currentWorkspace,peekWorkspaceContext } from "@/lib/supabase/workspace";
 import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
 import { todayInTZ } from "@/lib/timezone";
 
@@ -16,7 +16,7 @@ function addDays(iso:string,n:number){const d=new Date(iso+"T12:00:00");d.setDat
 function hm(min:number){return Math.floor(min/60)+"h "+(min%60)+"m";}
 
 export default function TimePage(){
- const[workspaceId,setWorkspaceId]=useState("");const[userId,setUserId]=useState("");const[manual,setManual]=useState<Manual[]>([]);const[sessions,setSessions]=useState<Session[]>([]);const[tasks,setTasks]=useState<Task[]>([]);const[error,setError]=useState("");
+ const cachedWorkspace=peekWorkspaceContext();const[workspaceId,setWorkspaceId]=useState(cachedWorkspace?.workspaceId||"");const[userId,setUserId]=useState(cachedWorkspace?.user.id||"");const[manual,setManual]=useState<Manual[]>([]);const[sessions,setSessions]=useState<Session[]>([]);const[tasks,setTasks]=useState<Task[]>([]);const[error,setError]=useState("");
  const[date,setDate]=useState(todayInTZ());const[category,setCategory]=useState("Work");const[minutes,setMinutes]=useState(30);const[taskId,setTaskId]=useState("");const[note,setNote]=useState("");
  const load=useCallback(async()=>{try{const sb=supabaseBrowser();const ctx=await currentWorkspace(sb);if(!ctx){setWorkspaceId("");return;}setWorkspaceId(ctx.workspaceId);setUserId(ctx.user.id);const from=addDays(todayInTZ(),-90);const[m,s,t]=await Promise.all([
   sb.from("time_entries").select("id,date,category,minutes,task_id,note,source,created_at").eq("workspace_id",ctx.workspaceId).gte("date",from).order("date",{ascending:false}),

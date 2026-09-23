@@ -5,7 +5,7 @@ import Link from "next/link";
 import { PrivacyGate } from "@/components/privacy-gate";
 import { BackHome,Panel } from "@/components/ui";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { currentWorkspace } from "@/lib/supabase/workspace";
+import { currentWorkspace,peekWorkspaceContext } from "@/lib/supabase/workspace";
 import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
 import { todayInTZ } from "@/lib/timezone";
 import { activeForIsoDay,clampWaterGoal,parseReminderTimes,sleepMinutes,waterTotalForDate } from "@/lib/health-planner";
@@ -21,7 +21,7 @@ function dayIsoIndex(date=todayInTZ()){const d=new Date(date+"T12:00:00");return
 function hours(min:number|null){return min==null?"—":(min/60).toFixed(1)+"h";}
 
 function HealthPlannerContent(){
- const[workspaceId,setWorkspaceId]=useState("");const[userId,setUserId]=useState("");
+ const cachedWorkspace=peekWorkspaceContext();const[workspaceId,setWorkspaceId]=useState(cachedWorkspace?.workspaceId||"");const[userId,setUserId]=useState(cachedWorkspace?.user.id||"");
  const[routines,setRoutines]=useState<Routine[]>([]);const[logs,setLogs]=useState<RoutineLog[]>([]);const[water,setWater]=useState<WaterLog[]>([]);const[meals,setMeals]=useState<Meal[]>([]);const[sleep,setSleep]=useState<Sleep[]>([]);
  const[error,setError]=useState("");const[msg,setMsg]=useState("");
 

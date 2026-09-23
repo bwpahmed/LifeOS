@@ -4,7 +4,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { BackHome, Panel } from "@/components/ui";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { currentWorkspace } from "@/lib/supabase/workspace";
+import { currentWorkspace,peekWorkspaceContext } from "@/lib/supabase/workspace";
 import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
 import { todayInTZ } from "@/lib/timezone";
 
@@ -13,7 +13,7 @@ type Milestone={id:string;goal_id:string;title:string;done:boolean};
 type GoalTask={id:string;goal_id:string|null;status:string};
 
 export default function GoalsPage(){
- const[workspaceId,setWorkspaceId]=useState("");const[userId,setUserId]=useState("");const[goals,setGoals]=useState<Goal[]>([]);const[milestones,setMilestones]=useState<Milestone[]>([]);const[tasks,setTasks]=useState<GoalTask[]>([]);const[open,setOpen]=useState<string|null>(null);
+ const cachedWorkspace=peekWorkspaceContext();const[workspaceId,setWorkspaceId]=useState(cachedWorkspace?.workspaceId||"");const[userId,setUserId]=useState(cachedWorkspace?.user.id||"");const[goals,setGoals]=useState<Goal[]>([]);const[milestones,setMilestones]=useState<Milestone[]>([]);const[tasks,setTasks]=useState<GoalTask[]>([]);const[open,setOpen]=useState<string|null>(null);
  const[editingId,setEditingId]=useState<string|null>(null);const[name,setName]=useState("");const[why,setWhy]=useState("");const[area,setArea]=useState("Personal");const[target,setTarget]=useState<number|undefined>(100);const[unit,setUnit]=useState("%");const[deadline,setDeadline]=useState(()=>{const d=new Date(todayInTZ()+"T12:00:00");d.setDate(d.getDate()+90);return d.toISOString().slice(0,10);});const[error,setError]=useState("");
 
  const load=useCallback(async()=>{try{const sb=supabaseBrowser();const ctx=await currentWorkspace(sb);if(!ctx){setWorkspaceId("");return;}setWorkspaceId(ctx.workspaceId);setUserId(ctx.user.id);const[g,t]=await Promise.all([sb.from("goals").select("id,name,area,deadline,status,progress,why,target,unit").eq("workspace_id",ctx.workspaceId).order("deadline",{ascending:true,nullsFirst:false}),sb.from("tasks").select("id,goal_id,status").eq("workspace_id",ctx.workspaceId).not("goal_id","is",null)]);if(g.error)throw g.error;if(t.error)throw t.error;const rows=(g.data||[]) as Goal[];setGoals(rows);setTasks((t.data||[]) as GoalTask[]);const ids=rows.map(x=>x.id);if(ids.length){const m=await sb.from("goal_milestones").select("id,goal_id,title,done").in("goal_id",ids).order("created_at");if(m.error)throw m.error;setMilestones((m.data||[]) as Milestone[]);}else setMilestones([]);}catch(e){setError(e instanceof Error?e.message:"Could not load goals");}},[]);

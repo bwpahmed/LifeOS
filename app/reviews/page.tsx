@@ -6,7 +6,7 @@ import { BackHome, Panel } from "@/components/ui";
 import { remaining } from "@/lib/money";
 import { habitConsistencyForFrequency } from "@/lib/habits";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { currentWorkspace } from "@/lib/supabase/workspace";
+import { currentWorkspace,peekWorkspaceContext } from "@/lib/supabase/workspace";
 import { todayInTZ } from "@/lib/timezone";
 
 type Metrics={tasksDone:number;openTasks:number;focusMin:number;moneyReceived:number;moneyOpen:number;habitConsistency:number};
@@ -15,7 +15,7 @@ function addDays(iso:string,n:number){const d=new Date(iso+"T12:00:00");d.setDat
 function monthStart(iso:string){return iso.slice(0,7)+"-01";}
 
 export default function ReviewsPage(){
- const[workspaceId,setWorkspaceId]=useState("");const[userId,setUserId]=useState("");const[metrics,setMetrics]=useState<Metrics|null>(null);const[previous,setPrevious]=useState<Metrics|null>(null);
+ const cachedWorkspace=peekWorkspaceContext();const[workspaceId,setWorkspaceId]=useState(cachedWorkspace?.workspaceId||"");const[userId,setUserId]=useState(cachedWorkspace?.user.id||"");const[metrics,setMetrics]=useState<Metrics|null>(null);const[previous,setPrevious]=useState<Metrics|null>(null);
  const[accomplishment,setAccomplishment]=useState("");const[incomplete,setIncomplete]=useState("");const[blocker,setBlocker]=useState("");const[improve,setImprove]=useState("");const[energy,setEnergy]=useState(7);const[error,setError]=useState("");const[msg,setMsg]=useState("");const[weeklyChecks,setWeeklyChecks]=useState<Record<string,boolean>>({review:true,inbox:false,overdue:false,money:false,health:false,projects:false,family:false,europe:false});const[topOutcomes,setTopOutcomes]=useState("");const[aiReview,setAiReview]=useState("");const[aiLabel,setAiLabel]=useState("");const[aiLoading,setAiLoading]=useState(false);
  const today=todayInTZ();
 

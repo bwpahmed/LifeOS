@@ -4,7 +4,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { BackHome, Panel } from "@/components/ui";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { currentWorkspace } from "@/lib/supabase/workspace";
+import { currentWorkspace,peekWorkspaceContext } from "@/lib/supabase/workspace";
 import { todayInTZ } from "@/lib/timezone";
 
 type Rule={id:string;name:string;trigger:string;action:string;enabled:boolean;conditions:Record<string,unknown>|null};
@@ -16,7 +16,7 @@ const templates=[
 ];
 
 export default function AutomationsPage(){
- const[workspaceId,setWorkspaceId]=useState("");const[userId,setUserId]=useState("");const[rules,setRules]=useState<Rule[]>([]);const[name,setName]=useState(templates[0].name);const[trigger,setTrigger]=useState(templates[0].trigger);const[action,setAction]=useState(templates[0].action);const[conditionMode,setConditionMode]=useState("none");const[error,setError]=useState("");const[msg,setMsg]=useState("");
+ const cachedWorkspace=peekWorkspaceContext();const[workspaceId,setWorkspaceId]=useState(cachedWorkspace?.workspaceId||"");const[userId,setUserId]=useState(cachedWorkspace?.user.id||"");const[rules,setRules]=useState<Rule[]>([]);const[name,setName]=useState(templates[0].name);const[trigger,setTrigger]=useState(templates[0].trigger);const[action,setAction]=useState(templates[0].action);const[conditionMode,setConditionMode]=useState("none");const[error,setError]=useState("");const[msg,setMsg]=useState("");
  const load=useCallback(async()=>{try{const sb=supabaseBrowser();const ctx=await currentWorkspace(sb);if(!ctx){setWorkspaceId("");return;}setWorkspaceId(ctx.workspaceId);setUserId(ctx.user.id);const{data,error:q}=await sb.from("automation_rules").select("id,name,trigger,action,enabled,conditions").eq("workspace_id",ctx.workspaceId).order("created_at");if(q)throw q;setRules((data||[]) as Rule[]);}catch(e){setError(e instanceof Error?e.message:"Could not load automations");}},[]);useEffect(()=>{void load();},[load]);
  async function add(e:FormEvent){e.preventDefault();const conditions=conditionMode==="priority_critical"?{type:"task_importance",min:5}:conditionMode==="area_business"?{type:"task_area",value:"Business"}:conditionMode==="money_promise_missed"?{type:"money_promise_missed"}:{};const sb=supabaseBrowser();const{error:q}=await sb.from("automation_rules").insert({workspace_id:workspaceId,created_by:userId,name,trigger,action,enabled:true,conditions});if(q)setError(q.message);else await load();}
  async function toggle(r:Rule){const sb=supabaseBrowser();const{error:q}=await sb.from("automation_rules").update({enabled:!r.enabled}).eq("id",r.id);if(q)setError(q.message);else await load();}

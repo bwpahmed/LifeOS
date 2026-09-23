@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { BackHome, Panel } from "@/components/ui";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { currentWorkspace } from "@/lib/supabase/workspace";
+import { currentWorkspace,peekWorkspaceContext } from "@/lib/supabase/workspace";
 import { todayInTZ } from "@/lib/timezone";
 
 type Task={id:string;name:string;actual_min:number|null;status:string};
@@ -14,7 +14,7 @@ const KEY="lifeos_focus_active_v1";
 type Active={taskId:string;startedAt:number;pausedAt:number|null;pausedMs:number};
 
 export default function FocusPage(){
-  const[workspaceId,setWorkspaceId]=useState("");const[userId,setUserId]=useState("");const[tasks,setTasks]=useState<Task[]>([]);const[sessions,setSessions]=useState<Session[]>([]);
+  const cachedWorkspace=peekWorkspaceContext();const[workspaceId,setWorkspaceId]=useState(cachedWorkspace?.workspaceId||"");const[userId,setUserId]=useState(cachedWorkspace?.user.id||"");const[tasks,setTasks]=useState<Task[]>([]);const[sessions,setSessions]=useState<Session[]>([]);
   const[taskId,setTaskId]=useState("");const[active,setActive]=useState<Active|null>(null);const[now,setNow]=useState(Date.now());const[error,setError]=useState("");const[msg,setMsg]=useState("");const[dailyTarget,setDailyTarget]=useState(120);const[weeklyTarget,setWeeklyTarget]=useState(600);const[distractions,setDistractions]=useState(0);
 
   const load=useCallback(async()=>{try{const sb=supabaseBrowser();const ctx=await currentWorkspace(sb);if(!ctx){setWorkspaceId("");return;}setWorkspaceId(ctx.workspaceId);setUserId(ctx.user.id);const today=todayInTZ();const week=new Date(today+"T12:00:00");week.setDate(week.getDate()-6);const from=week.toISOString().slice(0,10);const[t,s,p,a]=await Promise.all([

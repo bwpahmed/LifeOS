@@ -4,12 +4,12 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { BackHome, Panel } from "@/components/ui";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { currentWorkspace } from "@/lib/supabase/workspace";
+import { currentWorkspace,peekWorkspaceContext } from "@/lib/supabase/workspace";
 
 type Row={id:string;at:string;kind:string;title:string;detail?:string};
 
 export default function TimelinePage(){
- const[workspaceId,setWorkspaceId]=useState("");const[rows,setRows]=useState<Row[]>([]);const[error,setError]=useState("");
+ const cachedWorkspace=peekWorkspaceContext();const[workspaceId,setWorkspaceId]=useState(cachedWorkspace?.workspaceId||"");const[rows,setRows]=useState<Row[]>([]);const[error,setError]=useState("");
  const load=useCallback(async()=>{try{const sb=supabaseBrowser();const ctx=await currentWorkspace(sb);if(!ctx){setWorkspaceId("");return;}setWorkspaceId(ctx.workspaceId);
   const[activity,focus,journal,receivables,expenses,water,sleep,baby,time]=await Promise.all([
    sb.from("activity_log").select("id,action,detail,created_at").eq("workspace_id",ctx.workspaceId).order("created_at",{ascending:false}).limit(100),

@@ -118,6 +118,8 @@ const checks=[
  ["AD Focus target from profile",has("app/page.tsx","weekly_focus_target","weeklyFocusTarget","weekly target")],
  ["AE Password recovery",has("lib/supabase/client.ts","supabaseEmailAuthClient","flowType:\"implicit\"","detectSessionInUrl:false")&&has("app/login/page.tsx","supabaseEmailAuthClient","resetPasswordForEmail","Reset password","lifeos_auth_mode","location.origin+\"/\"","shouldCreateUser:false")&&exists("app/auth/update-password/page.tsx")&&has("app/auth/update-password/page.tsx","updateUser({password})","passwordMeetsLifeOSPolicy")&&has("app/page.tsx","PASSWORD_RECOVERY","setSession({access_token:accessToken,refresh_token:refreshToken})","exchangeCodeForSession","lifeos_auth_next","Opening LifeOS")&&has("app/auth/callback/route.ts","supabaseServer","safeNextPath")],
  ["AF Google Calendar bridge",exists("supabase/migrations/20260921_google_calendar_mirror.sql")&&has("app/api/integrations/google-calendar/status/route.ts",'mode=oauthRow?"oauth":mirrorRow?"bridge":null',"calendar_items")&&has("app/calendar/page.tsx","mirrorItems","Google bridge synced","external_provider","external_calendar_name")],
+ ["AG No auth flicker on private sections",has("components/app-shell.tsx","peekWorkspaceContext","needsWorkspaceBootstrap","You do not need to sign in again")&&has("lib/supabase/workspace.ts","workspaceCache","inflightWorkspace","peekWorkspaceContext","getSession()")],
+
 
 ];
 
@@ -149,6 +151,21 @@ function walk(dir){
   }
   return out;
 }
+
+const authFlickerPages=walk("app")
+  .filter(path=>path.endsWith("/page.tsx"))
+  .filter(path=>path!=="app/page.tsx")
+  .filter(path=>{
+    const content=read(path);
+    return content.includes('href="/login"') &&
+      /workspaceId\s*,\s*setWorkspaceId\s*\]\s*=\s*useState\(""\)/.test(content);
+  });
+if(authFlickerPages.length){
+  console.error("\nFAIL  Auth UX: private pages still render an empty workspace as a login prompt:");
+  for(const path of authFlickerPages) console.error(" - "+path);
+  process.exit(1);
+}
+console.log("PASS  Auth UX: verified workspace state is seeded before private section content renders.");
 const directLocalStorage = ["app","components","lib"].flatMap(walk)
   .filter(path=>read(path).includes("localStorage"))
   .filter(path=>!allowedLocalStorage.has(path));

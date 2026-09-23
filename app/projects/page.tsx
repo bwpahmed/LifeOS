@@ -4,7 +4,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { BackHome, Panel } from "@/components/ui";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { currentWorkspace } from "@/lib/supabase/workspace";
+import { currentWorkspace,peekWorkspaceContext } from "@/lib/supabase/workspace";
 import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
 import { todayInTZ } from "@/lib/timezone";
 
@@ -13,7 +13,7 @@ type Goal={id:string;name:string};
 type ProjectTask={id:string;project_id:string|null;name:string;status:string};
 
 export default function ProjectsPage(){
- const[workspaceId,setWorkspaceId]=useState("");const[userId,setUserId]=useState("");const[projects,setProjects]=useState<Project[]>([]);const[goals,setGoals]=useState<Goal[]>([]);const[tasks,setTasks]=useState<ProjectTask[]>([]);const[open,setOpen]=useState<string|null>(null);
+ const cachedWorkspace=peekWorkspaceContext();const[workspaceId,setWorkspaceId]=useState(cachedWorkspace?.workspaceId||"");const[userId,setUserId]=useState(cachedWorkspace?.user.id||"");const[projects,setProjects]=useState<Project[]>([]);const[goals,setGoals]=useState<Goal[]>([]);const[tasks,setTasks]=useState<ProjectTask[]>([]);const[open,setOpen]=useState<string|null>(null);
  const[editingId,setEditingId]=useState<string|null>(null);const[name,setName]=useState("");const[area,setArea]=useState("Business");const[goalId,setGoalId]=useState("");const[owner,setOwner]=useState("Me");const[notes,setNotes]=useState("");const[deadline,setDeadline]=useState(()=>{const d=new Date(todayInTZ()+"T12:00:00");d.setDate(d.getDate()+30);return d.toISOString().slice(0,10);});const[error,setError]=useState("");
 
  const load=useCallback(async()=>{try{const sb=supabaseBrowser();const ctx=await currentWorkspace(sb);if(!ctx){setWorkspaceId("");return;}setWorkspaceId(ctx.workspaceId);setUserId(ctx.user.id);const[p,g,t]=await Promise.all([sb.from("projects").select("id,name,area,deadline,status,owner,goal_id,notes").eq("workspace_id",ctx.workspaceId).order("deadline",{ascending:true,nullsFirst:false}),sb.from("goals").select("id,name").eq("workspace_id",ctx.workspaceId),sb.from("tasks").select("id,project_id,name,status").eq("workspace_id",ctx.workspaceId).not("project_id","is",null)]);if(p.error)throw p.error;if(g.error)throw g.error;if(t.error)throw t.error;setProjects((p.data||[]) as Project[]);setGoals((g.data||[]) as Goal[]);setTasks((t.data||[]) as ProjectTask[]);}catch(e){setError(e instanceof Error?e.message:"Could not load projects");}},[]);
