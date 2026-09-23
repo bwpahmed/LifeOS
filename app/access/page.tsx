@@ -4,14 +4,14 @@ import { FormEvent,useCallback,useEffect,useState } from "react";
 import Link from "next/link";
 import { BackHome,Panel } from "@/components/ui";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { currentWorkspace } from "@/lib/supabase/workspace";
+import { currentWorkspace,peekWorkspaceContext } from "@/lib/supabase/workspace";
 
 const ALL_MODULES=["tasks","money","health","self_control","journal","family","baby","calendar","europe","business"];
 type Member={workspace_id:string;user_id:string;role:string;modules:string[]};
 type Invite={id:string;email:string;role:string;modules:string[];token:string;expires_at:string;accepted_at:string|null;accepted_by:string|null};
 
 export default function AccessPage(){
- const[workspaceId,setWorkspaceId]=useState("");const[userId,setUserId]=useState("");const[roleNow,setRoleNow]=useState("");const[members,setMembers]=useState<Member[]>([]);const[invites,setInvites]=useState<Invite[]>([]);const[email,setEmail]=useState("");const[role,setRole]=useState("member");const[modules,setModules]=useState<string[]>(["tasks","family","baby","calendar"]);const[error,setError]=useState("");const[msg,setMsg]=useState("");
+ const cachedWorkspace=peekWorkspaceContext();const[workspaceId,setWorkspaceId]=useState(cachedWorkspace?.workspaceId||"");const[userId,setUserId]=useState(cachedWorkspace?.user.id||"");const[roleNow,setRoleNow]=useState("");const[members,setMembers]=useState<Member[]>([]);const[invites,setInvites]=useState<Invite[]>([]);const[email,setEmail]=useState("");const[role,setRole]=useState("member");const[modules,setModules]=useState<string[]>(["tasks","family","baby","calendar"]);const[error,setError]=useState("");const[msg,setMsg]=useState("");
  const load=useCallback(async()=>{try{const sb=supabaseBrowser();const ctx=await currentWorkspace(sb);if(!ctx){setWorkspaceId("");return;}setWorkspaceId(ctx.workspaceId);setUserId(ctx.user.id);setRoleNow(ctx.role);if(!["owner","admin"].includes(ctx.role))return;const[m,i]=await Promise.all([sb.from("workspace_members").select("workspace_id,user_id,role,modules").eq("workspace_id",ctx.workspaceId),sb.from("workspace_invitations").select("id,email,role,modules,token,expires_at,accepted_at,accepted_by").eq("workspace_id",ctx.workspaceId).order("created_at",{ascending:false})]);if(m.error)throw m.error;if(i.error)throw i.error;setMembers((m.data||[]) as Member[]);setInvites((i.data||[]) as Invite[]);}catch(e){setError(e instanceof Error?e.message:"Could not load workspace access");}},[]);useEffect(()=>{void load();},[load]);
  function toggleModule(m:string){setModules(v=>v.includes(m)?v.filter(x=>x!==m):[...v,m]);}
  async function invite(e:FormEvent){e.preventDefault();if(!email.trim())return;setError("");setMsg("");const sb=supabaseBrowser();const{data,error:q}=await sb.from("workspace_invitations").insert({workspace_id:workspaceId,email:email.trim().toLowerCase(),role,modules,created_by:userId}).select("token").single();if(q){setError(q.message);return;}const url=`${location.origin}/join?token=${data.token}`;try{await navigator.clipboard.writeText(url);setMsg("Invitation created and link copied. No email was sent automatically.");}catch{setMsg(`Invitation created: ${url}`);}setEmail("");await load();}
