@@ -7,6 +7,8 @@ import { WorkspaceSwitcher } from "@/components/workspace-switcher";
 import { InstallPWA } from "@/components/install-pwa";
 import { NotificationButton } from "@/components/notification-button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { currentWorkspace,peekWorkspaceContext } from "@/lib/supabase/workspace";
+import { supabaseBrowser } from "@/lib/supabase/client";
 
 const nav = [
   { section: "COMMAND" },
@@ -105,7 +107,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const title = pageTitle(pathname);
   const[clock,setClock]=useState({date:"",greeting:"LifeOS"});
+  const[readyPath,setReadyPath]=useState<string|null>(null);
   const publicShell=pathname==="/login"||pathname.startsWith("/auth/")||pathname.startsWith("/join");
+  const rootAuthLanding=pathname==="/";
+  const workspaceReady=Boolean(peekWorkspaceContext());
+  const needsWorkspaceBootstrap=!publicShell&&!rootAuthLanding&&!workspaceReady&&readyPath!==pathname;
   useEffect(()=>{
     const update=()=>{const now=new Date();const hour=now.getHours();setClock({date:formatDateLine(now),greeting:hour<12?"Good Morning":hour<18?"Good Afternoon":"Good Evening"});};
     update();
@@ -113,7 +119,39 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return()=>clearInterval(timer);
   },[]);
 
+  useEffect(()=>{
+    if(publicShell||rootAuthLanding){
+      setReadyPath(null);
+      return;
+    }
+    if(peekWorkspaceContext()){
+      setReadyPath(pathname);
+      return;
+    }
+
+    let alive=true;
+    void currentWorkspace(supabaseBrowser())
+      .then(ctx=>{
+        if(!alive)return;
+        if(!ctx){
+          const next=encodeURIComponent(pathname);
+          location.replace("/login?next="+next);
+          return;
+        }
+        setReadyPath(pathname);
+      })
+      .catch(()=>{
+        if(!alive)return;
+        const next=encodeURIComponent(pathname);
+        location.replace("/login?next="+next);
+      });
+
+    return()=>{alive=false;};
+  },[pathname,publicShell,rootAuthLanding]);
+
   if(publicShell)return <div className="auth-shell">{children}</div>;
+
+  if(needsWorkspaceBootstrap)return <div className="auth-shell"><div className="panel w-full max-w-md p-6"><span className="label">LIFEOS CLOUD</span><h2 className="mt-2 text-xl font-bold">Opening {title}…</h2><p className="mt-2 text-sm text-slate-400">Restoring your private workspace. You do not need to sign in again.</p></div></div>;
 
   return (
     <div className="app-shell">
