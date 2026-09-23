@@ -3,7 +3,7 @@
 import { useCallback,useEffect,useState } from "react";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { currentWorkspace } from "@/lib/supabase/workspace";
+import { currentWorkspace,peekWorkspaceContext } from "@/lib/supabase/workspace";
 import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
 import { InstallPWA } from "@/components/install-pwa";
 
@@ -12,7 +12,7 @@ type Note={id:string;title:string;body:string;pinned:boolean;archived:boolean;up
 type WasteLesson={id:string;amount:number;category:string;merchant:string|null;avoid_next_time:string|null;waste_reason:string|null;date:string};
 
 export default function MobileCompactPage(){
- const[workspaceId,setWorkspaceId]=useState("");const[tasks,setTasks]=useState<Task[]>([]);const[notes,setNotes]=useState<Note[]>([]);const[wasteLessons,setWasteLessons]=useState<WasteLesson[]>([]);const[error,setError]=useState("");
+ const cachedWorkspace=peekWorkspaceContext();const[workspaceId,setWorkspaceId]=useState(cachedWorkspace?.workspaceId||"");const[tasks,setTasks]=useState<Task[]>([]);const[notes,setNotes]=useState<Note[]>([]);const[wasteLessons,setWasteLessons]=useState<WasteLesson[]>([]);const[error,setError]=useState("");
  const load=useCallback(async()=>{try{const sb=supabaseBrowser();const ctx=await currentWorkspace(sb);if(!ctx){setWorkspaceId("");return;}setWorkspaceId(ctx.workspaceId);const[t,n,w]=await Promise.all([
    sb.from("tasks").select("id,name,status,deadline").eq("workspace_id",ctx.workspaceId).not("status","in",'("Completed","Cancelled")').order("deadline",{ascending:true,nullsFirst:false}).limit(8),
    sb.from("sticky_notes").select("id,title,body,pinned,archived,updated_at").eq("workspace_id",ctx.workspaceId).eq("archived",false).order("pinned",{ascending:false}).order("updated_at",{ascending:false}).limit(6),
