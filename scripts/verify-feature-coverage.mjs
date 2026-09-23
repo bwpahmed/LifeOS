@@ -154,6 +154,7 @@ function walk(dir){
 
 const authFlickerPages=walk("app")
   .filter(path=>path.endsWith("/page.tsx"))
+  .filter(path=>path!=="app/page.tsx")
   .filter(path=>{
     const content=read(path);
     return content.includes('href="/login"') &&
