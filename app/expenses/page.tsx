@@ -4,7 +4,7 @@ import { FormEvent,useCallback,useEffect,useMemo,useState } from "react";
 import Link from "next/link";
 import { BackHome,Panel } from "@/components/ui";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { currentWorkspace } from "@/lib/supabase/workspace";
+import { currentWorkspace,peekWorkspaceContext } from "@/lib/supabase/workspace";
 import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
 import { todayInTZ } from "@/lib/timezone";
 import { expenseMonthStats } from "@/lib/waste";
@@ -14,7 +14,7 @@ const CATEGORIES=["Food","Shopping","Subscriptions","Transport","Entertainment",
 function aed(n:number){return new Intl.NumberFormat("en-AE",{style:"currency",currency:"AED",maximumFractionDigits:0}).format(n);}
 
 export default function ExpensesPage(){
- const[workspaceId,setWorkspaceId]=useState("");const[userId,setUserId]=useState("");const[rows,setRows]=useState<Expense[]>([]);const[error,setError]=useState("");const[msg,setMsg]=useState("");
+ const cachedWorkspace=peekWorkspaceContext();const[workspaceId,setWorkspaceId]=useState(cachedWorkspace?.workspaceId||"");const[userId,setUserId]=useState(cachedWorkspace?.user.id||"");const[rows,setRows]=useState<Expense[]>([]);const[error,setError]=useState("");const[msg,setMsg]=useState("");
  const[date,setDate]=useState(todayInTZ());const[amount,setAmount]=useState<number|undefined>();const[category,setCategory]=useState("Other");const[merchant,setMerchant]=useState("");const[note,setNote]=useState("");const[isWaste,setIsWaste]=useState(true);const[reason,setReason]=useState("");const[avoid,setAvoid]=useState("");const[recurring,setRecurring]=useState(false);
 
  const load=useCallback(async()=>{try{const sb=supabaseBrowser();const ctx=await currentWorkspace(sb);if(!ctx){setWorkspaceId("");return;}setWorkspaceId(ctx.workspaceId);setUserId(ctx.user.id);const{data,error:q}=await sb.from("money_expenses").select("id,date,amount,category,merchant,note,is_waste,waste_reason,avoid_next_time,recurring,created_at").eq("workspace_id",ctx.workspaceId).order("date",{ascending:false}).order("created_at",{ascending:false}).limit(500);if(q)throw q;setRows((data||[]) as Expense[]);}catch(e){setError(e instanceof Error?e.message:"Could not load expenses");}},[]);
