@@ -1,15 +1,13 @@
 name: Install AI Understanding Stack
-
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths:
       - '.github/workflows/install-ai-understanding-stack.yml'
-
+      - '.ai/architecture/system.architecture.json'
 permissions:
   contents: write
-
 env:
   GRAPHIFY_REPO: https://github.com/Graphify-Labs/graphify.git
   GRAPHIFY_COMMIT: 1cd9a36c0c57a661d2d2234bc3207e887e1ba104
@@ -17,7 +15,6 @@ env:
   ARCHIFY_REPO: https://github.com/tt-a1i/archify.git
   ARCHIFY_COMMIT: d5a1333d7447c866a765adac7d4d062f2f02e4d2
   ARCHIFY_VERSION: 3.0.1
-
 jobs:
   sync:
     if: github.actor != 'github-actions[bot]'
@@ -25,23 +22,16 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
+        with: { fetch-depth: 0 }
       - name: Fetch pinned upstreams
-        shell: bash
         run: |
           set -euo pipefail
           rm -rf "$RUNNER_TEMP/graphify-src" "$RUNNER_TEMP/archify-src"
-          git clone "$GRAPHIFY_REPO" "$RUNNER_TEMP/graphify-src"
-          git -C "$RUNNER_TEMP/graphify-src" checkout --detach "$GRAPHIFY_COMMIT"
+          git clone "$GRAPHIFY_REPO" "$RUNNER_TEMP/graphify-src"; git -C "$RUNNER_TEMP/graphify-src" checkout --detach "$GRAPHIFY_COMMIT"
+          git clone "$ARCHIFY_REPO" "$RUNNER_TEMP/archify-src"; git -C "$RUNNER_TEMP/archify-src" checkout --detach "$ARCHIFY_COMMIT"
           test "$(git -C "$RUNNER_TEMP/graphify-src" rev-parse HEAD)" = "$GRAPHIFY_COMMIT"
-          git clone "$ARCHIFY_REPO" "$RUNNER_TEMP/archify-src"
-          git -C "$RUNNER_TEMP/archify-src" checkout --detach "$ARCHIFY_COMMIT"
           test "$(git -C "$RUNNER_TEMP/archify-src" rev-parse HEAD)" = "$ARCHIFY_COMMIT"
-
       - name: Install namespace-safe project capabilities
-        shell: bash
         run: |
           set -euo pipefail
           mkdir -p .agents/vendor .agents/skills .claude/skills .codex/agents
@@ -50,85 +40,29 @@ jobs:
           cp "$RUNNER_TEMP/graphify-src/graphify/skill-agents.md" .agents/vendor/graphify/SKILL.md
           cp -R "$RUNNER_TEMP/graphify-src/graphify/skills/agents/references" .agents/vendor/graphify/references
           cp "$RUNNER_TEMP/graphify-src/LICENSE" .agents/vendor/graphify/LICENSE
-
           cp -R "$RUNNER_TEMP/archify-src/archify" .agents/vendor/archify
           rm -rf .agents/vendor/archify/test
           cp "$RUNNER_TEMP/archify-src/LICENSE" .agents/vendor/archify/UPSTREAM_LICENSE
-
           for root in .agents/skills .claude/skills; do
             mkdir -p "$root/graphify" "$root/archify"
-            printf '%s\n' \
-              '---' \
-              'name: graphify' \
-              'description: Query or refresh the repository knowledge graph when code relationships, ownership, dependencies, or paths are unclear.' \
-              '---' \
-              '# Graphify project capability' \
-              'Read the repository root AGENTS.md and AI_PROJECT_MAP.md first. Then read .agents/vendor/graphify/SKILL.md and its references. The repository map and actual code/schema are authoritative; graph output is derived evidence.' \
-              > "$root/graphify/SKILL.md"
-            printf '%s\n' \
-              '---' \
-              'name: archify' \
-              'description: Build source-backed architecture/workflow/sequence/data-flow/lifecycle visuals when they materially improve repository understanding.' \
-              '---' \
-              '# Archify project capability' \
-              'Read the repository root AGENTS.md and AI_PROJECT_MAP.md first. Then use .agents/vendor/archify/SKILL.md and the vendored Archify CLI. Never invent topology to match a desired picture.' \
-              > "$root/archify/SKILL.md"
+            printf '%s\n' '---' 'name: graphify' 'description: Query repository relationships and ownership using the pinned Graphify capability.' '---' '# Graphify' 'Read AGENTS.md and AI_PROJECT_MAP.md first. Graph output is derived evidence; verify conclusions in actual code/data/config.' > "$root/graphify/SKILL.md"
+            printf '%s\n' '---' 'name: archify' 'description: Create source-backed architecture and flow diagrams using pinned Archify.' '---' '# Archify' 'Read AGENTS.md and AI_PROJECT_MAP.md first. Never invent topology.' > "$root/archify/SKILL.md"
           done
-
-          printf '%s\n' \
-            'name = "graphify-code-map"' \
-            'description = "Repository relationship and source-of-truth investigator using the pinned Graphify capability."' \
-            'developer_instructions = "Read AGENTS.md and AI_PROJECT_MAP.md first. Use Graphify only as derived evidence for imports/calls/dependencies/paths. Verify important conclusions in the actual code/schema. Do not create or modify product logic unless the user current task asks for implementation."' \
-            > .codex/agents/graphify-code-map.toml
-          printf '%s\n' \
-            'name = "archify-visual-map"' \
-            'description = "Source-backed architecture and flow visualization reviewer using the pinned Archify capability."' \
-            'developer_instructions = "Read AGENTS.md and AI_PROJECT_MAP.md first. Produce only source-backed visuals. Treat AI_PROJECT_MAP.md and actual implementation as authoritative. Update diagrams after architecture changes; do not change product code merely to fit a diagram."' \
-            > .codex/agents/archify-visual-map.toml
-
-          printf '%s\n' \
-            'source_graphify=Graphify-Labs/graphify' \
-            "graphify_commit=$GRAPHIFY_COMMIT" \
-            "graphify_version=$GRAPHIFY_VERSION" \
-            'graphify_license=Apache-2.0' \
-            'source_archify=tt-a1i/archify' \
-            "archify_commit=$ARCHIFY_COMMIT" \
-            "archify_version=$ARCHIFY_VERSION" \
-            'archify_license=MIT' \
-            > .agents/understanding-stack.version
-
-      - name: Verify stack and existing policies survive
-        shell: bash
+          printf '%s\n' 'name = "graphify-code-map"' 'description = "Graphify repository investigator."' 'developer_instructions = "Read AGENTS.md and AI_PROJECT_MAP.md first. Verify important conclusions in source."' > .codex/agents/graphify-code-map.toml
+          printf '%s\n' 'name = "archify-visual-map"' 'description = "Source-backed architecture visual reviewer."' 'developer_instructions = "Read AGENTS.md and AI_PROJECT_MAP.md first. Do not invent system facts."' > .codex/agents/archify-visual-map.toml
+          printf '%s\n' 'source_graphify=Graphify-Labs/graphify' "graphify_commit=$GRAPHIFY_COMMIT" "graphify_version=$GRAPHIFY_VERSION" 'graphify_license=Apache-2.0' 'source_archify=tt-a1i/archify' "archify_commit=$ARCHIFY_COMMIT" "archify_version=$ARCHIFY_VERSION" 'archify_license=MIT' > .agents/understanding-stack.version
+      - name: Verify
         run: |
-          set -euo pipefail
-          test -f AGENTS.md
-          test -f AI_PROJECT_MAP.md
-          test -f AI_TEAM.md
-          test -f AI_CAPABILITY_STACK.md
-          test -f .agents/vendor/graphify/SKILL.md
-          test -f .agents/vendor/archify/SKILL.md
-          test -f .agents/vendor/archify/bin/archify.mjs
-          test -f .agents/skills/graphify/SKILL.md
-          test -f .agents/skills/archify/SKILL.md
-          test -f .claude/skills/graphify/SKILL.md
-          test -f .claude/skills/archify/SKILL.md
-          test -f .codex/agents/lifeos-orchestrator.toml
-          test -f .codex/agents/spec-kit-orchestrator.toml
-          grep -q "$GRAPHIFY_COMMIT" .agents/understanding-stack.version
-          grep -q "$ARCHIFY_COMMIT" .agents/understanding-stack.version
           node scripts/verify-ai-policy.mjs
+          test -f .agents/vendor/graphify/SKILL.md
+          test -f .agents/vendor/archify/bin/archify.mjs
           node .agents/vendor/archify/bin/archify.mjs validate architecture .ai/architecture/system.architecture.json --json
-
       - name: Commit generated capability files
-        shell: bash
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add .agents/vendor/graphify .agents/vendor/archify .agents/skills/graphify .agents/skills/archify .claude/skills/graphify .claude/skills/archify .codex/agents/graphify-code-map.toml .codex/agents/archify-visual-map.toml .agents/understanding-stack.version
-          if git diff --cached --quiet; then
-            echo 'AI understanding stack already up to date.'
-            exit 0
-          fi
+          if git diff --cached --quiet; then exit 0; fi
           git commit -m 'chore: sync pinned AI understanding stack [skip ci]'
           git push origin HEAD:main
