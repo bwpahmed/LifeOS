@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/install-ai-understanding-stack.yml'
+      - '.ai/architecture/system.architecture.json'
 
 permissions:
   contents: write
