@@ -1,0 +1,321 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "LifeOS Runtime Architecture",
+    "output": ".ai/architecture/system.html",
+    "quality_profile": "showcase"
+  },
+  "components": [
+    {
+      "id": "user",
+      "type": "external",
+      "label": "User",
+      "sublabel": "Browser / PWA",
+      "pos": [
+        40,
+        300
+      ],
+      "size": [
+        120,
+        60
+      ]
+    },
+    {
+      "id": "next",
+      "type": "frontend",
+      "label": "Next.js App Router",
+      "sublabel": "app/ + components/",
+      "pos": [
+        230,
+        300
+      ],
+      "size": [
+        155,
+        68
+      ]
+    },
+    {
+      "id": "middleware",
+      "type": "security",
+      "label": "Auth Middleware",
+      "sublabel": "middleware.ts",
+      "pos": [
+        230,
+        120
+      ],
+      "size": [
+        155,
+        64
+      ],
+      "tag": "Supabase session"
+    },
+    {
+      "id": "workspace",
+      "type": "backend",
+      "label": "Workspace Context",
+      "sublabel": "lib/supabase/workspace.ts",
+      "pos": [
+        450,
+        300
+      ],
+      "size": [
+        170,
+        68
+      ]
+    },
+    {
+      "id": "domain",
+      "type": "backend",
+      "label": "Domain Logic",
+      "sublabel": "lib/*",
+      "pos": [
+        675,
+        300
+      ],
+      "size": [
+        145,
+        64
+      ]
+    },
+    {
+      "id": "offline",
+      "type": "database",
+      "label": "Local Cache / Queue",
+      "sublabel": "offline.ts + sync-queue.ts",
+      "pos": [
+        450,
+        470
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "tag": "derived / queued"
+    },
+    {
+      "id": "supabase",
+      "type": "database",
+      "label": "Supabase",
+      "sublabel": "Postgres + Auth + RLS",
+      "pos": [
+        900,
+        300
+      ],
+      "size": [
+        150,
+        68
+      ],
+      "tag": "cloud source of truth"
+    },
+    {
+      "id": "aiapi",
+      "type": "backend",
+      "label": "AI API Routes",
+      "sublabel": "app/api/ai/*",
+      "pos": [
+        675,
+        100
+      ],
+      "size": [
+        145,
+        60
+      ]
+    },
+    {
+      "id": "aiservice",
+      "type": "backend",
+      "label": "AI Service",
+      "sublabel": "lib/ai/service.ts",
+      "pos": [
+        900,
+        100
+      ],
+      "size": [
+        150,
+        60
+      ],
+      "tag": "validate output"
+    },
+    {
+      "id": "provider",
+      "type": "external",
+      "label": "AI Provider",
+      "sublabel": "OpenAI / OpenRouter",
+      "pos": [
+        1110,
+        100
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "cron",
+      "type": "backend",
+      "label": "Reminder Cron",
+      "sublabel": "app/api/cron/reminders",
+      "pos": [
+        675,
+        500
+      ],
+      "size": [
+        150,
+        62
+      ]
+    },
+    {
+      "id": "push",
+      "type": "cloud",
+      "label": "Supabase Push Dispatch",
+      "sublabel": "Edge / scheduled",
+      "pos": [
+        900,
+        500
+      ],
+      "size": [
+        150,
+        62
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "trust",
+      "label": "Browser / device",
+      "wraps": [
+        "user",
+        "next",
+        "offline"
+      ]
+    },
+    {
+      "kind": "trust",
+      "label": "Server-side application",
+      "wraps": [
+        "middleware",
+        "workspace",
+        "domain",
+        "aiapi",
+        "aiservice",
+        "cron"
+      ]
+    },
+    {
+      "kind": "trust",
+      "label": "Supabase cloud boundary",
+      "wraps": [
+        "supabase",
+        "push"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "user-next",
+      "from": "user",
+      "to": "next",
+      "label": "HTTPS",
+      "variant": "emphasis"
+    },
+    {
+      "id": "next-auth",
+      "from": "next",
+      "to": "middleware",
+      "label": "protected request",
+      "variant": "security"
+    },
+    {
+      "id": "next-workspace",
+      "from": "next",
+      "to": "workspace",
+      "label": "resolve active workspace"
+    },
+    {
+      "id": "workspace-domain",
+      "from": "workspace",
+      "to": "domain",
+      "label": "workspace-scoped operations"
+    },
+    {
+      "id": "domain-db",
+      "from": "domain",
+      "to": "supabase",
+      "label": "queries/mutations via RLS"
+    },
+    {
+      "id": "domain-offline",
+      "from": "domain",
+      "to": "offline",
+      "label": "cache / queued writes",
+      "variant": "dashed"
+    },
+    {
+      "id": "offline-db",
+      "from": "offline",
+      "to": "supabase",
+      "label": "replay on reconnect",
+      "variant": "dashed"
+    },
+    {
+      "id": "next-ai",
+      "from": "next",
+      "to": "aiapi",
+      "label": "authenticated AI request"
+    },
+    {
+      "id": "aiapi-service",
+      "from": "aiapi",
+      "to": "aiservice",
+      "label": "parse / coach"
+    },
+    {
+      "id": "service-provider",
+      "from": "aiservice",
+      "to": "provider",
+      "label": "server-side provider call"
+    },
+    {
+      "id": "cron-db",
+      "from": "cron",
+      "to": "supabase",
+      "label": "due items + notifications"
+    },
+    {
+      "id": "supabase-push",
+      "from": "supabase",
+      "to": "push",
+      "label": "scheduled exact delivery"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Authority",
+      "items": [
+        "Supabase + RLS own durable cloud truth",
+        "lib/ owns reusable domain rules",
+        "local cache/queue is never a second database"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Privacy",
+      "items": [
+        "middleware + Supabase Auth guard requests",
+        "RLS is cloud authorization",
+        "privacy-gate is only an on-device UI lock"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "AI safety",
+      "items": [
+        "provider keys remain server-side",
+        "AI output is untrusted",
+        "deterministic validation/fallback is part of the source of truth"
+      ]
+    }
+  ]
+}
