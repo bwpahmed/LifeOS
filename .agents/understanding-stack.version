@@ -1,0 +1,8 @@
+source_graphify=Graphify-Labs/graphify
+graphify_commit=1cd9a36c0c57a661d2d2234bc3207e887e1ba104
+graphify_version=0.9.72
+graphify_license=Apache-2.0
+source_archify=tt-a1i/archify
+archify_commit=d5a1333d7447c866a765adac7d4d062f2f02e4d2
+archify_version=3.0.1
+archify_license=MIT

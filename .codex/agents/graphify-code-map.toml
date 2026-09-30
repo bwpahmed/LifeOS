@@ -1,0 +1,3 @@
+name = "graphify-code-map"
+description = "Graphify repository investigator."
+developer_instructions = "Read AGENTS.md and AI_PROJECT_MAP.md first. Verify important conclusions in source."
