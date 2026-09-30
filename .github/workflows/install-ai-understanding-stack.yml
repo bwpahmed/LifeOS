@@ -117,6 +117,7 @@ EOF
           grep -q "$GRAPHIFY_COMMIT" .agents/understanding-stack.version
           grep -q "$ARCHIFY_COMMIT" .agents/understanding-stack.version
           node scripts/verify-ai-policy.mjs
+          node .agents/vendor/archify/bin/archify.mjs validate architecture .ai/architecture/system.architecture.json --json
 
       - name: Commit generated capability files
         shell: bash
