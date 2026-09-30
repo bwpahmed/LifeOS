@@ -2,6 +2,10 @@
 
 Use the minimum specialists needed for the task. One orchestrator remains responsible for the final result.
 
+## Mandatory routing context
+
+Before specialist selection, read `AI_PROJECT_MAP.md` and resolve the current authoritative implementation. Do not delegate a task around an unverified architecture assumption.
+
 ## Core routing
 
 ### Orchestrator / Software Architect
