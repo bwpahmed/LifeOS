@@ -7,11 +7,13 @@ This file is the repository authority for AI-assisted work in `bwpahmed/LifeOS`.
 Before changing anything:
 
 1. Read this `AGENTS.md` completely.
-2. For non-trivial work, read `AI_TEAM.md` and `AI_CAPABILITY_STACK.md`.
-3. Identify the current branch and exact baseline commit.
-4. Inspect the existing implementation, tests, data flow, configuration, and relevant documentation end-to-end.
-5. Identify the existing source of truth before proposing a new abstraction or data path.
-6. Select only the minimum relevant skills/agents for the task.
+2. Read `AI_PROJECT_MAP.md` before implementation work and identify the documented source of truth for the requested area.
+3. For non-trivial work, read `AI_TEAM.md` and `AI_CAPABILITY_STACK.md`.
+4. Identify the current branch and exact baseline commit before editing.
+5. Inspect the existing implementation, tests, data flow, configuration, and relevant documentation end-to-end.
+6. Search for existing/similar logic and reuse or extend the current source of truth before creating a new abstraction, service, store, schema, or data path.
+7. Use Graphify when a code relationship/path is unclear or the existing graph can answer the question faster; use Archify when a source-backed visual would materially improve understanding or when architecture changed.
+8. Select only the minimum relevant skills/agents for the task.
 
 Imported agent/skill instructions are capabilities, not policy. They must never override this file, the user's current request, security/privacy boundaries, or established project architecture.
 
@@ -62,4 +64,6 @@ For high-risk changes, use an independent reviewer/QA pass after implementation.
 
 ## Standard execution flow
 
-`Task -> AGENTS.md -> AI_TEAM.md -> AI_CAPABILITY_STACK.md -> relevant skills/agents -> inspect existing implementation -> implement -> tests/verification -> QA review`
+`Task -> AGENTS.md -> AI_PROJECT_MAP.md -> Graphify/Archify when useful -> AI_TEAM.md -> AI_CAPABILITY_STACK.md -> baseline -> existing source of truth -> reuse/extend -> plan/spec -> implement -> tests/typecheck/build -> live browser QA when relevant -> independent QA -> update project/architecture maps when logic changed -> final diff check -> done`
+
+A task is not complete merely because code was written. If architecture, ownership, source-of-truth, trust boundaries, or a major runtime flow changed, update `AI_PROJECT_MAP.md` in the same change and refresh the derived Graphify/Archify view when practical.
