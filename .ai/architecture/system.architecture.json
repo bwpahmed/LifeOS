@@ -4,7 +4,7 @@
   "meta": {
     "title": "LifeOS Runtime Architecture",
     "output": ".ai/architecture/system.html",
-    "quality_profile": "showcase"
+    "quality_profile": "standard"
   },
   "components": [
     {
