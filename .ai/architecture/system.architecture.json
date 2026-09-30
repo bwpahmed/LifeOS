@@ -4,7 +4,7 @@
   "meta": {
     "title": "LifeOS Runtime Architecture",
     "output": ".ai/architecture/system.html",
-    "quality_profile": "showcase"
+    "quality_profile": "standard"
   },
   "components": [
     {
@@ -185,77 +185,65 @@
       "id": "user-next",
       "from": "user",
       "to": "next",
-      "label": "HTTPS",
       "variant": "emphasis"
     },
     {
       "id": "next-auth",
       "from": "next",
       "to": "middleware",
-      "label": "protected request",
       "variant": "security"
     },
     {
       "id": "next-workspace",
       "from": "next",
-      "to": "workspace",
-      "label": "resolve active workspace"
+      "to": "workspace"
     },
     {
       "id": "workspace-domain",
       "from": "workspace",
-      "to": "domain",
-      "label": "workspace-scoped operations"
+      "to": "domain"
     },
     {
       "id": "domain-db",
       "from": "domain",
-      "to": "supabase",
-      "label": "queries/mutations via RLS"
+      "to": "supabase"
     },
     {
       "id": "domain-offline",
       "from": "domain",
       "to": "offline",
-      "label": "cache / queued writes",
       "variant": "dashed"
     },
     {
       "id": "offline-db",
       "from": "offline",
       "to": "supabase",
-      "label": "replay on reconnect",
       "variant": "dashed"
     },
     {
       "id": "next-ai",
       "from": "next",
-      "to": "aiapi",
-      "label": "authenticated AI request"
+      "to": "aiapi"
     },
     {
       "id": "aiapi-service",
       "from": "aiapi",
-      "to": "aiservice",
-      "label": "parse / coach"
+      "to": "aiservice"
     },
     {
       "id": "service-provider",
       "from": "aiservice",
-      "to": "provider",
-      "label": "server-side provider call"
+      "to": "provider"
     },
     {
       "id": "cron-db",
       "from": "cron",
-      "to": "supabase",
-      "label": "due items + notifications"
+      "to": "supabase"
     },
     {
       "id": "supabase-push",
       "from": "supabase",
-      "to": "push",
-      "label": "scheduled exact delivery"
+      "to": "push"
     }
   ],
   "cards": [
