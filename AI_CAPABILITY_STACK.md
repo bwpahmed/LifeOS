@@ -2,7 +2,7 @@
 
 LifeOS uses one project workflow for AI-assisted work:
 
-`Task -> AGENTS.md -> AI_TEAM.md -> AI_CAPABILITY_STACK.md -> relevant skills/agents -> inspect existing implementation -> do the task -> tests/verification -> QA review`
+`Task -> AGENTS.md -> AI_PROJECT_MAP.md -> Graphify/Archify when useful -> AI_TEAM.md -> AI_CAPABILITY_STACK.md -> baseline -> existing source of truth -> reuse/extend -> plan/spec -> implementation -> tests/verification -> browser QA when relevant -> independent QA -> map refresh when architecture changed -> final diff check`
 
 `AGENTS.md` is always the repository authority. Imported upstream instructions are capabilities, not policy.
 
@@ -71,3 +71,27 @@ The install workflows are reproducible sync points. Review upstream changes befo
 4. For risky or cross-domain work, use an independent reviewer/QA agent after implementation.
 5. Run real tests/typecheck/build or targeted evidence checks before completion.
 6. Production deployment, destructive data operations, credentials and external posting still require the approvals defined by `AGENTS.md` and the user's request.
+
+
+## Repository understanding and verification stack
+
+### Graphify — code knowledge graph
+Pinned project guidance is installed for `Graphify-Labs/graphify` v0.9.72. Use Graphify when you need cross-file relationships, imports/calls/inheritance, shortest paths, subsystem/community structure, or a fast answer to “what calls/owns/connects this?”. Treat `graphify-out/` as a derived index, never as business truth. `AI_PROJECT_MAP.md` plus the actual code/schema remain authoritative.
+
+### Archify — source-backed visual architecture
+Pinned Archify v3.0.1 is installed as a repo-local capability. Use it for architecture, workflow, sequence, data-flow, and lifecycle diagrams. The committed source diagram under `.ai/architecture/` is a derived communication artifact and must not invent topology that is unsupported by the repository.
+
+### Chrome DevTools MCP — browser/UI verification
+Use Chrome DevTools MCP for live DOM, console, network, performance, and browser-behavior verification when a task affects UI/runtime behavior. Current reviewed package baseline: `chrome-devtools-mcp` 1.10.1. It is an external/local MCP runtime, not vendored into this repository. Do not expose unrelated authenticated tabs, private records, or secrets to browser tooling.
+
+### save-token-jev — optional session compaction
+`save-token-jev` is optional machine/user-level context compaction for long agent sessions. Do not vendor credentials or auto-enable it in CI. It is not a source-of-truth or architecture tool.
+
+### Jev Ultrafast — optional browser execution
+Use only for an explicitly requested browser-automation task where execution is appropriate. It does not replace Chrome DevTools QA and must not perform production-impacting actions without the approval required by `AGENTS.md`.
+
+### MiroFish — external simulation only
+MiroFish is a separate AGPL-3.0 multi-agent simulation/prediction system. Do not vendor it into LifeOS or use it for ordinary coding/architecture tasks. Treat it as an external research/simulation capability only when explicitly requested.
+
+### Obsidian — human knowledge workspace
+Obsidian may consume/export project-map material for human knowledge management, but it is not the repository source of truth. Repository policy and `AI_PROJECT_MAP.md` win when notes disagree.
