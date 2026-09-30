@@ -57,45 +57,45 @@ jobs:
 
           for root in .agents/skills .claude/skills; do
             mkdir -p "$root/graphify" "$root/archify"
-            cat > "$root/graphify/SKILL.md" <<'EOF'
----
-name: graphify
-description: Query or refresh the repository knowledge graph when code relationships, ownership, dependencies, or paths are unclear.
----
-# Graphify project capability
-Read the repository root AGENTS.md and AI_PROJECT_MAP.md first. Then read .agents/vendor/graphify/SKILL.md and its references. The repository map and actual code/schema are authoritative; graph output is derived evidence.
-EOF
-            cat > "$root/archify/SKILL.md" <<'EOF'
----
-name: archify
-description: Build source-backed architecture/workflow/sequence/data-flow/lifecycle visuals when they materially improve repository understanding.
----
-# Archify project capability
-Read the repository root AGENTS.md and AI_PROJECT_MAP.md first. Then use .agents/vendor/archify/SKILL.md and the vendored Archify CLI. Never invent topology to match a desired picture.
-EOF
+            printf '%s\n' \
+              '---' \
+              'name: graphify' \
+              'description: Query or refresh the repository knowledge graph when code relationships, ownership, dependencies, or paths are unclear.' \
+              '---' \
+              '# Graphify project capability' \
+              'Read the repository root AGENTS.md and AI_PROJECT_MAP.md first. Then read .agents/vendor/graphify/SKILL.md and its references. The repository map and actual code/schema are authoritative; graph output is derived evidence.' \
+              > "$root/graphify/SKILL.md"
+            printf '%s\n' \
+              '---' \
+              'name: archify' \
+              'description: Build source-backed architecture/workflow/sequence/data-flow/lifecycle visuals when they materially improve repository understanding.' \
+              '---' \
+              '# Archify project capability' \
+              'Read the repository root AGENTS.md and AI_PROJECT_MAP.md first. Then use .agents/vendor/archify/SKILL.md and the vendored Archify CLI. Never invent topology to match a desired picture.' \
+              > "$root/archify/SKILL.md"
           done
 
-          cat > .codex/agents/graphify-code-map.toml <<'EOF'
-name = "graphify-code-map"
-description = "Repository relationship and source-of-truth investigator using the pinned Graphify capability."
-developer_instructions = "Read AGENTS.md and AI_PROJECT_MAP.md first. Use Graphify only as derived evidence for imports/calls/dependencies/paths. Verify important conclusions in the actual code/schema. Do not create or modify product logic unless the user's task asks for implementation."
-EOF
-          cat > .codex/agents/archify-visual-map.toml <<'EOF'
-name = "archify-visual-map"
-description = "Source-backed architecture and flow visualization reviewer using the pinned Archify capability."
-developer_instructions = "Read AGENTS.md and AI_PROJECT_MAP.md first. Produce only source-backed visuals. Treat AI_PROJECT_MAP.md and actual implementation as authoritative. Update diagrams after architecture changes; do not change product code merely to fit a diagram."
-EOF
+          printf '%s\n' \
+            'name = "graphify-code-map"' \
+            'description = "Repository relationship and source-of-truth investigator using the pinned Graphify capability."' \
+            'developer_instructions = "Read AGENTS.md and AI_PROJECT_MAP.md first. Use Graphify only as derived evidence for imports/calls/dependencies/paths. Verify important conclusions in the actual code/schema. Do not create or modify product logic unless the user current task asks for implementation."' \
+            > .codex/agents/graphify-code-map.toml
+          printf '%s\n' \
+            'name = "archify-visual-map"' \
+            'description = "Source-backed architecture and flow visualization reviewer using the pinned Archify capability."' \
+            'developer_instructions = "Read AGENTS.md and AI_PROJECT_MAP.md first. Produce only source-backed visuals. Treat AI_PROJECT_MAP.md and actual implementation as authoritative. Update diagrams after architecture changes; do not change product code merely to fit a diagram."' \
+            > .codex/agents/archify-visual-map.toml
 
-          cat > .agents/understanding-stack.version <<EOF
-source_graphify=Graphify-Labs/graphify
-graphify_commit=$GRAPHIFY_COMMIT
-graphify_version=$GRAPHIFY_VERSION
-graphify_license=Apache-2.0
-source_archify=tt-a1i/archify
-archify_commit=$ARCHIFY_COMMIT
-archify_version=$ARCHIFY_VERSION
-archify_license=MIT
-EOF
+          printf '%s\n' \
+            'source_graphify=Graphify-Labs/graphify' \
+            "graphify_commit=$GRAPHIFY_COMMIT" \
+            "graphify_version=$GRAPHIFY_VERSION" \
+            'graphify_license=Apache-2.0' \
+            'source_archify=tt-a1i/archify' \
+            "archify_commit=$ARCHIFY_COMMIT" \
+            "archify_version=$ARCHIFY_VERSION" \
+            'archify_license=MIT' \
+            > .agents/understanding-stack.version
 
       - name: Verify stack and existing policies survive
         shell: bash
