@@ -180,37 +180,6 @@
       ]
     }
   ],
-  "boundaries": [
-    {
-      "kind": "trust",
-      "label": "Browser / device",
-      "wraps": [
-        "user",
-        "next",
-        "offline"
-      ]
-    },
-    {
-      "kind": "trust",
-      "label": "Server-side application",
-      "wraps": [
-        "middleware",
-        "workspace",
-        "domain",
-        "aiapi",
-        "aiservice",
-        "cron"
-      ]
-    },
-    {
-      "kind": "trust",
-      "label": "Supabase cloud boundary",
-      "wraps": [
-        "supabase",
-        "push"
-      ]
-    }
-  ],
   "connections": [
     {
       "id": "user-next",
