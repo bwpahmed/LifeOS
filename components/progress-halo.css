@@ -1,0 +1,14 @@
+.lifeos-halo{width:min(100%,340px);position:relative;display:flex;align-items:center;flex-direction:column;isolation:isolate;flex:0 0 auto;color:#142f2a}
+.lifeos-halo-art{width:100%;display:block;overflow:visible;filter:drop-shadow(0 5px 14px rgba(19,168,117,.08))}
+.lifeos-halo-value{position:absolute;top:35%;left:0;right:0;display:flex;align-items:center;flex-direction:column}
+.lifeos-halo-value strong{font-size:clamp(55px,7vw,79px);font-weight:850;line-height:1;letter-spacing:-.085em;color:#17352f!important;font-variant-numeric:tabular-nums}
+.lifeos-halo-value strong span{font-size:.45em;letter-spacing:-.035em;color:#249a73}
+.lifeos-halo-value>span{font-size:10px;font-weight:850;letter-spacing:.23em;color:#7b9689;margin-top:7px}
+.lifeos-halo>p{font-size:11px;color:#779286;font-weight:650;margin:-8px 0 0;line-height:1.3}
+.lifeos-halo-compact{width:min(100%,280px)}
+.lifeos-halo-compact .lifeos-halo-value strong{font-size:clamp(49px,6vw,70px)}
+:root:not([data-theme="light"]) .lifeos-halo-value strong{color:#e2fff0!important}
+:root:not([data-theme="light"]) .lifeos-halo-value>span,
+:root:not([data-theme="light"]) .lifeos-halo>p{color:#abd6c5}
+@media(max-width:680px){.lifeos-halo{width:min(100%,310px)}.lifeos-halo-value strong{font-size:68px}.lifeos-halo-compact{width:250px}}
+@media(max-width:370px){.lifeos-halo-value strong{font-size:60px}}
