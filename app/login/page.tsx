@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { supabaseBrowser, supabaseEmailAuthClient } from "@/lib/supabase/client";
 import { safeNextPath } from "@/lib/auth-routing";
 import "./login-premium.css";
@@ -65,13 +65,15 @@ export default function LoginPage() {
   }
 
   async function sendPasswordReset() {
-    if (!email.trim() || loading) return;
+    if (loading) return;
+    const recoveryEmail = (emailInputRef.current?.value || email).trim().toLowerCase();
+    if (!recoveryEmail) { setMessage({text:"Enter your account email first.",type:"error"}); return; }
     setLoading("reset"); setMessage(null);
     try {
       const sb = supabaseEmailAuthClient();
       sessionStorage.setItem("lifeos_auth_mode", "recovery");
       sessionStorage.setItem("lifeos_auth_next", "/");
-      const {error} = await sb.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+      const {error} = await sb.auth.resetPasswordForEmail(recoveryEmail, {
         redirectTo: location.origin + "/"
       });
       if (error) throw error;
@@ -84,14 +86,16 @@ export default function LoginPage() {
   }
 
   async function magicLink() {
-    if (!email.trim() || loading) return;
+    if (loading) return;
+    const linkEmail = (emailInputRef.current?.value || email).trim().toLowerCase();
+    if (!linkEmail) { setMessage({text:"Enter your account email first.",type:"error"}); return; }
     setLoading("magic"); setMessage(null);
     try {
       const sb = supabaseEmailAuthClient();
       sessionStorage.setItem("lifeos_auth_mode", "magic");
       sessionStorage.setItem("lifeos_auth_next", nextPath);
       const {error} = await sb.auth.signInWithOtp({
-        email: email.trim().toLowerCase(),
+        email: linkEmail,
         options: {emailRedirectTo: location.origin + "/", shouldCreateUser:false}
       });
       if (error) throw error;
@@ -127,10 +131,10 @@ export default function LoginPage() {
           <p className="lifeos-signin-intro">Sign in securely to pick up right where you left off.</p>
           <form onSubmit={signIn} className="lifeos-signin-form">
             <label htmlFor="lifeos-email">Email address</label>
-            <input id="lifeos-email" name="email" type="email" inputMode="email" autoComplete="username" autoCapitalize="none" spellCheck={false}
+            <input ref={emailInputRef} id="lifeos-email" name="email" type="email" inputMode="email" autoComplete="username" autoCapitalize="none" spellCheck={false}
               required value={email} onChange={e=>setEmail(e.target.value)}
               placeholder="you@example.com" disabled={loading!==null}/>
-            <div className="lifeos-signin-password-label"><label htmlFor="lifeos-password">Password</label><button type="button" onClick={()=>void sendPasswordReset()} disabled={loading!==null||!email.trim()} className="lifeos-signin-link">Forgot password?</button></div>
+            <div className="lifeos-signin-password-label"><label htmlFor="lifeos-password">Password</label><button type="button" onClick={()=>void sendPasswordReset()} disabled={loading!==null} className="lifeos-signin-link">Forgot password?</button></div>
             <div className="lifeos-signin-password-wrap">
               <input id="lifeos-password" name="password" type={showPassword?"text":"password"} autoComplete="current-password" required value={password}
                 onChange={e=>setPassword(e.target.value)} placeholder="Enter your password" disabled={loading!==null}/>
@@ -139,7 +143,7 @@ export default function LoginPage() {
             <button type="submit" className="lifeos-signin-primary" disabled={loading!==null}>{loading==="password"?"Signing you in…":"Sign in to LifeOS"} <span aria-hidden="true">→</span></button>
           </form>
           <div className="lifeos-signin-divider"><span>or continue with</span></div>
-          <button type="button" className="lifeos-signin-alternative" disabled={loading!==null||!email.trim()} onClick={()=>void magicLink()}>
+          <button type="button" className="lifeos-signin-alternative" disabled={loading!==null} onClick={()=>void magicLink()}>
             <span aria-hidden="true">✉</span> {loading==="magic"?"Sending…":"Email sign-in link"}
           </button>
           {message&&<p role="status" aria-live="polite" className={"lifeos-signin-message "+message.type}>{message.text}</p>}
