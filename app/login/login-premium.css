@@ -59,3 +59,17 @@
 .lifeos-signin-intro {margin-bottom:27px}
 }
 @media(prefers-reduced-motion:reduce){.lifeos-signin *{transition:none!important}}
+
+/* Explicit contrast for disabled controls: global light-mode button styles
+   intentionally dim text, but primary authentication actions must remain legible. */
+:root[data-theme="light"] .lifeos-signin .lifeos-signin-primary:disabled {
+  color:#ffffff!important;background:#56bea0;opacity:.82;
+}
+.lifeos-signin .lifeos-signin-primary:not(:disabled){color:#ffffff!important}
+.lifeos-signin-card,.lifeos-signin-main,.lifeos-signin-form,.lifeos-signin-password-wrap{min-width:0}
+.lifeos-signin-form input{max-width:100%;box-sizing:border-box}
+@media(max-width:750px){
+ .lifeos-signin {max-width:100%;overflow-x:clip}
+ .lifeos-signin-card{grid-template-columns:minmax(0,1fr)}
+ .lifeos-signin-main{width:100%;max-width:510px}
+}
