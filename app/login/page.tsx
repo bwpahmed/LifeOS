@@ -17,7 +17,8 @@ function readableAuthError(error: unknown) {
 }
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
+  // Preserve the existing owner-login convenience without locking other authorized users out.
+  const [email, setEmail] = useState("bwpahmed@gmail.com");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState<Message | null>(null);
   const [loading, setLoading] = useState<"password" | "reset" | "magic" | null>(null);
