@@ -3,6 +3,7 @@ import { PwaRegister } from "@/components/pwa-register";
 import { OfflineSync } from "@/components/offline-sync";
 import { AppShell } from "@/components/app-shell";
 import "./globals.css";
+import "./premium-everywhere.css";
 
 export const metadata: Metadata = {
   title: "LifeOS — Personal & Family Command Center",
