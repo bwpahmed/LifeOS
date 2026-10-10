@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import "./habits-v2.css";
+import { ProgressHalo } from "@/components/progress-halo";
 import { BackHome, Panel } from "@/components/ui";
 import { habitConsistencyForFrequency,habitPeriodStreak,recoveryScore } from "@/lib/habits";
 import { loadOfflineCache,saveOfflineCache,isProbablyNetworkError } from "@/lib/offline";
@@ -38,8 +39,8 @@ export default function HabitsPage(){
    <header className="habit-heading">
     <div>
      <span className="habit-overline">Your daily rhythm</span>
-     <h1>Small steps, big changes.</h1>
-     <p className="habit-lede">Build a routine you love. Every small win counts, and progress is always worth celebrating.</p>
+     <h1>Your daily momentum.</h1>
+     <p className="habit-lede">Your daily progress, beautiful and simple. Build consistency one moment at a time.</p>
     </div>
     <button type="button" className="habit-add-btn" onClick={()=>setShowComposer(v=>!v)} aria-expanded={showComposer} aria-controls="habit-new-form">
      <span aria-hidden="true">{showComposer?"−":"+"}</span>{showComposer?"Close form":"New habit"}
@@ -54,17 +55,11 @@ export default function HabitsPage(){
      <section className="habit-dashboard" aria-label="Daily progress overview">
       <div className="habit-summary">
        <div className="habit-summary-copy">
-        <span className="habit-summary-label">✦ Today's progress</span>
+        <span className="habit-summary-label">TODAY'S PROGRESS</span>
         <h2>{completionPct===100&&habits.length?"You're on a roll!":"Keep your momentum going."}</h2>
         <p>{habits.length?doneToday+" of "+habits.length+" habits completed today.":"Create your first habit and start your journey today."} {completionPct===100&&habits.length?"Wonderful work!":"You've got this."}</p>
        </div>
-       <div className="habit-ring" role="progressbar" aria-label="Habits completed today" aria-valuemin={0} aria-valuemax={100} aria-valuenow={completionPct}
-         style={{background:"conic-gradient(#11a77a "+completionPct+"%, rgba(17,167,122,.13) 0)"}}>
-        <div className="habit-ring-middle">
-         <strong>{completionPct}%</strong>
-         <small>completed</small>
-        </div>
-       </div>
+       <ProgressHalo value={completionPct} label="TODAY" caption="Every little win counts" compact/>
       </div>
       <div className="habit-metrics">
        <div className="habit-metric">
