@@ -23,12 +23,12 @@
 - AppShell routing, auth bootstrap, workspace selection, notifications, quick add, PWA/offline and permissions unchanged.
 
 ## Acceptance checklist
-- [ ] `npm run typecheck`
-- [ ] `npm test`
-- [ ] `npm run build`
+- [x] `npm run typecheck` — PASS in isolated QA clone at commit `146c162`
+- [x] `npm test` — PASS, 24/24 tests in isolated QA clone
+- [x] `npm run build` — PASS, Next.js 14 production compile and 57 static routes
 - [ ] Responsive browser/manual QA (phone, desktop, and both themes)
 - [ ] Validate habit create/completion and offline-state behavior in an authenticated test workspace
-- [ ] Review base-vs-branch diff and ensure no schema/auth/business code touched
+- [x] Review base-vs-branch diff and ensure no schema/auth/business code touched — 5 intended UI/documentation files only
 - [x] Separate working branch created from exact baseline
 - [x] Required AI policy read
 - [x] No deployment / no merge to main
