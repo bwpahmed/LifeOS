@@ -9,7 +9,7 @@ type Message = { text: string; type: "info" | "error" | "success" };
 
 function readableAuthError(error: unknown) {
   const message = error instanceof Error ? error.message : "Unable to sign in. Please try again.";
-  if (/invalid login credentials/i.test(message)) return "Email or password is incorrect. Check both fields, or reset your password.";
+  if (/invalid login credentials/i.test(message)) return "Supabase could not verify these login details. Check your email, or use Forgot password to recover access.";
   if (/email not confirmed/i.test(message)) return "Please confirm your email address before signing in.";
   if (/rate limit|too many requests|security purposes/i.test(message)) return "Too many attempts. Please wait a few minutes before trying again.";
   if (/failed to fetch|network|fetch failed|load failed/i.test(message)) return "Could not connect to LifeOS. Check your connection and try again.";
@@ -75,10 +75,10 @@ export default function LoginPage() {
       sessionStorage.setItem("lifeos_auth_mode", "recovery");
       sessionStorage.setItem("lifeos_auth_next", "/");
       const {error} = await sb.auth.resetPasswordForEmail(recoveryEmail, {
-        redirectTo: location.origin + "/"
+        redirectTo: location.origin + "/auth/update-password"
       });
       if (error) throw error;
-      setMessage({text:"If this email belongs to a LifeOS account, a reset link has been requested. Open the latest email to set a new password.", type:"success"});
+      setMessage({text:"If this email belongs to your LifeOS account, check your inbox for a reset link. Open it on this same website to set a new password.", type:"success"});
     } catch (error) {
       sessionStorage.removeItem("lifeos_auth_mode");
       sessionStorage.removeItem("lifeos_auth_next");
