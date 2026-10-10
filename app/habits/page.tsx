@@ -106,7 +106,7 @@ export default function HabitsPage(){
         const consistency=habitConsistencyForFrequency(map,days,h.frequency,Number(h.target||1));
         const streak=habitPeriodStreak(map,days,h.frequency,Number(h.target||1));
         const recovery=recoveryScore(map,days,h.frequency,Number(h.target||1));
-        return <article key={h.id} className={done?"habit-card habit-card-done":"habit-card"}>
+        return <article key={h.id} data-area={h.area||"Personal"} className={done?"habit-card habit-card-done":"habit-card"}>
          <div className="habit-card-top">
           <span className="habit-category-icon" aria-hidden="true">{areaIcons[h.area||""]||"⭐"}</span>
           <div className="habit-card-title">
