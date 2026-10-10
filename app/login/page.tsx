@@ -39,9 +39,19 @@ export default function LoginPage() {
     if (loading) return;
     setLoading("password"); setMessage(null);
     try {
+      // Password managers may autofill the DOM without dispatching React onChange.
+      // Read the submitted form itself; do not rely on possibly stale state.
+      const form = new FormData(event.currentTarget);
+      const submittedEmail = String(form.get("email") || "").trim().toLowerCase();
+      const submittedPassword = String(form.get("password") || "");
+      if (!submittedEmail || !submittedPassword) {
+        setMessage({text:"Enter your email address and password to sign in.", type:"error"});
+        setLoading(null);
+        return;
+      }
       const sb = supabaseBrowser();
       const { data, error } = await sb.auth.signInWithPassword({
-        email: email.trim().toLowerCase(), password
+        email: submittedEmail, password: submittedPassword
       });
       if (error) throw error;
       if (!data.session) throw new Error("Sign-in did not establish a session. Try again.");
@@ -117,16 +127,16 @@ export default function LoginPage() {
           <p className="lifeos-signin-intro">Sign in securely to pick up right where you left off.</p>
           <form onSubmit={signIn} className="lifeos-signin-form">
             <label htmlFor="lifeos-email">Email address</label>
-            <input id="lifeos-email" type="email" inputMode="email" autoComplete="username" autoCapitalize="none" spellCheck={false}
+            <input id="lifeos-email" name="email" type="email" inputMode="email" autoComplete="username" autoCapitalize="none" spellCheck={false}
               required value={email} onChange={e=>setEmail(e.target.value)}
               placeholder="you@example.com" disabled={loading!==null}/>
             <div className="lifeos-signin-password-label"><label htmlFor="lifeos-password">Password</label><button type="button" onClick={()=>void sendPasswordReset()} disabled={loading!==null||!email.trim()} className="lifeos-signin-link">Forgot password?</button></div>
             <div className="lifeos-signin-password-wrap">
-              <input id="lifeos-password" type={showPassword?"text":"password"} autoComplete="current-password" required value={password}
+              <input id="lifeos-password" name="password" type={showPassword?"text":"password"} autoComplete="current-password" required value={password}
                 onChange={e=>setPassword(e.target.value)} placeholder="Enter your password" disabled={loading!==null}/>
               <button type="button" onClick={()=>setShowPassword(v=>!v)} aria-label={showPassword?"Hide password":"Show password"} aria-pressed={showPassword} disabled={loading!==null}>{showPassword?"Hide":"Show"}</button>
             </div>
-            <button type="submit" className="lifeos-signin-primary" disabled={loading!==null||!password||!email.trim()}>{loading==="password"?"Signing you in…":"Sign in to LifeOS"} <span aria-hidden="true">→</span></button>
+            <button type="submit" className="lifeos-signin-primary" disabled={loading!==null}>{loading==="password"?"Signing you in…":"Sign in to LifeOS"} <span aria-hidden="true">→</span></button>
           </form>
           <div className="lifeos-signin-divider"><span>or continue with</span></div>
           <button type="button" className="lifeos-signin-alternative" disabled={loading!==null||!email.trim()} onClick={()=>void magicLink()}>
