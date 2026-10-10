@@ -1,0 +1,168 @@
+/* LifeOS Premium Everywhere — presentation-only shell for existing modules.
+   No route, permissions, business state, database, or API ownership changes. */
+:root[data-theme="light"]{
+  --bg:#f4faf6;
+  --bg2:#edf8f1;
+  --panel:#ffffff;
+  --panel2:#f9fdfa;
+  --line:rgba(18,97,64,.11);
+  --text:#173e31;
+  --muted:#687f71;
+  --blue:#12936c;
+  --green:#0ba676;
+  --shadow:0 14px 40px rgba(32,102,74,.07);
+}
+:root[data-theme="light"] .app-shell{
+  background:radial-gradient(ellipse at 83% 0%,rgba(152,237,183,.10),transparent 38%),var(--bg);
+}
+.app-shell{font-feature-settings:"ss01" on;line-height:1.5}
+.app-shell .page-content{max-width:1450px}
+:root[data-theme="light"] .app-shell .sidebar{
+  background:rgba(253,255,254,.94);
+  border-right:1px solid #e5f1e9;
+}
+.app-shell .sidebar .brand-mark{width:42px;height:42px;border-radius:15px}
+.app-shell .sidebar .brand{font-size:20px;font-weight:850;letter-spacing:-.06em}
+.app-shell .sidebar .brand-sub{font-size:10px;letter-spacing:.005em}
+.app-shell .side-nav{gap:2px}
+.app-shell .nav-section{font-size:10px;letter-spacing:.12em;margin:16px 10px 7px;font-weight:800}
+.app-shell .nav-item{min-height:43px;font-size:13px;font-weight:650;padding:10px 12px}
+:root[data-theme="light"] .app-shell .nav-item.active{
+  background:#e1f5e9;color:#08724f!important;box-shadow:inset 3px 0 0 #13b17e;
+}
+.app-shell .main-area .topbar{height:88px}
+.app-shell .topbar h1{font-size:clamp(22px,2.2vw,30px);font-weight:850;letter-spacing:-.05em}
+.app-shell .eyebrow,.app-shell .label{font-size:10px;letter-spacing:.13em}
+:root[data-theme="light"] .app-shell .topbar{background:linear-gradient(to bottom,rgba(244,250,246,.99),rgba(244,250,246,.88),transparent)}
+.app-shell .page-content > main{padding-bottom:50px;min-width:0}
+.app-shell .page-root > .section-heading{margin-bottom:21px}
+.app-shell .section-heading h2{font-size:clamp(23px,2.7vw,31px);line-height:1.2;font-weight:850;letter-spacing:-.055em}
+.app-shell .section-heading .label{display:inline-block;margin-bottom:7px}
+.app-shell .panel,.app-shell .metric-card{
+  border-radius:23px;
+  transition:border-color .18s ease,transform .18s ease,box-shadow .18s ease;
+}
+:root[data-theme="light"] .app-shell .panel,
+:root[data-theme="light"] .app-shell .metric-card{
+  background:#fff!important;
+  border:1px solid #e0ece4!important;
+  box-shadow:0 12px 35px rgba(26,92,67,.045);
+}
+.app-shell .panel{padding:23px}
+.app-shell .panel-head{gap:12px;margin-bottom:18px}
+.app-shell .panel-head h3{font-size:18px;font-weight:800;letter-spacing:-.035em}
+.app-shell .metric-card{min-height:133px;padding:21px;display:flex;flex-direction:column;justify-content:space-between}
+.app-shell .metric-card>span{font-size:12px;font-weight:750}
+.app-shell .metric-card strong{font-size:clamp(22px,2.2vw,28px);letter-spacing:-.055em;margin:11px 0 2px}
+.app-shell .metric-card small{font-size:11px;line-height:1.5}
+:root[data-theme="light"] .app-shell .metric-card.accent-green{border-top:3px solid #22bd8e!important}
+:root[data-theme="light"] .app-shell .metric-card.accent-blue{border-top:3px solid #77b8e0!important}
+:root[data-theme="light"] .app-shell .metric-card.accent-amber{border-top:3px solid #f3be67!important}
+:root[data-theme="light"] .app-shell .metric-card.accent-red{border-top:3px solid #eb9ab0!important}
+:root[data-theme="light"] .app-shell .metric-card.accent-red strong{color:#b55366!important}
+:root[data-theme="light"] .app-shell .metric-card.accent-green strong{color:#098c62!important}
+:root[data-theme="light"] .app-shell .metric-card.accent-blue strong{color:#357da9!important}
+:root[data-theme="light"] .app-shell .metric-card.accent-amber strong{color:#a36b17!important}
+.app-shell .metric-card:hover{transform:translateY(-2px);box-shadow:0 20px 40px rgba(13,78,53,.075)}
+.app-shell .grid{gap:16px}
+.app-shell .mt{margin-top:17px}
+:root[data-theme="light"] .app-shell .priority-item,
+:root[data-theme="light"] .app-shell .timeline-item,
+:root[data-theme="light"] .app-shell .stat-box,
+:root[data-theme="light"] .app-shell .settings-section,
+:root[data-theme="light"] .app-shell .feature-link,
+:root[data-theme="light"] .app-shell .cal-day,
+:root[data-theme="light"] .app-shell .quick-type-grid > a,
+:root[data-theme="light"] .app-shell .quick-type-grid > button{
+  background:#fbfefc!important;
+  border:1px solid #e5eee7!important;
+  border-radius:15px;
+}
+.app-shell .priority-item{padding:13px 14px;gap:12px}
+.app-shell .priority-item strong{font-size:13px;line-height:1.4}
+.app-shell .priority-item small{font-size:11px;line-height:1.4}
+:root[data-theme="light"] .app-shell .priority-number{border-radius:11px;background:#e6f8ed!important;color:#0c9567!important}
+:root[data-theme="light"] .app-shell .stat-box{padding:15px}
+.app-shell .stat-box b{font-size:22px;letter-spacing:-.055em}
+.app-shell .stat-box span{font-size:11px}
+.app-shell .pill{font-size:10px;padding:7px 10px;font-weight:750}
+.app-shell .empty-state{font-size:12px;line-height:1.7;border-radius:17px;padding:30px 19px}
+.app-shell .empty-state b{font-size:14px;line-height:1.5}
+.app-shell .progress{height:9px;border-radius:99px;overflow:hidden}
+.app-shell .progress i{border-radius:99px}
+.app-shell .progress-label{font-size:12px}
+.app-shell .focus-panel{border-radius:22px}
+:root[data-theme="light"] .app-shell .focus-panel{background:linear-gradient(120deg,#e5faed,#fff)!important}
+:root[data-theme="light"] .app-shell input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+:root[data-theme="light"] .app-shell select,
+:root[data-theme="light"] .app-shell textarea{
+  background:#fff!important;
+  color:#173d2b!important;
+  border-color:#d9e8dd!important;
+  border-radius:13px;
+  min-height:43px;
+}
+.app-shell .panel input,.app-shell .panel select,.app-shell .panel textarea{font-size:13px}
+.app-shell .panel label,.app-shell .settings-row label{font-size:12px;line-height:1.6}
+.app-shell .primary-btn,.app-shell .quick-add-btn{border-radius:13px;font-size:13px;font-weight:800}
+.app-shell .ghost-btn,.app-shell .soft-btn,.app-shell .mini-btn{border-radius:12px;font-weight:700}
+:root[data-theme="light"] .app-shell .primary-btn,
+:root[data-theme="light"] .app-shell .quick-add-btn{background:linear-gradient(110deg,#21bd87,#07976c);color:white!important}
+:root[data-theme="light"] .app-shell .text-btn{color:#0b9870;font-weight:800}
+:root[data-theme="light"] .app-shell .feature-link{font-size:12px;min-height:45px}
+.app-shell .calendar-title{font-weight:850;letter-spacing:-.05em}
+:root[data-theme="light"] .app-shell .cal-day.today{background:#eaf9f0!important;border-color:#98d7b8!important}
+.app-shell .sticky-note{border-radius:20px}
+.app-shell a:focus-visible,.app-shell button:focus-visible{outline:3px solid #2cba8a;outline-offset:3px}
+@media(min-width:801px){
+  .app-shell .main-area{padding:0 clamp(20px,3vw,44px) 70px}
+  .app-shell .sidebar{padding:21px 14px}
+  .app-shell .panel:hover{border-color:#c7e5d3}
+}
+@media(max-width:800px){
+  .app-shell .main-area{padding:0 14px 120px}
+  .app-shell .main-area .topbar{height:75px}
+  .app-shell .topbar h1{font-size:21px}
+  .app-shell .topbar .eyebrow{font-size:9px}
+  .app-shell .page-content > main{padding-bottom:25px}
+  .app-shell .section-heading h2{font-size:24px}
+  .app-shell .grid{gap:12px}
+  .app-shell .panel{padding:17px;border-radius:21px}
+  .app-shell .metric-card{padding:16px;min-height:112px;border-radius:19px}
+  .app-shell .metric-card strong{font-size:21px}
+  .app-shell .metric-card>span{font-size:11px}
+  .app-shell .mobile-nav{
+    height:auto;
+    display:grid;
+    grid-template-columns:repeat(5,minmax(0,1fr));
+    gap:0;
+    padding:10px 8px max(9px,env(safe-area-inset-bottom));
+    left:10px;right:10px;
+    border-radius:24px;
+  }
+  :root[data-theme="light"] .app-shell .mobile-nav{
+    background:rgba(255,255,255,.97);
+    border:1px solid #dcebe1;
+    box-shadow:0 15px 38px rgba(25,86,60,.13);
+  }
+  .app-shell .mobile-item{font-size:10px;font-weight:750;gap:5px;min-height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .app-shell .mobile-item svg{height:22px;width:22px}
+  :root[data-theme="light"] .app-shell .mobile-item{color:#718779!important}
+  :root[data-theme="light"] .app-shell .mobile-item.active{color:#098b63!important}
+  .app-shell .mobile-add{height:49px;width:49px;justify-self:center;align-self:center;display:grid;place-items:center;border-radius:18px}
+  .app-shell .mobile-add svg{height:23px;width:23px}
+}
+@media(max-width:480px){
+  .app-shell .main-area{padding:0 13px 120px}
+  .app-shell .main-area .topbar{height:72px}
+  .app-shell .top-actions{gap:4px}
+  .app-shell .panel{padding:15px}
+  .app-shell .stat-pair{gap:8px}
+  .app-shell .settings-section{padding:12px}
+  .app-shell .settings-row{align-items:flex-start}
+  .app-shell .feature-directory{gap:8px}
+}
+@media(prefers-reduced-motion:reduce){
+  .app-shell *, .app-shell *::before,.app-shell *::after{transition:none!important;animation:none!important;scroll-behavior:auto!important}
+  .app-shell .metric-card:hover{transform:none}
+}
