@@ -9,6 +9,8 @@ import { currentWorkspace } from "@/lib/supabase/workspace";
 import { todayInTZ } from "@/lib/timezone";
 import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
 import { LifeClock } from "@/components/life-clock";
+import { ProgressHalo } from "@/components/progress-halo";
+import "./home-next.css";
 import { safeNextPath } from "@/lib/auth-routing";
 
 type Task={
@@ -289,21 +291,30 @@ export default function Home(){
     return <main className="page-root"><div className="hero-card"><div><div className="hero-kicker">PERSONAL + FAMILY COMMAND CENTER</div><h2>Sign in required.</h2><p>LifeOS is private. Redirecting to the owner login.</p></div><Link href="/login" className="primary-btn" style={{position:"relative",zIndex:2}}>Sign in</Link></div></main>;
   }
 
-  return <main className="page-root">
+  return <main className="page-root home-next">
     {error&&<p className="mb-4 rounded-xl border border-red-400/20 bg-red-400/10 p-3 text-sm text-red-200">{error}</p>}
 
-    <div className="hero-card">
-      <div>
-        <div className="hero-kicker">TODAY&apos;S MISSION</div>
-        <h2>Do the right thing first.</h2>
-        <p>LifeOS keeps money, work, health, family and long-term goals visible until the important things are actually done.</p>
+    <section className="home-next-hero" aria-label="Daily LifeOS overview">
+      <div className="home-next-hero-top">
+        <span className="home-next-overline">✳ YOUR PERSONAL COMMAND CENTER</span>
+        <Link href="/today" className="home-next-todaylink">Open today's plan <span aria-hidden="true">↗</span></Link>
       </div>
-      {lifeScoreEnabled&&<div className="life-score">
-        <div className="ring" style={{"--p":scores.life} as React.CSSProperties}><span>{scores.life}%</span></div>
-        <small>Life Score<br/><span style={{opacity:.6}}>directional</span></small>
-      </div>}
-    </div>
-
+      <div className="home-next-hero-main">
+        <div className="home-next-hero-copy">
+          <span className="home-next-date">A little progress, every day.</span>
+          <h2>Make today<br/><em>count.</em></h2>
+          <p>A clear view of what matters most — your health, habits, goals, focus and the people you care about.</p>
+          <Link className="home-next-hero-cta" href="/habits">See your habits <span aria-hidden="true">→</span></Link>
+        </div>
+        {lifeScoreEnabled&&<ProgressHalo value={scores.life} label="LIFE SCORE" caption="Directional personal score"/>}
+      </div>
+      <div className="home-next-quickstats" aria-label="Daily snapshot">
+        <Link href="/habits" className="home-next-quickstat"><span className="home-next-stat-icon green">✓</span><div><strong>{allHabitDone}<small> / {habits.length}</small></strong><span>Habits completed</span></div><span aria-hidden="true">↗</span></Link>
+        <Link href="/today" className="home-next-quickstat"><span className="home-next-stat-icon orange">✦</span><div><strong>{completedWeek}</strong><span>Tasks done this week</span></div><span aria-hidden="true">↗</span></Link>
+        <Link href="/focus" className="home-next-quickstat"><span className="home-next-stat-icon purple">◷</span><div><strong>{Math.floor(focusWeek/60)}h {focusWeek%60}m</strong><span>Weekly focus</span></div><span aria-hidden="true">↗</span></Link>
+      </div>
+    </section>
+    <div className="home-next-section-title"><div><span>YOUR LIFE, AT A GLANCE</span><h2>Daily overview</h2></div><Link href="/progress">All progress →</Link></div>
     <div className="grid g4 mt">
       {show("money")&&<Link href="/money" className="metric-card accent-red"><span>Money overdue</span><strong>{aed(money.overdue)}</strong><small>{money.count} overdue account{money.count===1?"":"s"}</small></Link>}
       {show("health")&&<Link href="/health" className="metric-card accent-green"><span>Health today</span><strong>{healthDone} / {healthHabits.length}</strong><small>{scores.health}% health habits completed</small></Link>}
