@@ -274,3 +274,20 @@
   .habits-v2 .habit-toggle { transition: none; }
   .habits-v2 .habit-card:hover, .habits-v2 .habit-add-btn:hover { transform: none; }
 }
+
+
+/* The reference app keeps the progress visualization centered on narrow phones. */
+.habits-v2 .habit-card[data-area="Business"] .habit-category-icon{background:#eaf0ff}
+.habits-v2 .habit-card[data-area="Family"] .habit-category-icon{background:#fff1f5}
+.habits-v2 .habit-card[data-area="Growth"] .habit-category-icon{background:#f5ebff}
+.habits-v2 .habit-card[data-area="Europe"] .habit-category-icon{background:#e7f9fa}
+.habits-v2 .habit-card[data-area="Self-control"] .habit-category-icon{background:#fff3e0}
+:root:not([data-theme="light"]) .habits-v2 .habit-card .habit-category-icon{background:#1e4338}
+@media(max-width:680px){
+ .habits-v2 .habit-summary{flex-direction:column-reverse;align-items:center;text-align:center;gap:5px;padding:18px 20px 20px}
+ .habits-v2 .habit-summary-copy{max-width:310px}
+ .habits-v2 .habit-summary .lifeos-halo-compact{width:min(100%,275px)}
+ .habits-v2 .habit-summary h2{font-size:22px}
+ .habits-v2 .habit-summary-label{font-size:10px;letter-spacing:.1em}
+ .habits-v2 .habit-summary p{font-size:12px;line-height:1.5}
+}
