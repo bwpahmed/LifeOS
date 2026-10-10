@@ -1,91 +1,140 @@
 "use client";
 
-import { useEffect,useState } from "react";
-import { supabaseBrowser,supabaseEmailAuthClient } from "@/lib/supabase/client";
-import { Panel } from "@/components/ui";
+import { FormEvent, useEffect, useState } from "react";
+import { supabaseBrowser, supabaseEmailAuthClient } from "@/lib/supabase/client";
 import { safeNextPath } from "@/lib/auth-routing";
+import "./login-premium.css";
 
-const LIFEOS_EMAIL="bwpahmed@gmail.com";
+type Message = { text: string; type: "info" | "error" | "success" };
 
-export default function LoginPage(){
-  const[email]=useState(LIFEOS_EMAIL);
-  const[password,setPassword]=useState("");
-  const[msg,setMsg]=useState("");
-  const[loading,setLoading]=useState(false);
-  const[showPassword,setShowPassword]=useState(false);
-  const[nextPath,setNextPath]=useState("/");
+function readableAuthError(error: unknown) {
+  const message = error instanceof Error ? error.message : "Unable to sign in. Please try again.";
+  if (/invalid login credentials/i.test(message)) return "Email or password is incorrect. Check both fields, or reset your password.";
+  if (/email not confirmed/i.test(message)) return "Please confirm your email address before signing in.";
+  if (/rate limit|too many requests|security purposes/i.test(message)) return "Too many attempts. Please wait a few minutes before trying again.";
+  if (/failed to fetch|network|fetch failed|load failed/i.test(message)) return "Could not connect to LifeOS. Check your connection and try again.";
+  return message;
+}
 
-  useEffect(()=>{
-    const params=new URLSearchParams(location.search);
+export default function LoginPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [message, setMessage] = useState<Message | null>(null);
+  const [loading, setLoading] = useState<"password" | "reset" | "magic" | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [nextPath, setNextPath] = useState("/");
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
     setNextPath(safeNextPath(params.get("next")));
-    const err=params.get("error");
-    if(err==="auth_callback")setMsg("Sign-in link expired or could not be verified. Send a fresh magic/reset link below.");
-    if(err==="missing_code")setMsg("That sign-in link is incomplete. Send a fresh magic/reset link below.");
-  },[]);
+    if (params.get("error") === "auth_callback")
+      setMessage({text:"This sign-in link has expired or could not be verified. Request a new link below.", type:"error"});
+    if (params.get("error") === "missing_code")
+      setMessage({text:"This sign-in link is incomplete. Request a fresh link below.", type:"error"});
+  }, []);
 
-  async function signIn(){
-    setLoading(true);setMsg("");
-    try{
-      const sb=supabaseBrowser();
-      const{error}=await sb.auth.signInWithPassword({email,password});
-      if(error)throw error;
+  async function signIn(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (loading) return;
+    setLoading("password"); setMessage(null);
+    try {
+      const sb = supabaseBrowser();
+      const { data, error } = await sb.auth.signInWithPassword({
+        email: email.trim().toLowerCase(), password
+      });
+      if (error) throw error;
+      if (!data.session) throw new Error("Sign-in did not establish a session. Try again.");
       sessionStorage.removeItem("lifeos_auth_mode");
       sessionStorage.removeItem("lifeos_auth_next");
-      location.assign(nextPath);
-    }catch(e){
-      const raw=e instanceof Error?e.message:"Sign-in failed";
-      setMsg(/invalid login credentials/i.test(raw)
-        ?"Password does not match this LifeOS account. Use “Reset password” below."
-        :raw);
-    }finally{setLoading(false);}
+      location.replace(nextPath);
+    } catch (error) {
+      setMessage({text: readableAuthError(error), type:"error"});
+      setLoading(null);
+    }
   }
 
-  async function sendPasswordReset(){
-    setLoading(true);setMsg("");
-    try{
-      const sb=supabaseEmailAuthClient();
-      sessionStorage.setItem("lifeos_auth_mode","recovery");
-      sessionStorage.setItem("lifeos_auth_next","/");
-      const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+"/"});
-      if(error)throw error;
-      setMsg("Password reset email sent. Open the newest email, set a new password, then LifeOS will return you to the dashboard.");
-    }catch(e){sessionStorage.removeItem("lifeos_auth_mode");sessionStorage.removeItem("lifeos_auth_next");setMsg(e instanceof Error?e.message:"Could not send password reset email");}
-    finally{setLoading(false);}
-  }
-
-  async function magicLink(){
-    setLoading(true);setMsg("");
-    try{
-      const sb=supabaseEmailAuthClient();
-      sessionStorage.setItem("lifeos_auth_mode","magic");
-      sessionStorage.setItem("lifeos_auth_next",nextPath);
-      const{error}=await sb.auth.signInWithOtp({
-        email,
-        options:{emailRedirectTo:location.origin+"/",shouldCreateUser:false}
+  async function sendPasswordReset() {
+    if (!email.trim() || loading) return;
+    setLoading("reset"); setMessage(null);
+    try {
+      const sb = supabaseEmailAuthClient();
+      sessionStorage.setItem("lifeos_auth_mode", "recovery");
+      sessionStorage.setItem("lifeos_auth_next", "/");
+      const {error} = await sb.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+        redirectTo: location.origin + "/"
       });
-      if(error)throw error;
-      setMsg("Magic sign-in link sent to your Gmail.");
-    }catch(e){sessionStorage.removeItem("lifeos_auth_mode");sessionStorage.removeItem("lifeos_auth_next");setMsg(e instanceof Error?e.message:"Magic-link sign-in failed");}
-    finally{setLoading(false);}
+      if (error) throw error;
+      setMessage({text:"If this email belongs to a LifeOS account, a reset link has been requested. Open the latest email to set a new password.", type:"success"});
+    } catch (error) {
+      sessionStorage.removeItem("lifeos_auth_mode");
+      sessionStorage.removeItem("lifeos_auth_next");
+      setMessage({text:readableAuthError(error), type:"error"});
+    } finally { setLoading(null); }
   }
 
-  return <main className="mx-auto max-w-md pt-8">
-    <Panel title="Sign in to LifeOS" kicker="PRIVATE OWNER ACCOUNT">
-      <p className="mb-4 text-sm text-slate-400">Sign in first. After authentication LifeOS opens your private dashboard and cloud-synced modules.</p>
-      <label className="text-xs text-slate-400">Email
-        <input value={email} readOnly type="email" autoComplete="username" className="mt-1 w-full rounded-lg border border-white/10 bg-[#0a1524] p-2 opacity-80"/>
-      </label>
-      <label className="mt-3 block text-xs text-slate-400">Password
-        <div className="mt-1 flex gap-2">
-          <input value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&password.length>0)void signIn();}} type={showPassword?"text":"password"} autoComplete="current-password" className="min-w-0 flex-1 rounded-lg border border-white/10 bg-[#0a1524] p-2"/>
-          <button type="button" onClick={()=>setShowPassword(v=>!v)} className="ghost-btn">{showPassword?"Hide":"Show"}</button>
+  async function magicLink() {
+    if (!email.trim() || loading) return;
+    setLoading("magic"); setMessage(null);
+    try {
+      const sb = supabaseEmailAuthClient();
+      sessionStorage.setItem("lifeos_auth_mode", "magic");
+      sessionStorage.setItem("lifeos_auth_next", nextPath);
+      const {error} = await sb.auth.signInWithOtp({
+        email: email.trim().toLowerCase(),
+        options: {emailRedirectTo: location.origin + "/", shouldCreateUser:false}
+      });
+      if (error) throw error;
+      setMessage({text:"If your account is eligible, a sign-in link has been requested. Check your inbox.", type:"success"});
+    } catch (error) {
+      sessionStorage.removeItem("lifeos_auth_mode");
+      sessionStorage.removeItem("lifeos_auth_next");
+      setMessage({text:readableAuthError(error), type:"error"});
+    } finally { setLoading(null); }
+  }
+
+  return (
+    <main className="lifeos-signin">
+      <div className="lifeos-signin-backdrop" aria-hidden="true"><span/><span/><span/></div>
+      <section className="lifeos-signin-card" aria-labelledby="signin-title">
+        <div className="lifeos-signin-art" aria-hidden="true">
+          <div className="lifeos-signin-brand"><span className="lifeos-signin-logo">✳</span> LifeOS <span className="lifeos-signin-brand-pill">Personal space</span></div>
+          <div className="lifeos-signin-art-inner">
+            <span className="lifeos-signin-art-kicker">YOUR DAY, IN BALANCE</span>
+            <h2>Make space for<br/><em>what matters.</em></h2>
+            <p>Your goals, habits, health and plans, beautifully together in one private place.</p>
+            <div className="lifeos-signin-art-preview">
+              <span className="lifeos-signin-preview-dots">● ● ● ● ● ● ● ● ● ● ● ● ● ● ● ● ● ● ●</span>
+              <strong>Every day counts.</strong><small>A calmer, clearer way to grow.</small>
+            </div>
+          </div>
+          <span className="lifeos-signin-art-foot">PRIVATE BY DESIGN · SYNCED WITH YOUR WORKSPACE</span>
         </div>
-      </label>
-      <button onClick={signIn} disabled={loading||password.length===0} className="mt-3 w-full rounded-lg bg-[#77adff] p-2 font-bold text-[#06101f] disabled:opacity-50">{loading?"Working…":"Sign in"}</button>
-      <button onClick={sendPasswordReset} disabled={loading} className="mt-2 w-full rounded-lg border border-white/10 p-2 text-sm">Reset password</button>
-      <button onClick={magicLink} disabled={loading} className="mt-2 w-full rounded-lg border border-white/10 p-2 text-sm">Send magic sign-in link</button>
-      {msg&&<p role="status" className="mt-3 rounded-lg border border-white/10 p-3 text-sm text-slate-300">{msg}</p>}
-      <p className="mt-3 text-xs text-slate-500">Your password goes directly to Supabase Auth and is never stored by LifeOS application tables.</p>
-    </Panel>
-  </main>;
+        <div className="lifeos-signin-main">
+          <div className="lifeos-signin-mobile-logo"><span>✳</span> LifeOS</div>
+          <span className="lifeos-signin-eyebrow">WELCOME BACK</span>
+          <h1 id="signin-title">Your space awaits.</h1>
+          <p className="lifeos-signin-intro">Sign in securely to pick up right where you left off.</p>
+          <form onSubmit={signIn} className="lifeos-signin-form">
+            <label htmlFor="lifeos-email">Email address</label>
+            <input id="lifeos-email" type="email" inputMode="email" autoComplete="username" autoCapitalize="none" spellCheck={false}
+              required value={email} onChange={e=>setEmail(e.target.value)}
+              placeholder="you@example.com" disabled={loading!==null}/>
+            <div className="lifeos-signin-password-label"><label htmlFor="lifeos-password">Password</label><button type="button" onClick={()=>void sendPasswordReset()} disabled={loading!==null||!email.trim()} className="lifeos-signin-link">Forgot password?</button></div>
+            <div className="lifeos-signin-password-wrap">
+              <input id="lifeos-password" type={showPassword?"text":"password"} autoComplete="current-password" required value={password}
+                onChange={e=>setPassword(e.target.value)} placeholder="Enter your password" disabled={loading!==null}/>
+              <button type="button" onClick={()=>setShowPassword(v=>!v)} aria-label={showPassword?"Hide password":"Show password"} aria-pressed={showPassword} disabled={loading!==null}>{showPassword?"Hide":"Show"}</button>
+            </div>
+            <button type="submit" className="lifeos-signin-primary" disabled={loading!==null||!password||!email.trim()}>{loading==="password"?"Signing you in…":"Sign in to LifeOS"} <span aria-hidden="true">→</span></button>
+          </form>
+          <div className="lifeos-signin-divider"><span>or continue with</span></div>
+          <button type="button" className="lifeos-signin-alternative" disabled={loading!==null||!email.trim()} onClick={()=>void magicLink()}>
+            <span aria-hidden="true">✉</span> {loading==="magic"?"Sending…":"Email sign-in link"}
+          </button>
+          {message&&<p role="status" aria-live="polite" className={"lifeos-signin-message "+message.type}>{message.text}</p>}
+          <p className="lifeos-signin-note">No new account is created here. Only people with authorized LifeOS access can sign in.</p>
+        </div>
+      </section>
+    </main>
+  );
 }
