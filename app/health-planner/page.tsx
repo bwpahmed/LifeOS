@@ -138,7 +138,7 @@ function HealthPlannerContent(){
  const today=todayInTZ(),dow=dayIsoIndex();
  const todayWater=waterTotalForDate(water,today);
  const waterRoutine=routines.find(r=>r.kind==="water"&&r.active);
- const waterGoal=Number(waterRoutine?.details?.daily_goal_ml||2500);
+ const waterGoal=Number((waterRoutine||routines.find(r=>r.kind==="water"))?.details?.daily_goal_ml||2500);
  const activeToday=activeForIsoDay(routines,dow);
  const logKey=new Set(logs.filter(l=>l.date===today&&l.status==="done").map(l=>l.routine_id+"|"+l.scheduled_time));
  const todayMeals=meals.filter(m=>m.active&&(m.days_of_week||[]).includes(dow));
