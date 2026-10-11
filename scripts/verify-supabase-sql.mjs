@@ -72,6 +72,8 @@ const nutritionGuardrails=[
   "food intake own insert",
   "food intake own update",
   "food intake own delete",
+  "grant select,insert,update,delete on table public.food_intake_logs to authenticated",
+  "alter publication supabase_realtime add table public.food_intake_logs",
   "check (quantity_g > 0 and quantity_g <= 5000)"
 ];
 for(const fragment of nutritionGuardrails){
