@@ -64,3 +64,31 @@
 @media(max-width:650px){.lifeos-quick-title h2{font-size:25px}.lifeos-quick-cards{grid-template-columns:1fr;gap:9px}.lifeos-quick-card{padding:15px;border-radius:18px}.lifeos-quick-rows{max-height:unset}.lifeos-quick-habit-grid{grid-template-columns:1fr 1fr;gap:6px}.lifeos-quick-habits{padding:13px}.lifeos-quick-habit{padding:9px}.lifeos-quick-habit strong{font-size:11px}.lifeos-quick-habit small{font-size:9px}}
 @media(max-width:370px){.lifeos-quick-habit-grid{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.lifeos-home-quick *{animation:none!important;transition:none!important;transform:none!important}}
+
+/* Medicine adherence is first-class: visible urgency, not just a Taken button. */
+.lifeos-quick-card.medicine-attention{border-color:#efb7a5;box-shadow:0 0 0 1px rgba(224,119,78,.12),0 13px 31px rgba(120,64,37,.075)}
+.lifeos-med-status{display:flex;flex-direction:column;gap:3px;margin:12px 0;padding:11px;border:1px solid var(--line);border-radius:12px;background:var(--panel2)}
+.lifeos-med-status>strong{font-size:13px;font-weight:640;line-height:1.4}
+.lifeos-med-status>span{font-size:10px;color:var(--muted);letter-spacing:0}
+.lifeos-med-status .lifeos-med-alert{color:#ba4c36!important}
+.lifeos-med-status .lifeos-med-soon{color:#b5760f!important}
+.lifeos-med-status .lifeos-med-clear{color:#089c70!important}
+.lifeos-med-status .lifeos-med-calm{color:var(--text)!important}
+.lifeos-med-row.state-overdue{border-color:#e9ae9c;background:rgba(225,105,77,.07)}
+.lifeos-med-row.state-due-now{border-color:#f2b36f;background:rgba(243,177,93,.08)}
+.lifeos-med-row.state-due-soon{border-color:#e9d49b;background:rgba(242,199,87,.055)}
+.lifeos-med-row.state-taken{border-color:#c0e9d4;opacity:.8}
+.lifeos-med-row.state-overdue small,.lifeos-med-row.state-due-now small{color:#bb563e}
+.lifeos-med-row.state-due-soon small{color:#b07824}
+.lifeos-med-list{max-height:320px}
+.lifeos-med-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+.lifeos-med-actions>button,.lifeos-med-actions>a{
+ border:1px solid var(--line);background:var(--panel2);border-radius:10px;padding:8px 10px;
+ color:#139574;font-size:10px;font-weight:600;min-height:35px;display:inline-flex;align-items:center
+}
+.lifeos-med-setup{margin-top:12px;padding:12px;background:var(--panel2);border:1px solid var(--line);border-radius:13px;display:grid;gap:9px}
+.lifeos-med-setup label{font-size:11px;color:var(--muted);font-weight:520}
+.lifeos-med-setup :is(input,select){width:100%;display:block;margin-top:4px;background:var(--panel);border-radius:10px;border:1px solid var(--line);padding:9px 10px;min-height:40px;color:var(--text)}
+.lifeos-med-setup button{background:#0aaf80;color:white;font-size:12px;border:0;border-radius:10px;padding:10px}
+.lifeos-med-setup small{font-size:10px;color:var(--muted);line-height:1.6}
+@media(prefers-reduced-motion:reduce){.lifeos-med-row{animation:none!important}}
