@@ -32,8 +32,9 @@ export function NutritionIntakePanel(){
  const [expanded,setExpanded]=useState(false);
  const today=todayInTZ();
  const selected=getFood(foodKey);
+ const selectedMatches=!search.trim()||!!selected&&(selected.name+" "+selected.group).toLowerCase().includes(search.trim().toLowerCase());
  const grams=Number(amount)*(!custom&&unit==="serving"&&selected?.servingGrams?selected.servingGrams:1);
- const estimated=selected&&Number.isFinite(grams)&&grams>0&&grams<=5000?estimateFood(selected,grams):{};
+ const estimated=selected&&selectedMatches&&Number.isFinite(grams)&&grams>0&&grams<=5000?estimateFood(selected,grams):{};
  const load=useCallback(async()=>{
   try{
    const sb=supabaseBrowser(),ctx=await currentWorkspace(sb);
@@ -69,6 +70,7 @@ export function NutritionIntakePanel(){
   setError("");setNotice("");
   const quantity=Number(amount);
   if(!Number.isFinite(quantity)||quantity<=0||!Number.isFinite(grams)||grams<=0||grams>5000){setError("Enter a valid food quantity between 1 and 5000 g.");return;}
+  if(!custom&&!selectedMatches){setError("Choose a food from the filtered list.");return;}
   const title=custom?customName.trim():selected?.name||"";
   if(!title||title.length>120){setError("Enter a food name (up to 120 characters).");return;}
   let nutrients:NutrientAmounts={};
@@ -135,13 +137,13 @@ export function NutritionIntakePanel(){
       <div className="nutrition-wide nutrition-preview">
        {custom?<span>Custom food: only user-entered nutrient numbers will be included.</span>:selected?<><span>{Math.round(grams*10)/10} g edible weight</span><b>{estimated.protein_g==null?"Protein unknown":"~"+estimated.protein_g.toFixed(1)+" g protein"}</b><small>{selected.note||"Generic composition estimate; not a precise analysis."}</small></>:<span>Choose a food above</span>}
       </div>
-      <button type="submit" className="nutrition-save nutrition-wide" disabled={saving||(!custom&&!selected)||grams<=0||grams>5000}>{saving?"Saving…":"＋ Log consumed food"}</button>
+      <button type="submit" className="nutrition-save nutrition-wide" disabled={saving||(!custom&&(!selected||!selectedMatches))||grams<=0||grams>5000}>{saving?"Saving…":"＋ Log consumed food"}</button>
      </form>
      <p className="nutrition-footnote">Recipes, cooking weight and brands change nutrients. Egg servings refer to edible egg weight; chicken has separate raw and cooked entries.</p>
     </div>
     <div className="nutrition-card">
      <div className="nutrition-card-header"><h3>Daily intake estimate</h3><span>{daily.length} entries</span></div>
-     <div className="nutrition-totals">{NUTRIENTS.map(n=><div key={n.key} className="nutrition-nutrient"><span>{n.name}</span><strong>{dailyTotals[n.key]==null?"—":dailyTotals[n.key]!.toFixed(n.key==="protein_g"||n.key==="omega3_g"?1:2)} <small>{dailyTotals[n.key]==null?"not estimated":n.unit}</small></strong></div>)}</div>
+     <div className="nutrition-totals">{NUTRIENTS.map(n=><div key={n.key} className="nutrition-nutrient"><span>{n.name}</span><strong>{dailyTotals[n.key]==null?"—":dailyTotals[n.key]!.toFixed(n.key==="protein_g"||n.key.startsWith("omega3_")?1:2)} <small>{dailyTotals[n.key]==null?"not estimated":n.unit}</small></strong></div>)}</div>
      <p className="nutrition-footnote">A dash means no estimate was available, not zero intake. Values reflect only logged foods and only nutrients present in the reference; they are not deficiency diagnoses or daily target advice. Plant ALA and marine EPA/DHA are different omega-3 forms.</p>
      <div className="nutrition-insights-header"><h4>Last 7 days · protein</h4><small>Recorded only</small></div>
      <div className="nutrition-history">{last7.map(x=><div key={x.date} className={"nutrition-history-day"+(x.date===day?" is-active":"")}>
