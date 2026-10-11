@@ -114,9 +114,6 @@ begin
   if exists(select 1 from cron.job where jobname='lifeos-health-reminders-15m') then
     perform cron.unschedule((select jobid from cron.job where jobname='lifeos-health-reminders-15m' limit 1));
   end if;
-  if exists(select 1 from cron.job where jobname='lifeos-health-reminders-owner-15m') then
-    perform cron.unschedule((select jobid from cron.job where jobname='lifeos-health-reminders-15m' limit 1));
-  end if;
   perform cron.schedule(
     'lifeos-health-reminders-15m',
     '*/15 * * * *',
