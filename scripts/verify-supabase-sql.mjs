@@ -84,3 +84,21 @@ for(const fragment of nutritionGuardrails){
 }
 if(process.exitCode)process.exit(process.exitCode);
 console.log("Food intake RLS and canonical schema guardrails passed.");
+
+const medicineReminderMigration=fs.readFileSync("supabase/migrations/20261012_personal_health_reminder_safety.sql","utf8").toLowerCase();
+for(const fragment of [
+ "r.created_by", "l.created_by=r.created_by", "l.status='done'",
+ "health_routine_logs", "lifeos-health-reminders-15m",
+ "generate_due_health_notifications"
+]){
+ if(!medicineReminderMigration.includes(fragment)){
+  console.error("Owner-safe medicine reminder guardrail missing: "+fragment);
+  process.exitCode=1;
+ }
+}
+if(medicineReminderMigration.includes("wm.user_id")||medicineReminderMigration.includes("join public.workspace_members")){
+ console.error("Medicine reminders must not broadcast to all workspace members.");
+ process.exitCode=1;
+}
+if(process.exitCode)process.exit(process.exitCode);
+console.log("Owner-scoped medicine reminder and completed-dose suppression checks passed.");
