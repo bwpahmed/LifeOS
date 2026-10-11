@@ -76,7 +76,7 @@ export function HairRecoveryTracker(){
   }catch(e){setLoaded(true);setError(e instanceof Error?e.message:"Could not load health tracking. Retry online.");}
  },[]);
  useEffect(()=>{void load();},[load]);
- useRealtimeRefresh(["health_routines","health_routine_logs","lab_results","water_logs","health_entries"],load,Boolean(workspaceId));
+ useRealtimeRefresh(["health_routines","health_routine_logs","lab_results","water_logs","health_entries","diet_plan_items"],load,Boolean(workspaceId));
 
  const today=todayInTZ();
  const completed=routines.filter(r=>r.active&&hairRoutineDone(logs,r.id,today)).length;
