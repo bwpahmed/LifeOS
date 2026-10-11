@@ -4,7 +4,7 @@ describe("Nutrition estimates from real logged consumed foods",()=>{
  it("turns three edible eggs into 150 g and estimates protein from catalog",()=>{
   const eggs=getFood("egg-boiled")!;
   expect(eggs.servingGrams).toBe(50);
-  expect(estimateFood(eggs,3*eggs.servingGrams).protein_g).toBe(18.9);
+  expect(estimateFood(eggs,3*eggs.servingGrams!).protein_g).toBe(18.9);
  });
  it("calculates cooked chicken weighed after cooking",()=>{
   const chicken=getFood("chicken-roasted")!;
