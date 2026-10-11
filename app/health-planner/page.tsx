@@ -12,7 +12,7 @@ import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
 import { todayInTZ } from "@/lib/timezone";
 import { activeForIsoDay,clampWaterGoal,parseReminderTimes,sleepMinutes,waterTotalForDate } from "@/lib/health-planner";
 
-type Routine={id:string;kind:string;title:string;details:Record<string,any>;reminder_times:string[];days_of_week:number[];active:boolean;start_date:string|null;end_date:string|null};
+type Routine={id:string;created_by:string;kind:string;title:string;details:Record<string,any>;reminder_times:string[];days_of_week:number[];active:boolean;start_date:string|null;end_date:string|null};
 type RoutineLog={id:string;routine_id:string;date:string;scheduled_time:string;status:string;value:number|null;unit:string|null;note:string|null;completed_at:string|null};
 type WaterLog={id:string;date:string;amount_ml:number;created_at:string};
 type Meal={id:string;meal_type:string;meal_time:string|null;title:string;details:string|null;calories:number|null;protein_g:number|null;days_of_week:number[];active:boolean};
@@ -32,12 +32,12 @@ function HealthPlannerContent(){
  const[bedTime,setBedTime]=useState("23:00");const[wakeTime,setWakeTime]=useState("07:00");const[sleepQuality,setSleepQuality]=useState(7);const[sleepNote,setSleepNote]=useState("");
 
  const load=useCallback(async()=>{try{const sb=supabaseBrowser();const ctx=await currentWorkspace(sb);if(!ctx){setWorkspaceId("");return;}setWorkspaceId(ctx.workspaceId);setUserId(ctx.user.id);const[r,l,w,m,s]=await Promise.all([
-   sb.from("health_routines").select("id,kind,title,details,reminder_times,days_of_week,active,start_date,end_date").eq("workspace_id",ctx.workspaceId).order("created_at",{ascending:true}),
+   sb.from("health_routines").select("id,created_by,kind,title,details,reminder_times,days_of_week,active,start_date,end_date").eq("workspace_id",ctx.workspaceId).order("created_at",{ascending:true}),
    sb.from("health_routine_logs").select("id,routine_id,date,scheduled_time,status,value,unit,note,completed_at").eq("workspace_id",ctx.workspaceId).gte("date",new Date(Date.now()-30*86400000).toISOString().slice(0,10)).order("date",{ascending:false}),
-   sb.from("water_logs").select("id,date,amount_ml,created_at").eq("workspace_id",ctx.workspaceId).gte("date",new Date(Date.now()-30*86400000).toISOString().slice(0,10)).order("created_at",{ascending:false}),
+   sb.from("water_logs").select("id,date,amount_ml,created_at").eq("workspace_id",ctx.workspaceId).eq("created_by",ctx.user.id).gte("date",new Date(Date.now()-30*86400000).toISOString().slice(0,10)).order("created_at",{ascending:false}),
    sb.from("diet_plan_items").select("id,meal_type,meal_time,title,details,calories,protein_g,days_of_week,active").eq("workspace_id",ctx.workspaceId).order("meal_time",{ascending:true,nullsFirst:false}),
    sb.from("sleep_sessions").select("id,date,bed_time,wake_time,duration_min,quality,note").eq("workspace_id",ctx.workspaceId).order("date",{ascending:false}).limit(60)
-  ]);for(const q of[r,l,w,m,s])if(q.error)throw q.error;const routineRows=(r.data||[]) as Routine[];setRoutines(routineRows);const wr=routineRows.find(x=>x.kind==="water"&&x.active)||routineRows.find(x=>x.kind==="water");if(wr?.details?.daily_goal_ml)setWaterGoalInput(Number(wr.details.daily_goal_ml));setLogs((l.data||[]) as RoutineLog[]);setWater((w.data||[]) as WaterLog[]);setMeals((m.data||[]) as Meal[]);setSleep((s.data||[]) as Sleep[]);
+  ]);for(const q of[r,l,w,m,s])if(q.error)throw q.error;const routineRows=(r.data||[]) as Routine[];setRoutines(routineRows);const wr=routineRows.find(x=>x.kind==="water"&&x.created_by===ctx.user.id&&x.active)||routineRows.find(x=>x.kind==="water"&&x.created_by===ctx.user.id);if(wr?.details?.daily_goal_ml)setWaterGoalInput(Number(wr.details.daily_goal_ml));setLogs((l.data||[]) as RoutineLog[]);setWater((w.data||[]) as WaterLog[]);setMeals((m.data||[]) as Meal[]);setSleep((s.data||[]) as Sleep[]);
  }catch(e){setError(e instanceof Error?e.message:"Could not load health planner");}},[]);
  useEffect(()=>{void load();},[load]);useRealtimeRefresh(["health_routines","health_routine_logs","water_logs","diet_plan_items","sleep_sessions"],load,Boolean(workspaceId));
  function toggleDay(list:number[],setList:(next:number[])=>void,day:number){setList(list.includes(day)?list.filter(x=>x!==day):[...list,day].sort((a,b)=>a-b));}
@@ -85,7 +85,7 @@ function HealthPlannerContent(){
   catch(e){setError(e instanceof Error?e.message:"Unable to undo water entry.");}
   finally{setWaterBusy(false);}
  }
- async function saveWaterGoal(){if(!workspaceId||!userId)return;const goal=clampWaterGoal(waterGoalInput);const sb=supabaseBrowser();const existing=routines.find(r=>r.kind==="water");if(existing){const{error:q}=await sb.from("health_routines").update({details:{...(existing.details||{}),daily_goal_ml:goal,default_amount_ml:Number(existing.details?.default_amount_ml||250)},updated_at:new Date().toISOString()}).eq("id",existing.id);if(q){setError(q.message);return;}}else{const{error:q}=await sb.from("health_routines").insert({workspace_id:workspaceId,created_by:userId,kind:"water",title:"Drink water",details:{daily_goal_ml:goal,default_amount_ml:250},reminder_times:["09:00","11:00","13:00","15:00","17:00","19:00"],days_of_week:[1,2,3,4,5,6,7],active:true,start_date:todayInTZ()});if(q){setError(q.message);return;}}setMsg("Water target saved.");await load();}
+ async function saveWaterGoal(){if(!workspaceId||!userId)return;const goal=clampWaterGoal(waterGoalInput);const sb=supabaseBrowser();const existing=routines.find(r=>r.kind==="water"&&r.created_by===userId);if(existing){const{error:q}=await sb.from("health_routines").update({details:{...(existing.details||{}),daily_goal_ml:goal,default_amount_ml:Number(existing.details?.default_amount_ml||250)},updated_at:new Date().toISOString()}).eq("id",existing.id);if(q){setError(q.message);return;}}else{const{error:q}=await sb.from("health_routines").insert({workspace_id:workspaceId,created_by:userId,kind:"water",title:"Drink water",details:{daily_goal_ml:goal,default_amount_ml:250},reminder_times:["09:00","11:00","13:00","15:00","17:00","19:00"],days_of_week:[1,2,3,4,5,6,7],active:true,start_date:todayInTZ()});if(q){setError(q.message);return;}}setMsg("Water target saved.");await load();}
  async function ensureSleepReminder(){if(!workspaceId||!userId)return;const sb=supabaseBrowser();const existing=routines.find(r=>r.kind==="sleep");const payload={title:"Sleep reminder",details:{target_hours:8,note:"Bedtime reminder"},reminder_times:[bedTime],days_of_week:[1,2,3,4,5,6,7],active:true,start_date:todayInTZ(),updated_at:new Date().toISOString()};const q=existing?await sb.from("health_routines").update(payload).eq("id",existing.id):await sb.from("health_routines").insert({...payload,workspace_id:workspaceId,created_by:userId,kind:"sleep"});if(q.error)setError(q.error.message);else{setMsg("Sleep reminder saved.");await load();}}
  async function addMeal(e:FormEvent){
   e.preventDefault();
@@ -138,8 +138,8 @@ function HealthPlannerContent(){
 
  const today=todayInTZ(),dow=dayIsoIndex();
  const todayWater=waterTotalForDate(water,today);
- const waterRoutine=routines.find(r=>r.kind==="water"&&r.active);
- const waterGoal=Number((waterRoutine||routines.find(r=>r.kind==="water"))?.details?.daily_goal_ml||2500);
+ const waterRoutine=routines.find(r=>r.kind==="water"&&r.created_by===userId&&r.active);
+ const waterGoal=Number((waterRoutine||routines.find(r=>r.kind==="water"&&r.created_by===userId))?.details?.daily_goal_ml||2500);
  const activeToday=activeForIsoDay(routines,dow);
  const logKey=new Set(logs.filter(l=>l.date===today&&l.status==="done").map(l=>l.routine_id+"|"+l.scheduled_time));
  const todayMeals=meals.filter(m=>m.active&&(m.days_of_week||[]).includes(dow));
