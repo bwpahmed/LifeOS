@@ -136,7 +136,7 @@ export async function GET(request: Request) {
         .neq("status", "Ready")
         .gte("expiry_date", local.date),
       admin.from("health_routines")
-        .select("id,workspace_id,kind,title,details,reminder_times,days_of_week,active,start_date,end_date")
+        .select("id,workspace_id,created_by,kind,title,details,reminder_times,days_of_week,active,start_date,end_date")
         .in("workspace_id", workspaceIds)
         .eq("active", true),
     ]);
@@ -233,6 +233,9 @@ export async function GET(request: Request) {
 
 
     for (const routine of healthRoutines || []) {
+      // Health routines are owned by one person, even inside a shared workspace.
+      // Daily backup cron must not issue all-day health alerts before the due time.
+      if (dailyMode || routine.created_by !== userId) continue;
       if (routine.start_date && routine.start_date > local.date) continue;
       if (routine.end_date && routine.end_date < local.date) continue;
       const days = Array.isArray(routine.days_of_week) ? routine.days_of_week.map(Number) : [1,2,3,4,5,6,7];
