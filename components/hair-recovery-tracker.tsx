@@ -18,6 +18,9 @@ const TRACKING_IDEAS=[
  {title:"Hair care / serum routine",category:"care",description:"Only log treatments that your clinician has approved."},
  {title:"Hair shedding observation",category:"observation",description:"Note changes without estimating missing measurements."},
  {title:"Scalp procedure check-in",category:"procedure",description:"Only if specifically advised by a dermatologist."},
+ {title:"Doctor-approved topical routine",category:"care",description:"Track actual use only after a clinician prescribes the product."},
+ {title:"Discuss lab results with clinician",category:"consultation",description:"Record that you discussed your test results, not an automatic diagnosis."},
+ {title:"Monthly hair photo review",category:"evidence",description:"Compare existing private hair photos under consistent conditions."},
 ];
 const FOOD_GROUPS=[
  ["Iron","Mutton, chicken, eggs, spinach, rajma, chana, sesame seeds"],
