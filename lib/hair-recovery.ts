@@ -13,7 +13,9 @@ export const HAIR_LAB_CHECKLIST=[
  {id:"b12",name:"Vitamin B12",keywords:["vitamin b12","b12","cobalamin"]},
  {id:"folate",name:"Folate (B9)",keywords:["folate","folic acid","vitamin b9"]},
  {id:"zinc",name:"Serum zinc",keywords:["serum zinc","zinc"]},
- {id:"cmp",name:"CMP / LFT / KFT",keywords:["cmp","comprehensive metabolic","lft","liver function","kft","kidney function","renal function"]},
+ {id:"cmp",name:"CMP",keywords:["cmp","comprehensive metabolic"]},
+ {id:"lft",name:"LFT",keywords:["lft","liver function"]},
+ {id:"kft",name:"KFT",keywords:["kft","kidney function","renal function"]},
 ] as const;
 
 export type HairLab={test_name:string;date:string;result:string|null;unit:string|null;ref_range?:string|null};
