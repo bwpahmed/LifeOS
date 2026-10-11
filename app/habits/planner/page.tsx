@@ -177,7 +177,7 @@ export default function HabitPlannerPage(){
   {error&&<p className="hp-alert" role="alert">{error}</p>}
   {notice&&<p className="hp-message" role="status">{notice}</p>}
   {!loaded?<div className="hp-empty">Loading your private workspace…</div>:
-  !workspaceId?<div className="hp-empty">Sign in to use your cloud habit planner. <Link href="/login">Login →</Link></div>:
+  !workspaceId?<div className="hp-empty">Restoring your private LifeOS workspace. Please retry if the connection is unavailable. <button className="hp-outline" type="button" onClick={()=>void reload()}>Retry</button></div>:
   <>
    <section className="hp-stats" aria-label="Progress overview">
     <div className="hp-stat hp-primary"><span>TODAY'S SCORE</span><strong>{todayStats.total?Math.round(todayStats.done/todayStats.total*100):0}%</strong><small>{todayStats.done} of {todayStats.total} planned habits done</small></div>
