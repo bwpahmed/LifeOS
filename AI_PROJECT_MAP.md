@@ -123,3 +123,14 @@ Before creating new logic:
 - **Archify source:** `.ai/architecture/system.architecture.json`.
 - **Archify HTML:** may be generated from the source for human review.
 - Never edit a derived graph/diagram to “make reality true”; change the implementation or this canonical map, then regenerate.
+
+
+### Habit Planner / Tracker (added 2026-10-11)
+- **Canonical cloud data:** existing \`supabase/schema.sql\` tables \`habits\` (workspace/owner/schedule/target/privacy) and \`habit_logs\` (habit/date/value), covered by existing RLS. No new schema.
+- **Original tracker:** \`app/habits/page.tsx\` (create habits, daily completion, built-in offline upserts, period metrics).
+- **Advanced planner:** \`app/habits/planner/page.tsx\` (read/write through \`supabaseBrowser\`, resolve membership using \`currentWorkspace\`, target the current workspace, week/date planner, backfill/undo, starter habits, editing, trend analytics).
+- **Shared pure schedule projections:** \`lib/habit-planner.ts\` (period/week math and forecast), tested by \`lib/habit-planner.test.ts\`. Preserve and reuse \`lib/habits.ts\` for canonical streak/consistency/recovery calculations.
+- **Real-time refresh:** existing \`useRealtimeRefresh(["habits","habit_logs"], ...)\`; no parallel habit store.
+- **Offline:** existing \`/habits\` page remains the offline write-queue implementation; advanced planner is online-only for mutations, rather than introducing a second offline queue. Its error message must not claim new writes are queued.
+- **Reminders / health / goals:** continue to live in \`/automations\`, \`/notifications\`, \`/health-planner\`, and \`/goals\`. The planner links to them; it does not introduce a second notification dispatcher or duplicate health/goal facts.
+- **Release verification:** unauthenticated/real-account UI smoke QA is still required; link/PR merges do not prove user data interactions without project access.
