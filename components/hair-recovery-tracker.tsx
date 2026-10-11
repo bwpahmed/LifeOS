@@ -56,10 +56,10 @@ export function HairRecoveryTracker(){
    const start=shift(todayInTZ(),-89);
    const [r,l,b,w,h]=await Promise.all([
     sb.from("health_routines").select("id,title,kind,details,active,created_by").eq("workspace_id",ctx.workspaceId).eq("created_by",ctx.user.id).eq("kind","other"),
-    sb.from("health_routine_logs").select("routine_id,date,status").eq("workspace_id",ctx.workspaceId).gte("date",start),
-    sb.from("lab_results").select("test_name,date,result,unit,ref_range").eq("workspace_id",ctx.workspaceId).order("date",{ascending:false}).limit(200),
-    sb.from("water_logs").select("date,amount_ml").eq("workspace_id",ctx.workspaceId).gte("date",shift(todayInTZ(),-13)),
-    sb.from("health_entries").select("date,protein").eq("workspace_id",ctx.workspaceId).order("date",{ascending:false}).limit(30)
+    sb.from("health_routine_logs").select("routine_id,date,status").eq("workspace_id",ctx.workspaceId).eq("created_by",ctx.user.id).gte("date",start),
+    sb.from("lab_results").select("test_name,date,result,unit,ref_range").eq("workspace_id",ctx.workspaceId).eq("created_by",ctx.user.id).order("date",{ascending:false}).limit(200),
+    sb.from("water_logs").select("date,amount_ml").eq("workspace_id",ctx.workspaceId).eq("created_by",ctx.user.id).gte("date",shift(todayInTZ(),-13)),
+    sb.from("health_entries").select("date,protein").eq("workspace_id",ctx.workspaceId).eq("created_by",ctx.user.id).order("date",{ascending:false}).limit(30)
    ]);
    for(const q of [r,l,b,w,h])if(q.error)throw q.error;
    const own=((r.data||[]) as HairRoutine[]).filter(x=>x.details?.source==="lifeos-hair-recovery");
