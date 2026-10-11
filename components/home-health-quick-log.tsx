@@ -6,9 +6,9 @@ import {supabaseBrowser} from "@/lib/supabase/client";
 import {currentWorkspace} from "@/lib/supabase/workspace";
 import {useRealtimeRefresh} from "@/lib/use-realtime-refresh";
 import {habitDueOn,logDone,type PlannerHabit,type PlannerLog} from "@/lib/habit-planner";
-import {clampWaterGoal,waterTotalForDate} from "@/lib/health-planner";
+import {clampWaterGoal,waterTotalForDate,parseReminderTimes} from "@/lib/health-planner";
 import {FOOD_CATALOG,FOOD_REFERENCE_VERSION,estimateFood,getFood,totalsForFoodLogs,type FoodIntakeRecord} from "@/lib/nutrition";
-import {isRoutineTaken,ownCareRoutines,validWaterAmount,type QuickRoutine,type QuickRoutineLog} from "@/lib/home-health-quick";
+import {isRoutineTaken,ownCareRoutines,validWaterAmount,medicineDoseState,orderMedicineDoses,localHHMM,type QuickRoutine,type QuickRoutineLog} from "@/lib/home-health-quick";
 import "./home-health-quick-log.css";
 
 type WaterEntry={id:string;amount_ml:number;date:string;created_at:string};
@@ -16,7 +16,7 @@ function isoShift(day:string,n:number){const d=new Date(day+"T12:00:00Z");d.setU
 function weekday(day:string){return ((new Date(day+"T12:00:00Z").getUTCDay()+6)%7)+1;}
 const STARTER_FOODS=["egg-boiled","chicken-roasted","chicken-raw","milk","paneer","chana-cooked","lentils-boiled"];
 
-export function HomeHealthQuickLog({day}:{day:string}){
+export function HomeHealthQuickLog({day,timeZone="Asia/Dubai"}:{day:string;timeZone?:string}){
  const[workspace,setWorkspace]=useState("");
  const[owner,setOwner]=useState("");
  const[loaded,setLoaded]=useState(false);
@@ -36,6 +36,11 @@ export function HomeHealthQuickLog({day}:{day:string}){
  const[error,setError]=useState("");
  const[notice,setNotice]=useState("");
  const[showMoreHabits,setShowMoreHabits]=useState(false);
+ const[now,setNow]=useState(()=>new Date());
+ const[showMedicineSetup,setShowMedicineSetup]=useState(false);
+ const[newMedicine,setNewMedicine]=useState("");
+ const[newMedicineTime,setNewMedicineTime]=useState("09:00");
+ const[newMedicineDays,setNewMedicineDays]=useState("daily");
  const load=useCallback(async()=>{
   try{
    const sb=supabaseBrowser(),ctx=await currentWorkspace(sb);
@@ -72,6 +77,7 @@ export function HomeHealthQuickLog({day}:{day:string}){
   }catch(e){setLoaded(true);setError(e instanceof Error?e.message:"Could not load quick health actions.");}
  },[day]);
  useEffect(()=>{void load();},[load]);
+ useEffect(()=>{const timer=window.setInterval(()=>setNow(new Date()),60_000);return()=>window.clearInterval(timer);},[]);
  useRealtimeRefresh(["water_logs","health_routines","health_routine_logs","habits","habit_logs","food_intake_logs"],load,Boolean(workspace));
 
  const waterMl=waterTotalForDate(water,day);
@@ -83,8 +89,14 @@ export function HomeHealthQuickLog({day}:{day:string}){
  const selectedFood=getFood(foodKey);
  const foodGrams=Number(foodQty)*(foodUnit==="pieces"&&selectedFood?.servingGrams?selectedFood.servingGrams:1);
  const foodProtein=selectedFood&&foodGrams>0&&foodGrams<=5000?estimateFood(selectedFood,foodGrams).protein_g:null;
- const medicineSlots=medicine.flatMap(r=>r.reminder_times.filter(t=>/^([01]\d|2[0-3]):[0-5]\d$/.test(t)).map(time=>({routine:r,time})));
- const medicinesTaken=medicineSlots.filter(x=>isRoutineTaken(routineLogs,x.routine.id,day,x.time)).length;
+ const clock=localHHMM(timeZone,now);
+ const medicineSlots=orderMedicineDoses(medicine.flatMap(r=>r.reminder_times.filter(t=>/^([01]\d|2[0-3]):[0-5]\d$/.test(t)).map(time=>({
+  routine:r,time,
+  state:medicineDoseState(time,clock,isRoutineTaken(routineLogs,r.id,day,time))
+ }))));
+ const attentionDoses=medicineSlots.filter(x=>x.state==="overdue"||x.state==="due-now").length;
+ const dueSoonDoses=medicineSlots.filter(x=>x.state==="due-soon").length;
+ const medicinesTaken=medicineSlots.filter(x=>x.state==="taken").length;
  const hairDone=care.filter(r=>isRoutineTaken(routineLogs,r.id,day,"")).length;
  const visibleHabits=showMoreHabits?dueHabits:dueHabits.slice(0,4);
 
@@ -113,6 +125,25 @@ export function HomeHealthQuickLog({day}:{day:string}){
     await sb.from("health_routine_logs").upsert({routine_id:r.id,workspace_id:workspace,created_by:owner,date:day,scheduled_time:time,status:"done",completed_at:new Date().toISOString()},{onConflict:"routine_id,date,scheduled_time"});
    if(result.error)throw result.error;
   },taken?"Medicine entry removed.":"Medicine recorded as taken.");
+ }
+ function saveMedicine(e:FormEvent){
+  e.preventDefault();
+  const title=newMedicine.trim();
+  const times=parseReminderTimes(newMedicineTime);
+  if(!title||title.length>120){setError("Enter the exact name from your prescribed medicine.");return;}
+  if(times.invalid.length||times.times.length!==1){setError("Enter one valid reminder time (HH:MM).");return;}
+  if(!workspace||!owner)return;
+  const days=newMedicineDays==="weekdays"?[1,2,3,4,5]:newMedicineDays==="weekends"?[6,7]:[1,2,3,4,5,6,7];
+  void act("medicine-setup",async()=>{
+   const sb=supabaseBrowser();
+   const q=await sb.from("health_routines").insert({
+    workspace_id:workspace,created_by:owner,kind:"medicine",title,
+    details:{source:"lifeos-home-medicine",note:"User-entered prescribed reminder; no dose inferred"},
+    reminder_times:times.times,days_of_week:days,active:true,start_date:day
+   });
+   if(q.error)throw q.error;
+   setNewMedicine("");setShowMedicineSetup(false);
+  },"Medicine reminder saved. Enable device push notifications to receive alerts.");
  }
  function logCare(r:QuickRoutine){
   const done=isRoutineTaken(routineLogs,r.id,day,"");
@@ -186,16 +217,35 @@ export function HomeHealthQuickLog({day}:{day:string}){
      </form>:<p className="lifeos-quick-help">Food logs activate after the private Supabase nutrition migration is applied. No fake entries shown.</p>}
      <Link href="/hair#nutrition-intake" className="lifeos-quick-bottom-link">All foods & nutrients →</Link>
     </article>
-    <article className="lifeos-quick-card lifeos-quick-medicine">
-     <div className="lifeos-quick-card-title"><span className="lifeos-quick-emoji" aria-hidden="true">💊</span><div><h3>Medicine</h3><small>Only your configured schedule</small></div><Link href="/health-planner" aria-label="Manage medicine schedules">↗</Link></div>
-     <strong className="lifeos-quick-number">{medicinesTaken}<span> / {medicineSlots.length} logged taken</span></strong>
-     {medicineSlots.length?<div className="lifeos-quick-rows">{medicineSlots.slice(0,5).map(({routine,time})=>{
-      const done=isRoutineTaken(routineLogs,routine.id,day,time);
-      return <div className="lifeos-quick-row" key={routine.id+"|"+time}><div><b>{routine.title}</b><small>{time} · {done?"Taken (recorded)":"Not logged"}</small></div>
-       <button type="button" disabled={!!busy} aria-pressed={done} onClick={()=>logMedicine(routine,time)}>{done?"✓ Undo":"Taken"}</button></div>;
-     })}</div>:<p className="lifeos-quick-help">No medicine schedules configured for today. Add a clinician-prescribed routine in Health Planner first.</p>}
-     {medicineSlots.length>5&&<Link className="lifeos-quick-bottom-link" href="/health-planner">View all {medicineSlots.length} scheduled doses →</Link>}
-     <p className="lifeos-quick-disclaimer">Taking medicine is never assumed. Tap Taken only after a dose was actually taken.</p>
+    <article className={"lifeos-quick-card lifeos-quick-medicine"+(attentionDoses?" medicine-attention":"")}>
+     <div className="lifeos-quick-card-title"><span className="lifeos-quick-emoji" aria-hidden="true">💊</span><div><h3>Medicine reminders</h3><small>{clock} · {timeZone.replaceAll("_"," ")}</small></div><Link href="/health-planner" aria-label="Manage all medicine schedules">↗</Link></div>
+     <div className="lifeos-med-status">
+      {attentionDoses>0?<strong className="lifeos-med-alert">{attentionDoses} {attentionDoses===1?"dose needs":"doses need"} attention</strong>:
+       dueSoonDoses>0?<strong className="lifeos-med-soon">{dueSoonDoses} due within 30 minutes</strong>:
+       medicineSlots.length&&medicineSlots.length===medicinesTaken?<strong className="lifeos-med-clear">✓ All scheduled doses recorded</strong>:
+       <strong className="lifeos-med-calm">{medicineSlots.length?"Next scheduled doses below":"Set up your prescribed reminder"}</strong>}
+      <span>{medicinesTaken}/{medicineSlots.length} taken · {medicineSlots.length-medicinesTaken} not logged</span>
+     </div>
+     {medicineSlots.length?<div className="lifeos-quick-rows lifeos-med-list">{medicineSlots.map(({routine,time,state})=>{
+      const done=state==="taken";
+      const stateText=done?"Recorded taken":state==="overdue"?"OVERDUE — not logged":state==="due-now"?"DUE NOW — not logged":state==="due-soon"?"Due soon":"Upcoming";
+      return <div className={"lifeos-quick-row lifeos-med-row state-"+state} key={routine.id+"|"+time}>
+       <div><b>{routine.title}</b><small>{time} · {stateText}</small></div>
+       <button type="button" disabled={!!busy} aria-pressed={done} onClick={()=>logMedicine(routine,time)}>{done?"✓ Undo":"Taken"}</button>
+      </div>;
+     })}</div>:<p className="lifeos-quick-help">No confirmed medicine times for today. Hair serum or possible future treatment is not automatically a prescribed medicine.</p>}
+     <div className="lifeos-med-actions">
+      <button type="button" aria-expanded={showMedicineSetup} onClick={()=>setShowMedicineSetup(v=>!v)}>{showMedicineSetup?"Close setup":"＋ Add medicine time"}</button>
+      <Link href="/notifications">🔔 Enable phone alerts ↗</Link>
+     </div>
+     {showMedicineSetup&&<form className="lifeos-med-setup" onSubmit={saveMedicine}>
+      <label>Prescribed medicine name<input type="text" required maxLength={120} placeholder="Name on your actual prescription" value={newMedicine} onChange={e=>setNewMedicine(e.target.value)}/></label>
+      <label>Reminder time<input type="time" required value={newMedicineTime} onChange={e=>setNewMedicineTime(e.target.value)}/></label>
+      <label>Repeat<select value={newMedicineDays} onChange={e=>setNewMedicineDays(e.target.value)}><option value="daily">Every day</option><option value="weekdays">Monday–Friday</option><option value="weekends">Saturday–Sunday</option></select></label>
+      <button disabled={!!busy} type="submit">Save reminder</button>
+      <small>Enter only your prescribed schedule. This does not prescribe a dose; use Health Planner for complex schedules.</small>
+     </form>}
+     <p className="lifeos-quick-disclaimer">Overdue means not logged, not proof you missed it. Don't double a dose if unsure—ask your pharmacist or clinician. Phone push requires device permission and a working scheduler.</p>
     </article>
     <article className="lifeos-quick-card lifeos-quick-hair">
      <div className="lifeos-quick-card-title"><span className="lifeos-quick-emoji" aria-hidden="true">🌱</span><div><h3>Hair care</h3><small>Your own approved routines</small></div><Link href="/hair" aria-label="Open full hair recovery tracker">↗</Link></div>
