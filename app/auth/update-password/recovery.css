@@ -1,0 +1,23 @@
+.lifeos-recovery{min-height:100dvh;display:grid;place-items:center;padding:32px 18px;background:radial-gradient(circle at 5% 5%,#dcf9e9,transparent 40%),#f5faf7;color:#1a3d32}
+.lifeos-recovery-card{width:min(100%,480px);padding:clamp(26px,5vw,43px);border-radius:30px;background:white;border:1px solid #d9ece2;box-shadow:0 24px 75px rgba(21,95,64,.08)}
+.lifeos-recovery-brand{display:flex;align-items:center;gap:9px;font-size:19px;font-weight:850;letter-spacing:-.04em}
+.lifeos-recovery-brand span{background:#10a978;color:white;width:36px;height:36px;border-radius:12px;display:grid;place-items:center;font-size:22px}
+.lifeos-recovery-symbol{width:60px;height:60px;display:grid;place-items:center;color:#0ba573;background:#e9f9f0;border-radius:20px;font-size:31px;margin:37px 0 23px}
+.lifeos-recovery-eyebrow{font-size:10px;font-weight:800;letter-spacing:.17em;color:#07966d}
+.lifeos-recovery h1{font-size:clamp(28px,4vw,36px);letter-spacing:-.055em;margin:10px 0 7px;color:#173c2e!important}
+.lifeos-recovery-caption{font-size:13px;color:#71887a;line-height:1.7;margin:0 0 23px}
+.lifeos-recovery-message{background:#eaf8ef;border:1px solid #c6e7d6;border-radius:13px;padding:12px 14px;color:#147450;font-size:12px;line-height:1.6;margin:0 0 25px}
+.lifeos-recovery-message.is-error{background:#fff1f0;border-color:#edc9c2;color:#a13833}
+.lifeos-recovery form{display:flex;flex-direction:column;gap:10px}
+.lifeos-recovery label{font-size:12px;font-weight:750;color:#2d5543}
+.lifeos-recovery input{width:100%;min-height:50px;background:#f9fcfa;border:1px solid #dbeae2;border-radius:13px;padding:10px 13px;font-size:15px;color:#213b2c;outline:none}
+.lifeos-recovery input:focus{border-color:#16a77a;box-shadow:0 0 0 3px rgba(17,177,126,.14)}
+.lifeos-recovery-password{position:relative}
+.lifeos-recovery-password input{padding-right:70px}
+.lifeos-recovery-password button{position:absolute;right:7px;top:50%;transform:translateY(-50%);border:0;padding:10px;color:#087c59;background:transparent;font-size:12px;font-weight:750}
+.lifeos-recovery-hint{font-size:11px;line-height:1.5;margin:0 0 6px;color:#789085}
+.lifeos-recovery-submit{border:0;border-radius:14px;min-height:50px;background:#0ba978;color:white;font-size:13px;font-weight:800;box-shadow:0 10px 25px rgba(9,150,100,.16)}
+.lifeos-recovery-submit:disabled{opacity:.58;cursor:not-allowed}
+.lifeos-recovery-back{display:inline-block;margin-top:25px;color:#098764;font-size:12px;font-weight:750}
+.lifeos-recovery :is(button,input):focus-visible{outline:3px solid #26b78c;outline-offset:3px}
+@media(max-width:550px){.lifeos-recovery{padding:0;display:block;background:white}.lifeos-recovery-card{border:0;border-radius:0;min-height:100dvh;box-shadow:none;padding:48px 23px}}

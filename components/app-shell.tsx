@@ -7,6 +7,7 @@ import { WorkspaceSwitcher } from "@/components/workspace-switcher";
 import { InstallPWA } from "@/components/install-pwa";
 import { NotificationButton } from "@/components/notification-button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { MobileTabIcon } from "@/components/mobile-tab-icon";
 import { currentWorkspace,peekWorkspaceContext } from "@/lib/supabase/workspace";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
@@ -211,11 +212,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       <nav className="mobile-nav" aria-label="Mobile navigation">
-        <Link className={`mobile-item ${pathname === "/" ? "active" : ""}`} href="/"><span>⌂</span>Home</Link>
-        <Link className={`mobile-item ${pathname === "/today" ? "active" : ""}`} href="/today"><span>◷</span>Today</Link>
-        <Link className="mobile-add" href="/quick-add" aria-label="Quick Add">＋</Link>
-        <Link className={`mobile-item ${pathname === "/progress" ? "active" : ""}`} href="/progress"><span>↗</span>Progress</Link>
-        <Link className={`mobile-item ${pathname === "/settings" ? "active" : ""}`} href="/settings"><span>☰</span>More</Link>
+        <Link className={"mobile-item"+(pathname==="/"?" active":"")} href="/" aria-current={pathname==="/"?"page":undefined}><MobileTabIcon name="home"/>Home</Link>
+        <Link className={"mobile-item"+(pathname==="/habits"?" active":"")} href="/habits" aria-current={pathname==="/habits"?"page":undefined}><MobileTabIcon name="habits"/>Habits</Link>
+        <Link className="mobile-add" href="/quick-add" aria-label="Quick Add"><MobileTabIcon name="add"/></Link>
+        <Link className={"mobile-item"+(pathname==="/progress"?" active":"")} href="/progress" aria-current={pathname==="/progress"?"page":undefined}><MobileTabIcon name="progress"/>Progress</Link>
+        <Link className={"mobile-item"+(pathname==="/settings"?" active":"")} href="/settings" aria-current={pathname==="/settings"?"page":undefined}><MobileTabIcon name="more"/>More</Link>
       </nav>
     </div>
   );

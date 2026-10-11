@@ -3,6 +3,7 @@ import { PwaRegister } from "@/components/pwa-register";
 import { OfflineSync } from "@/components/offline-sync";
 import { AppShell } from "@/components/app-shell";
 import "./globals.css";
+import "./premium-everywhere.css";
 
 export const metadata: Metadata = {
   title: "LifeOS — Personal & Family Command Center",
@@ -13,7 +14,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0b1220",
+  themeColor: "#f5faf7",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -21,7 +22,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" data-theme="light" suppressHydrationWarning>
       <body>
         <PwaRegister />
         <OfflineSync />

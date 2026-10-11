@@ -1,0 +1,76 @@
+/* LifeOS home: reference-led dashboard, scoped to the homepage. */
+.home-next{--home-ink:#18372e;--home-muted:#75897c;--home-green:#09ae7b;padding:12px 0 50px}
+.home-next-hero{border:1px solid #daf0e4;border-radius:32px;background:radial-gradient(circle at 86% 12%,rgba(137,236,185,.14),transparent 36%),linear-gradient(120deg,#f8fffb,#eafaf2);padding:27px 31px 24px;box-shadow:0 15px 55px rgba(25,99,68,.06);overflow:hidden}
+.home-next-hero-top{display:flex;justify-content:space-between;gap:15px;align-items:center;margin-bottom:6px}
+.home-next-overline{color:#117a5b;font-size:11px;font-weight:850;letter-spacing:.13em}
+.home-next-todaylink{font-size:12px;color:#098e69;font-weight:800;display:inline-flex;align-items:center;gap:10px;white-space:nowrap}
+.home-next-hero-main{display:flex;align-items:center;justify-content:space-around;gap:24px;min-height:300px}
+.home-next-hero-copy{max-width:480px}
+.home-next-date{font-size:12px;color:#458b6f;font-weight:700}
+.home-next-hero h2{margin:12px 0 15px;color:#17372c!important;font-size:clamp(44px,5.5vw,70px);line-height:1.03;letter-spacing:-.075em}
+.home-next-hero h2 em{color:#0aaf7a;font-style:normal}
+.home-next-hero-copy p{margin:0;max-width:380px;color:#668478;font-size:14px;line-height:1.8}
+.home-next-hero-cta{margin-top:23px;min-height:43px;padding:12px 19px;display:inline-flex;gap:19px;align-items:center;border-radius:99px;background:#0ba976;color:#fff;font-weight:800;font-size:13px;box-shadow:0 9px 26px rgba(5,164,111,.17)}
+.home-next-hero-cta:hover{background:#078e64}
+.home-next-quickstats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid #dcf0e5;background:rgba(255,255,255,.81);border-radius:23px;overflow:hidden;margin-top:1px}
+.home-next-quickstat{min-width:0;display:flex;align-items:center;gap:12px;padding:17px 15px;transition:background .2s}
+.home-next-quickstat:not(:last-child){border-right:1px solid #e2eee7}
+.home-next-quickstat:hover{background:#f3fff9}
+.home-next-stat-icon{height:42px;width:42px;flex:0 0 auto;border-radius:14px;display:grid;place-items:center;font-size:18px;font-weight:900}
+.home-next-stat-icon.green{background:#e2faed;color:#0aa979}
+.home-next-stat-icon.orange{background:#fff2de;color:#dc9d3d}
+.home-next-stat-icon.purple{background:#f1eafb;color:#9869c1}
+.home-next-quickstat>div{min-width:0;flex:1;display:flex;flex-direction:column;gap:2px}
+.home-next-quickstat strong{font-size:20px;color:#204538!important;letter-spacing:-.045em;white-space:nowrap}
+.home-next-quickstat strong small{font-size:12px;color:#81958a}
+.home-next-quickstat>div>span{font-size:11px;font-weight:600;color:#7a9184;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.home-next-quickstat>span:last-child{font-size:15px;color:#5b967b}
+.home-next-section-title{display:flex;justify-content:space-between;align-items:end;gap:13px;margin:31px 2px 13px}
+.home-next-section-title>div>span{font-size:10px;color:#0d9871;letter-spacing:.13em;font-weight:850}
+.home-next-section-title h2{font-size:23px;color:var(--text);font-weight:850;letter-spacing:-.04em;margin:5px 0 0}
+.home-next-section-title>a{font-size:12px;color:#09966c;font-weight:800}
+.home-next .metric-card{transition:transform .2s,border-color .2s;box-shadow:0 10px 30px rgba(17,80,56,.045)}
+.home-next .metric-card:hover{transform:translateY(-3px);border-color:#a9dfc6!important}
+.home-next .metric-card strong{font-size:clamp(19px,2.2vw,26px);letter-spacing:-.045em}
+:root[data-theme="light"] .home-next .metric-card>span{color:#6a8575!important;font-size:12px;font-weight:750}
+:root[data-theme="light"] .home-next .metric-card strong{color:#1d4938!important}
+:root:not([data-theme="light"]) .home-next-hero{background:linear-gradient(110deg,#112c28,#16493b);border-color:#285d49}
+:root:not([data-theme="light"]) .home-next-hero h2{color:#e3fff0!important}
+:root:not([data-theme="light"]) .home-next-hero-copy p{color:#afcfc2}
+:root:not([data-theme="light"]) .home-next-overline,
+:root:not([data-theme="light"]) .home-next-date{color:#6cddb0}
+:root:not([data-theme="light"]) .home-next-quickstats{background:#153a30;border-color:#245e49}
+:root:not([data-theme="light"]) .home-next-quickstat:not(:last-child){border-color:#245e49}
+:root:not([data-theme="light"]) .home-next-quickstat:hover{background:#1d4a3a}
+:root:not([data-theme="light"]) .home-next-quickstat strong{color:#e1f8ec!important}
+:root:not([data-theme="light"]) .home-next-quickstat>div>span{color:#abcabc}
+@media(max-width:1020px){.home-next-quickstat{padding:14px 10px;gap:8px}.home-next-quickstat>span:last-child{display:none}.home-next-stat-icon{height:38px;width:38px}}
+@media(max-width:680px){
+.home-next{padding-top:2px}
+.home-next-hero{padding:19px 16px 16px;border-radius:27px}
+.home-next-hero-top{align-items:flex-start}
+.home-next-overline{font-size:9px}
+.home-next-todaylink{font-size:10px}
+.home-next-hero-main{flex-direction:column-reverse;gap:5px;min-height:0;padding:0 2px}
+.home-next-hero .lifeos-halo{margin:0 auto;width:min(100%,285px)}
+.home-next-hero-copy{align-self:stretch}
+.home-next-hero-copy .home-next-date{display:none}
+.home-next-hero h2{font-size:37px;margin:0 0 10px}
+.home-next-hero h2 br{display:none}
+.home-next-hero-copy p{font-size:12px;line-height:1.6}
+.home-next-hero-cta{margin-top:16px}
+.home-next-quickstats{grid-template-columns:repeat(3,minmax(0,1fr));gap:0;margin-top:21px;border-radius:17px}
+.home-next-quickstat{padding:11px 6px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:5px}
+.home-next-stat-icon{width:33px;height:33px;border-radius:11px;font-size:15px}
+.home-next-quickstat strong{font-size:18px}
+.home-next-quickstat>div>span{font-size:9px;white-space:normal;line-height:1.3}
+.home-next-quickstat strong small{font-size:10px}
+.home-next-section-title{margin-top:27px}
+.home-next-section-title h2{font-size:21px}
+.home-next .grid.g4{grid-template-columns:repeat(2,minmax(0,1fr))}
+.home-next .metric-card{padding:14px;min-height:120px;border-radius:20px}
+.home-next .metric-card strong{font-size:19px;overflow-wrap:anywhere}
+.home-next .metric-card small{font-size:10px}
+}
+@media(max-width:370px){.home-next-quickstat strong{font-size:16px}.home-next-hero h2{font-size:33px}.home-next-hero-top{flex-wrap:wrap}}
+@media(prefers-reduced-motion:reduce){.home-next .metric-card{transition:none}.home-next .metric-card:hover{transform:none}}

@@ -12,11 +12,11 @@ function applyTheme(theme:Theme){
 }
 
 export function ThemeToggle(){
-  const[theme,setTheme]=useState<Theme>("dark");
+  const[theme,setTheme]=useState<Theme>("light");
 
   useEffect(()=>{
     let cancelled=false;
-    const cached=((localStorage.getItem("lifeos_theme") as Theme|null)||"dark");
+    const cached=((localStorage.getItem("lifeos_theme") as Theme|null)||"light");
     setTheme(cached);
     applyTheme(cached);
 
