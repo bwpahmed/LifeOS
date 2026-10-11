@@ -80,7 +80,8 @@ export default function HabitPlannerPage(){
  const todayStats=dayProgress(habits,logs,today);
  const selectedStats=dayProgress(habits,logs,selected);
  const trend=useMemo(()=>plannerCompletionTrend(habits,logs,today,28),[habits,logs,today]);
- const rollingAverage=trend.length?Math.round(trend.reduce((sum,x)=>sum+(x.total?x.done/x.total*100:0),0)/trend.length):0;
+ const measuredDays=trend.filter(x=>x.total>0);
+ const rollingAverage=measuredDays.length?Math.round(measuredDays.reduce((sum,x)=>sum+x.done/x.total*100,0)/measuredDays.length):0;
  const last30=Array.from({length:30},(_,i)=>shiftHabitDate(today,i-29));
  const weeklyFinished=habits.filter(h=>periodProgress(h,logs,today).done>=periodProgress(h,logs,today).target).length;
  const filtered=habits.filter(h=>(area==="All areas"||h.area===area)&&h.name.toLowerCase().includes(search.trim().toLowerCase()))
@@ -93,8 +94,6 @@ export default function HabitPlannerPage(){
   if(saving||day>today||day<pastLimit)return;
   setSaving(h.id);setError("");setNotice("");
   const wasDone=logDone(logs,h.id,day);
-  // Optimistic UI improves touch responsiveness; Supabase is still the source of truth.
-  setLogs(previous=>wasDone?previous.filter(l=>!(l.habit_id===h.id&&l.date===day)):[...previous,{habit_id:h.id,date:day,value:1}]);
   try{
    const sb=supabaseBrowser();
    const result=wasDone?
@@ -253,7 +252,7 @@ export default function HabitPlannerPage(){
   const streak=habitPeriodStreak(values,frequencyDays,h.frequency,Number(h.target||1));
   const recovery=recoveryScore(values,frequencyDays,h.frequency,Number(h.target||1));
   const period=periodProgress(h,logs,selected);
-  const cannotLog=selected>today||selected<pastLimit||saving!==null;
+  const cannotLog=selected>today||selected<pastLimit||saving!==null||(!scheduledForDay(h.frequency,selected)&&!done);
   const isSpecific=h.frequency.startsWith("Specific days:");
   return <article className={"hp-habit"+(done?" completed":"")} key={h.id}>
    <div className="hp-habit-main">
