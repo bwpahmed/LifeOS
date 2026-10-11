@@ -59,7 +59,7 @@ export function HairRecoveryTracker(){
    const [r,l,b,w,h,m]=await Promise.all([
     sb.from("health_routines").select("id,title,kind,details,active,created_by").eq("workspace_id",ctx.workspaceId).eq("created_by",ctx.user.id).eq("kind","other"),
     sb.from("health_routine_logs").select("routine_id,date,status").eq("workspace_id",ctx.workspaceId).eq("created_by",ctx.user.id).gte("date",start),
-    sb.from("lab_results").select("test_name,date,result,unit,ref_range").eq("workspace_id",ctx.workspaceId).eq("created_by",ctx.user.id).order("date",{ascending:false}).limit(200),
+    sb.from("lab_results").select("test_name,date,result,unit,ref_range,doctor_notes").eq("workspace_id",ctx.workspaceId).eq("created_by",ctx.user.id).order("date",{ascending:false}).limit(200),
     sb.from("water_logs").select("date,amount_ml").eq("workspace_id",ctx.workspaceId).eq("created_by",ctx.user.id).gte("date",shift(todayInTZ(),-13)),
     sb.from("health_entries").select("date,protein").eq("workspace_id",ctx.workspaceId).eq("created_by",ctx.user.id).order("date",{ascending:false}).limit(30),
     sb.from("diet_plan_items").select("title,protein_g,days_of_week,active").eq("workspace_id",ctx.workspaceId).eq("created_by",ctx.user.id).eq("active",true)
@@ -181,7 +181,7 @@ export function HairRecoveryTracker(){
      <div className="hair-box-head"><h3>Lab test record checklist</h3><span>{labCount} recorded</span></div>
      <p className="hair-sub">Possible tests to discuss with a clinician—not a mandatory panel. “Not recorded” does not mean you have not done the test.</p>
      <div className="hair-labs">{labStatus.map(x=><div className="hair-lab" key={x.id}>
-      <div><b>{x.name}</b><small>{x.recorded?("Last recorded: "+x.recorded.date):"Not recorded in LifeOS"}</small></div>
+      <div><b>{x.name}</b><small>{x.recorded?("Last recorded: "+x.recorded.date+(x.recorded.result?" · "+x.recorded.result+" "+(x.recorded.unit||""):"")):"Not recorded in LifeOS"}</small></div>
       <span className={x.recorded?"hair-recorded":"hair-not-recorded"}>{x.recorded?"Recorded":"—"}</span>
      </div>)}</div>
      <div className="hair-box-links"><Link href="/health">Enter/view lab results →</Link><Link href="/health-vault">Upload original reports →</Link></div>
