@@ -12,6 +12,7 @@ import "./hair-recovery-tracker.css";
 type HairRoutine={id:string;title:string;kind:string;details:Record<string,unknown>;active:boolean;created_by:string};
 type WaterLog={date:string;amount_ml:number};
 type HealthEntry={date:string;protein:string|null};
+type PlannedMeal={title:string;protein_g:number|null;days_of_week:number[];active:boolean};
 const TRACKING_IDEAS=[
  {title:"Protein-rich meals",category:"nutrition",description:"Track meals you actually ate; enter detailed foods in Diet Planner."},
  {title:"Hair care / serum routine",category:"care",description:"Only log treatments that your clinician has approved."},
@@ -41,6 +42,7 @@ export function HairRecoveryTracker(){
  const [labs,setLabs]=useState<HairLab[]>([]);
  const [water,setWater]=useState<WaterLog[]>([]);
  const [health,setHealth]=useState<HealthEntry[]>([]);
+ const [meals,setMeals]=useState<PlannedMeal[]>([]);
  const [loaded,setLoaded]=useState(false);
  const [pending,setPending]=useState("");
  const [error,setError]=useState("");
@@ -54,20 +56,22 @@ export function HairRecoveryTracker(){
    const sb=supabaseBrowser(),ctx=await currentWorkspace(sb);
    if(!ctx){setWorkspaceId("");setLoaded(true);return;}
    const start=shift(todayInTZ(),-89);
-   const [r,l,b,w,h]=await Promise.all([
+   const [r,l,b,w,h,m]=await Promise.all([
     sb.from("health_routines").select("id,title,kind,details,active,created_by").eq("workspace_id",ctx.workspaceId).eq("created_by",ctx.user.id).eq("kind","other"),
     sb.from("health_routine_logs").select("routine_id,date,status").eq("workspace_id",ctx.workspaceId).eq("created_by",ctx.user.id).gte("date",start),
     sb.from("lab_results").select("test_name,date,result,unit,ref_range").eq("workspace_id",ctx.workspaceId).eq("created_by",ctx.user.id).order("date",{ascending:false}).limit(200),
     sb.from("water_logs").select("date,amount_ml").eq("workspace_id",ctx.workspaceId).eq("created_by",ctx.user.id).gte("date",shift(todayInTZ(),-13)),
-    sb.from("health_entries").select("date,protein").eq("workspace_id",ctx.workspaceId).eq("created_by",ctx.user.id).order("date",{ascending:false}).limit(30)
+    sb.from("health_entries").select("date,protein").eq("workspace_id",ctx.workspaceId).eq("created_by",ctx.user.id).order("date",{ascending:false}).limit(30),
+    sb.from("diet_plan_items").select("title,protein_g,days_of_week,active").eq("workspace_id",ctx.workspaceId).eq("created_by",ctx.user.id).eq("active",true)
    ]);
-   for(const q of [r,l,b,w,h])if(q.error)throw q.error;
+   for(const q of [r,l,b,w,h,m])if(q.error)throw q.error;
    const own=((r.data||[]) as HairRoutine[]).filter(x=>x.details?.source==="lifeos-hair-recovery");
    setRoutines(own);
    setLogs((l.data||[]) as HairRoutineLog[]);
    setLabs((b.data||[]) as HairLab[]);
    setWater((w.data||[]) as WaterLog[]);
    setHealth((h.data||[]) as HealthEntry[]);
+   setMeals((m.data||[]) as PlannedMeal[]);
    setWorkspaceId(ctx.workspaceId);setUserId(ctx.user.id);setError("");setLoaded(true);
   }catch(e){setLoaded(true);setError(e instanceof Error?e.message:"Could not load health tracking. Retry online.");}
  },[]);
@@ -80,6 +84,9 @@ export function HairRecoveryTracker(){
  const daysTracked=hairActivityDays(logs,routines.map(r=>r.id),shift(today,-29),today);
  const waterToday=water.filter(x=>x.date===today).reduce((n,x)=>n+Number(x.amount_ml||0),0);
  const proteinToday=health.find(x=>x.date===today)?.protein;
+ const dayIndex=((new Date(today+"T12:00:00Z").getUTCDay()+6)%7)+1;
+ const mealsToday=meals.filter(x=>x.active&&(x.days_of_week||[]).includes(dayIndex));
+ const plannedProtein=mealsToday.reduce((sum,x)=>sum+Number(x.protein_g||0),0);
  const labStatus=useMemo(()=>HAIR_LAB_CHECKLIST.map(x=>({...x,recorded:matchHairLab(x.name,labs)})),[labs]);
  const labCount=labStatus.filter(x=>x.recorded).length;
 
@@ -184,7 +191,10 @@ export function HairRecoveryTracker(){
    <div className="hair-dual">
     <section className="hair-box">
      <div className="hair-box-head"><h3>Nutrition & hydration</h3><Link href="/health-planner">Open planner →</Link></div>
-     <p className="hair-sub">Protein entry for today: <strong>{proteinToday||"Not logged"}</strong>. Log meals and nutrient amounts in the existing Health/Diet Planner, not duplicate counters.</p>
+     <p className="hair-sub">Protein entry for today: <strong>{proteinToday||"Not logged"}</strong>. This note comes from the Health journal.</p>
+     <p className="hair-sub">Today's planned meals: <strong>{mealsToday.length}</strong>{mealsToday.some(x=>x.protein_g!=null)?(" · "+plannedProtein.toFixed(1)+" g protein planned (not confirmed eaten)"):""}.</p>
+     {!!mealsToday.length&&<div className="hair-planned-meals">{mealsToday.map((m,i)=><div key={i}><span>🍽</span><b>{m.title}</b><small>{m.protein_g!=null?Number(m.protein_g)+" g planned":"Protein not entered"}</small></div>)}</div>}
+     <p className="hair-sub">Log actual meals and nutrient amounts in the existing Diet Planner; plans are not automatically counted as consumed.</p>
      <button type="button" className="hair-food-toggle" aria-expanded={showFoods} onClick={()=>setShowFoods(v=>!v)}>{showFoods?"Hide food-source reference ↑":"Show food-source reference ↓"}</button>
      {showFoods&&<div className="hair-food-groups">{FOOD_GROUPS.map(([name,foods])=><div key={name}><b>{name}</b><p>{foods}</p></div>)}</div>}
      <p className="hair-sub">Food lists are general examples. Supplements or correction of deficiencies require lab results and clinician advice.</p>
