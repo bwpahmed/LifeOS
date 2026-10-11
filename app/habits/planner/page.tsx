@@ -8,7 +8,7 @@ import {currentWorkspace} from "@/lib/supabase/workspace";
 import {supabaseBrowser} from "@/lib/supabase/client";
 import {useRealtimeRefresh} from "@/lib/use-realtime-refresh";
 import {todayInTZ} from "@/lib/timezone";
-import {dayProgress,habitDueOn,logDone,mondayOf,periodProgress,plannerCompletionTrend,scheduledForDay,shiftHabitDate,weekDates,type PlannerHabit,type PlannerLog} from "@/lib/habit-planner";
+import {dayProgress,habitDueOn,logDone,mondayOf,periodProgress,plannerCompletionTrend,scheduledForDay,shiftHabitDate,weekDates,sortPlannerHabits,type HabitSortMode,type PlannerHabit,type PlannerLog} from "@/lib/habit-planner";
 import "./planner.css";
 
 const AREAS=["All areas","Health","Growth","Business","Family","Personal","Self-control","Europe"];
@@ -19,6 +19,11 @@ const STARTERS=[
  {name:"Weekly reflection",area:"Growth",frequency:"Weekly",kind:"build",icon:"✨"},
  {name:"Drink water",area:"Health",frequency:"Daily",kind:"build",icon:"💧"},
  {name:"No late-night scrolling",area:"Self-control",frequency:"Daily",kind:"avoid",icon:"🌙"},
+ {name:"Evening reflection",area:"Growth",frequency:"Daily",kind:"build",icon:"📝"},
+ {name:"Stretch for 5 minutes",area:"Health",frequency:"Daily",kind:"build",icon:"🧘"},
+ {name:"Plan tomorrow",area:"Personal",frequency:"Daily",kind:"build",icon:"🗓️"},
+ {name:"Family quality time",area:"Family",frequency:"Weekly",kind:"build",icon:"💛"},
+ {name:"Review weekly goals",area:"Business",frequency:"Weekly",kind:"build",icon:"🎯"},
 ];
 
 type Edited = {name:string;frequency:string;target:number;kind:string;area:string;specificDays:string[]};
@@ -34,6 +39,13 @@ export default function HabitPlannerPage(){
  const [area,setArea]=useState("All areas");
  const [search,setSearch]=useState("");
  const [showAll,setShowAll]=useState(false);
+ const [statusFilter,setStatusFilter]=useState<"all"|"todo"|"done">("all");
+ const [sortBy,setSortBy]=useState<HabitSortMode>("name");
+ const [trendDays,setTrendDays]=useState<7|28>(28);
+ const [showAllStarters,setShowAllStarters]=useState(false);
+ const [compact,setCompact]=useState(false);
+ const [motionEnabled,setMotionEnabled]=useState(true);
+ const [celebratedId,setCelebratedId]=useState<string|null>(null);
  const [editing,setEditing]=useState<string|null>(null);
  const [draft,setDraft]=useState<Edited|null>(null);
  const [saving,setSaving]=useState<string|null>(null);
@@ -80,19 +92,22 @@ export default function HabitPlannerPage(){
  const todayStats=dayProgress(habits,logs,today);
  const selectedStats=dayProgress(habits,logs,selected);
  const trend=useMemo(()=>plannerCompletionTrend(habits,logs,today,28),[habits,logs,today]);
+ const visibleTrend=trend.slice(-trendDays);
  const measuredDays=trend.filter(x=>x.total>0);
  const rollingAverage=measuredDays.length?Math.round(measuredDays.reduce((sum,x)=>sum+x.done/x.total*100,0)/measuredDays.length):0;
  const last30=Array.from({length:30},(_,i)=>shiftHabitDate(today,i-29));
  const weeklyFinished=habits.filter(h=>periodProgress(h,logs,today).done>=periodProgress(h,logs,today).target).length;
- const filtered=habits.filter(h=>(area==="All areas"||h.area===area)&&h.name.toLowerCase().includes(search.trim().toLowerCase()))
+ const available=habits.filter(h=>(area==="All areas"||h.area===area)&&h.name.toLowerCase().includes(search.trim().toLowerCase()))
   .filter(h=>showAll||habitDueOn(h,logs,selected)||logDone(logs,h.id,selected));
+ const filtered=sortPlannerHabits(available,logs,last30,sortBy).filter(h=>
+   statusFilter==="all"||(statusFilter==="done"?logDone(logs,h.id,selected):!logDone(logs,h.id,selected)));
  const completed=filtered.filter(h=>logDone(logs,h.id,selected));
  const remaining=filtered.filter(h=>!logDone(logs,h.id,selected));
  const pastLimit=shiftHabitDate(today,-180);
 
  async function toggle(h:PlannerHabit,day=selected){
   if(saving||day>today||day<pastLimit)return;
-  setSaving(h.id);setError("");setNotice("");
+  setSaving(h.id);setError("");setNotice("");setCelebratedId(null);
   const wasDone=logDone(logs,h.id,day);
   try{
    const sb=supabaseBrowser();
@@ -101,6 +116,7 @@ export default function HabitPlannerPage(){
     await sb.from("habit_logs").upsert({habit_id:h.id,date:day,value:1},{onConflict:"habit_id,date"});
    if(result.error)throw result.error;
    setNotice(wasDone?"Completion removed.":"Progress saved to your LifeOS workspace.");
+   if(!wasDone)setCelebratedId(h.id);
    await reload();
   }catch(e){setError(e instanceof Error?e.message:"Could not save. Please retry.");await reload();}
   finally{setSaving(null);}
@@ -161,7 +177,7 @@ export default function HabitPlannerPage(){
  }
  const monthLabel=new Date(week+"T12:00:00Z").toLocaleDateString("en-US",{month:"long",year:"numeric",timeZone:"UTC"});
  const dateLabel=new Date(selected+"T12:00:00Z").toLocaleDateString("en-US",{weekday:"long",day:"numeric",month:"long",timeZone:"UTC"});
- return <main className="habit-planner">
+ return <main className={"habit-planner"+(compact?" hp-compact":"")+(motionEnabled?"":" hp-no-motion")}>
   <BackHome/>
   <header className="hp-head">
    <div><span className="hp-eyebrow">✳ LIFEOS · HABIT STUDIO</span>
@@ -170,6 +186,7 @@ export default function HabitPlannerPage(){
    </div>
    <div className="hp-head-actions">
     <Link className="hp-outline" href="/habits">↗ Habit overview</Link>
+    <Link className="hp-outline" href="/today">Today's plan ↗</Link>
     <Link className="hp-action" href="/automations">Reminders →</Link>
    </div>
   </header>
@@ -188,7 +205,7 @@ export default function HabitPlannerPage(){
     <div className="hp-board">
      <div className="hp-panel-heading">
       <div><span>THIS IS YOUR PLAN</span><h2>Weekly planner</h2></div>
-      <div className="hp-week-nav"><button type="button" aria-label="Previous week" onClick={()=>changeWeek(-1)} disabled={week<=mondayOf(pastLimit)}>‹</button><b>{monthLabel}</b><button type="button" aria-label="Next week" onClick={()=>changeWeek(1)} disabled={week>=mondayOf(today)}>›</button></div>
+      <div className="hp-week-nav"><button type="button" className="hp-jump-today" onClick={()=>{setWeek(mondayOf(today));setSelected(today);}}>Today</button><button type="button" aria-label="Previous week" onClick={()=>changeWeek(-1)} disabled={week<=mondayOf(pastLimit)}>‹</button><b>{monthLabel}</b><button type="button" aria-label="Next week" onClick={()=>changeWeek(1)} disabled={week>=mondayOf(today)}>›</button></div>
      </div>
      <div className="hp-weekdays" role="group" aria-label="Choose a day">
       {dates.map((d,i)=>{
@@ -207,19 +224,31 @@ export default function HabitPlannerPage(){
      <div className="hp-controls">
       <label className="hp-search">Search <input type="search" placeholder="Search routines…" value={search} onChange={e=>setSearch(e.target.value)}/></label>
       <label className="hp-area">Life area <select value={area} onChange={e=>setArea(e.target.value)}>{AREAS.map(a=><option key={a}>{a}</option>)}</select></label>
-      <label className="hp-showall"><input type="checkbox" checked={showAll} onChange={e=>setShowAll(e.target.checked)}/> Show all</label>
+      <label className="hp-showall"><input type="checkbox" checked={showAll} onChange={e=>setShowAll(e.target.checked)}/> Show all schedules</label>
+      <label className="hp-sort">Sort by <select aria-label="Sort habits" value={sortBy} onChange={e=>setSortBy(e.target.value as HabitSortMode)}><option value="name">Name</option><option value="streak">Best streak</option><option value="consistency">Consistency</option></select></label>
+     </div>
+     <div className="hp-display-bar">
+      <div className="hp-status-tabs" role="group" aria-label="Filter habits by completion">
+       {([{id:"all",label:"All"},{id:"todo",label:"To do"},{id:"done",label:"Completed"}] as const).map(tab=>
+         <button type="button" key={tab.id} aria-pressed={statusFilter===tab.id} onClick={()=>setStatusFilter(tab.id)}>{tab.label}</button>)}
+      </div>
+      <div className="hp-preference-actions">
+       <button type="button" aria-pressed={compact} onClick={()=>setCompact(v=>!v)} title="Toggle compact habit cards">▤ {compact?"Comfortable":"Compact"}</button>
+       <button type="button" aria-pressed={motionEnabled} onClick={()=>setMotionEnabled(v=>!v)} title="Toggle decorative animations">✦ Motion {motionEnabled?"on":"off"}</button>
+      </div>
      </div>
      {habits.length===0?<div className="hp-empty">No routines yet. Choose a starter below, or <Link href="/habits">create a custom habit</Link>.</div>:
+      filtered.length===0?<div className="hp-empty">No habits match these filters. <button type="button" className="hp-outline" onClick={()=>{setSearch("");setArea("All areas");setShowAll(true);setStatusFilter("all");}}>Show all habits</button></div>:
       <>
-       <h4 className="hp-list-heading">To do <span>{remaining.length}</span></h4>
+       {statusFilter!=="done"&&<h4 className="hp-list-heading">To do <span>{remaining.length}</span></h4>}
        {remaining.length?remaining.map(h=>renderHabit(h)): <div className="hp-done-state">✦ You're all caught up for this day.</div>}
        {!!completed.length&&<><h4 className="hp-list-heading">Completed <span>{completed.length}</span></h4>{completed.map(h=>renderHabit(h))}</>}
       </>}
     </div>
     <aside className="hp-aside">
-     <div className="hp-aside-box"><span className="hp-aside-eyebrow">YOUR MOMENTUM</span><h3>Last 28 days</h3>
+     <div className="hp-aside-box"><span className="hp-aside-eyebrow">YOUR MOMENTUM</span><div className="hp-insights-heading"><h3>Last {trendDays} days</h3><div role="group" aria-label="History range" className="hp-trend-switch"><button type="button" aria-pressed={trendDays===7} onClick={()=>setTrendDays(7)}>7d</button><button type="button" aria-pressed={trendDays===28} onClick={()=>setTrendDays(28)}>28d</button></div></div>
       <div className="hp-trend" aria-label="Daily completion history">
-       {trend.map(d=><button type="button" key={d.date} aria-label={d.date+": "+d.done+" of "+d.total+" completed"}
+       {visibleTrend.map(d=><button type="button" key={d.date} aria-label={d.date+": "+d.done+" of "+d.total+" completed"}
         title={d.date+" · "+d.done+"/"+d.total} className={"hp-trend-day"+(d.date===today?" today":"")}
         style={{opacity:d.total?(d.done/d.total>0?Math.max(.35,d.done/d.total):.14):.10}}
         onClick={()=>{setWeek(mondayOf(d.date));setSelected(d.date);}}/>)}
@@ -228,10 +257,11 @@ export default function HabitPlannerPage(){
      </div>
      <div className="hp-aside-box"><span className="hp-aside-eyebrow">QUICK START</span><h3>Build a routine</h3>
       <p>Ready-to-use habits, stored in the same Supabase habits table.</p>
-      {STARTERS.map(starter=><button key={starter.name} type="button" disabled={saving!==null}
+      {(showAllStarters?STARTERS:STARTERS.slice(0,5)).map(starter=><button key={starter.name} type="button" disabled={saving!==null}
        className="hp-starter" onClick={()=>void quickStart(starter)}>
        <span>{starter.icon}</span><b>{starter.name}</b><span>{habits.some(h=>h.name.toLowerCase()===starter.name.toLowerCase())?"Added ✓":"+"}</span>
       </button>)}
+      <button type="button" className="hp-link hp-more-starters" aria-expanded={showAllStarters} onClick={()=>setShowAllStarters(v=>!v)}>{showAllStarters?"Show fewer templates ↑":"Explore 5 more templates ↓"}</button>
       <Link className="hp-link" href="/habits">Create a custom habit →</Link>
      </div>
      <div className="hp-aside-box"><span className="hp-aside-eyebrow">YOUR CONNECTED MODULES</span><h3>One connected LifeOS</h3>
@@ -254,7 +284,7 @@ export default function HabitPlannerPage(){
   const period=periodProgress(h,logs,selected);
   const cannotLog=selected>today||selected<pastLimit||saving!==null||(!scheduledForDay(h.frequency,selected)&&!done);
   const isSpecific=h.frequency.startsWith("Specific days:");
-  return <article className={"hp-habit"+(done?" completed":"")} key={h.id}>
+  return <article className={"hp-habit"+(done?" completed":"")+(celebratedId===h.id?" hp-celebrate":"")} key={h.id}>
    <div className="hp-habit-main">
     <button type="button" className="hp-check" disabled={cannotLog} aria-pressed={done}
       aria-label={(done?"Undo ":"Complete ")+h.name+" on "+selected} onClick={()=>void toggle(h)}>{done?"✓":"+"}</button>
