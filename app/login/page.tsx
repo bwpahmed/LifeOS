@@ -75,7 +75,7 @@ export default function LoginPage() {
       sessionStorage.setItem("lifeos_auth_mode", "recovery");
       sessionStorage.setItem("lifeos_auth_next", "/");
       const {error} = await sb.auth.resetPasswordForEmail(recoveryEmail, {
-        redirectTo: location.origin + "/auth/update-password"
+        redirectTo: location.origin+"/"
       });
       if (error) throw error;
       setMessage({text:"If this email belongs to your LifeOS account, check your inbox for a reset link. Open it on this same website to set a new password.", type:"success"});
@@ -135,7 +135,7 @@ export default function LoginPage() {
             <input ref={emailInputRef} id="lifeos-email" name="email" type="email" inputMode="email" autoComplete="username" autoCapitalize="none" spellCheck={false}
               required value={email} onChange={e=>setEmail(e.target.value)}
               placeholder="you@example.com" disabled={loading!==null}/>
-            <div className="lifeos-signin-password-label"><label htmlFor="lifeos-password">Password</label><button type="button" onClick={()=>void sendPasswordReset()} disabled={loading!==null} className="lifeos-signin-link">Forgot password?</button></div>
+            <div className="lifeos-signin-password-label"><label htmlFor="lifeos-password">Password</label><button type="button" onClick={()=>void sendPasswordReset()} disabled={loading!==null} className="lifeos-signin-link">Reset password</button></div>
             <div className="lifeos-signin-password-wrap">
               <input id="lifeos-password" name="password" type={showPassword?"text":"password"} autoComplete="current-password" required value={password}
                 onChange={e=>setPassword(e.target.value)} placeholder="Enter your password" disabled={loading!==null}/>
