@@ -4,6 +4,7 @@ import { FormEvent,useCallback,useEffect,useMemo,useState } from "react";
 import Link from "next/link";
 import { PrivacyGate } from "@/components/privacy-gate";
 import { HydrationPanel } from "@/components/hydration-panel";
+import { NutritionIntakePanel } from "@/components/nutrition-intake";
 import { BackHome,Panel } from "@/components/ui";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { currentWorkspace,peekWorkspaceContext } from "@/lib/supabase/workspace";
@@ -170,6 +171,7 @@ function HealthPlannerContent(){
   <Panel title="Diet plan" kicker="MEAL PLAN"><form onSubmit={addMeal} className="grid gap-2 md:grid-cols-2"><select value={mealType} onChange={e=>setMealType(e.target.value)}><option>Breakfast</option><option>Lunch</option><option>Dinner</option><option>Snack</option><option>Other</option></select><input type="time" value={mealTime} onChange={e=>setMealTime(e.target.value)}/><input className="md:col-span-2" required value={mealTitle} onChange={e=>setMealTitle(e.target.value)} placeholder="Meal / food"/><textarea className="md:col-span-2" value={mealDetails} onChange={e=>setMealDetails(e.target.value)} placeholder="Portion / notes"/><input type="number" min="0" value={mealCalories??""} onChange={e=>setMealCalories(e.target.value?Number(e.target.value):undefined)} placeholder="Calories optional"/><input type="number" min="0" step=".1" value={mealProtein??""} onChange={e=>setMealProtein(e.target.value?Number(e.target.value):undefined)} placeholder="Protein g optional"/><div className="md:col-span-2"><span className="text-xs text-slate-400">Days</span><div className="day-picker">{DAY_LABELS.map((d,i)=><button type="button" key={d} onClick={()=>toggleDay(mealDays,setMealDays,i+1)} className={mealDays.includes(i+1)?"pill green":"mini-btn"}>{d}</button>)}</div></div><button className="primary-btn md:col-span-2">Add meal</button></form></Panel>
   <Panel title="Today's meals" kicker={DAY_LABELS[dow-1]}><div className="list-stack">{todayMeals.map(m=><div key={m.id} className="priority-item"><span className="priority-number">🍽</span><div><strong>{m.meal_time||"—"} · {m.meal_type} · {m.title}</strong><small>{m.details||""}{m.calories!=null?` · ${m.calories} kcal`:""}{m.protein_g!=null?` · ${m.protein_g}g protein`:""}</small></div><div className="flex gap-1"><button onClick={()=>toggleMeal(m)} className="mini-btn">{m.active?"On":"Off"}</button><button onClick={()=>removeMeal(m)} className="mini-btn text-red-300">Delete</button></div></div>)}{!todayMeals.length&&<div className="empty-state"><b>No meal plan today</b>Add meals on the left.</div>}</div></Panel>
  </div>
+ <NutritionIntakePanel/>
  </>}
  </main>;
 }
