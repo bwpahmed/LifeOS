@@ -63,7 +63,7 @@ export function logDone(logs:PlannerLog[],habitId:string,iso:string):boolean {
 
 export function periodProgress(habit:PlannerHabit,logs:PlannerLog[],iso:string):{done:number;target:number} {
   const dates=periodDates(habit,iso);
-  const done=dates.reduce((n,d)=>n+(logDone(logs,habit.id,d)?1:0),0);
+  const done=dates.filter(d=>d<=iso).reduce((n,d)=>n+(logDone(logs,habit.id,d)?1:0),0);
   return {done:Math.min(done,periodTarget(habit,iso)),target:periodTarget(habit,iso)};
 }
 
