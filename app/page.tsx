@@ -296,6 +296,7 @@ export default function Home(){
   return <main className="page-root home-next">
     {error&&<p className="mb-4 rounded-xl border border-red-400/20 bg-red-400/10 p-3 text-sm text-red-200">{error}</p>}
 
+    <PrivacyGate><HomeHealthQuickLog day={today}/></PrivacyGate>
     <section className="home-next-hero" aria-label="Daily LifeOS overview">
       <div className="home-next-hero-top">
         <span className="home-next-overline">✳ YOUR PERSONAL COMMAND CENTER</span>
@@ -316,7 +317,6 @@ export default function Home(){
         <Link href="/focus" className="home-next-quickstat"><span className="home-next-stat-icon purple">◷</span><div><strong>{Math.floor(focusWeek/60)}h {focusWeek%60}m</strong><span>Weekly focus</span></div><span aria-hidden="true">↗</span></Link>
       </div>
     </section>
-    <PrivacyGate><HomeHealthQuickLog day={today}/></PrivacyGate>
     <div className="home-next-section-title"><div><span>YOUR LIFE, AT A GLANCE</span><h2>Daily overview</h2></div><Link href="/progress">All progress →</Link></div>
     <div className="grid g4 mt">
       {show("money")&&<Link href="/money" className="metric-card accent-red"><span>Money overdue</span><strong>{aed(money.overdue)}</strong><small>{money.count} overdue account{money.count===1?"":"s"}</small></Link>}
