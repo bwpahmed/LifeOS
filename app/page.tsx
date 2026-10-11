@@ -296,7 +296,7 @@ export default function Home(){
   return <main className="page-root home-next">
     {error&&<p className="mb-4 rounded-xl border border-red-400/20 bg-red-400/10 p-3 text-sm text-red-200">{error}</p>}
 
-    <PrivacyGate><HomeHealthQuickLog day={today}/></PrivacyGate>
+    <PrivacyGate><HomeHealthQuickLog day={today} timeZone={timezone}/></PrivacyGate>
     <section className="home-next-hero" aria-label="Daily LifeOS overview">
       <div className="home-next-hero-top">
         <span className="home-next-overline">✳ YOUR PERSONAL COMMAND CENTER</span>
