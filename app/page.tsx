@@ -10,6 +10,8 @@ import { todayInTZ } from "@/lib/timezone";
 import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
 import { LifeClock } from "@/components/life-clock";
 import { ProgressHalo } from "@/components/progress-halo";
+import { PrivacyGate } from "@/components/privacy-gate";
+import { HomeHealthQuickLog } from "@/components/home-health-quick-log";
 import "./home-next.css";
 import { safeNextPath } from "@/lib/auth-routing";
 
@@ -314,6 +316,7 @@ export default function Home(){
         <Link href="/focus" className="home-next-quickstat"><span className="home-next-stat-icon purple">◷</span><div><strong>{Math.floor(focusWeek/60)}h {focusWeek%60}m</strong><span>Weekly focus</span></div><span aria-hidden="true">↗</span></Link>
       </div>
     </section>
+    <PrivacyGate><HomeHealthQuickLog day={today}/></PrivacyGate>
     <div className="home-next-section-title"><div><span>YOUR LIFE, AT A GLANCE</span><h2>Daily overview</h2></div><Link href="/progress">All progress →</Link></div>
     <div className="grid g4 mt">
       {show("money")&&<Link href="/money" className="metric-card accent-red"><span>Money overdue</span><strong>{aed(money.overdue)}</strong><small>{money.count} overdue account{money.count===1?"":"s"}</small></Link>}
