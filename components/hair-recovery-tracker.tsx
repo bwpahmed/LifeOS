@@ -190,11 +190,11 @@ export function HairRecoveryTracker(){
    </div>
    <div className="hair-dual">
     <section className="hair-box">
-     <div className="hair-box-head"><h3>Nutrition & hydration</h3><Link href="/health-planner">Open planner →</Link></div>
+     <div className="hair-box-head"><h3>Nutrition & hydration</h3><Link href="#nutrition-intake">Log actual food ↓</Link></div>
      <p className="hair-sub">Protein entry for today: <strong>{proteinToday||"Not logged"}</strong>. This note comes from the Health journal.</p>
      <p className="hair-sub">Today's planned meals: <strong>{mealsToday.length}</strong>{mealsToday.some(x=>x.protein_g!=null)?(" · "+plannedProtein.toFixed(1)+" g protein planned (not confirmed eaten)"):""}.</p>
      {!!mealsToday.length&&<div className="hair-planned-meals">{mealsToday.map((m,i)=><div key={i}><span>🍽</span><b>{m.title}</b><small>{m.protein_g!=null?Number(m.protein_g)+" g planned":"Protein not entered"}</small></div>)}</div>}
-     <p className="hair-sub">Log actual meals and nutrient amounts in the existing Diet Planner; plans are not automatically counted as consumed.</p>
+     <p className="hair-sub">Log foods you actually ate in Daily Nutrition Tracker below. Diet Planner continues to hold planned meals only.</p>
      <button type="button" className="hair-food-toggle" aria-expanded={showFoods} onClick={()=>setShowFoods(v=>!v)}>{showFoods?"Hide food-source reference ↑":"Show food-source reference ↓"}</button>
      {showFoods&&<div className="hair-food-groups">{FOOD_GROUPS.map(([name,foods])=><div key={name}><b>{name}</b><p>{foods}</p></div>)}</div>}
      <p className="hair-sub">Food lists are general examples. Supplements or correction of deficiencies require lab results and clinician advice.</p>
