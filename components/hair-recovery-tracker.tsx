@@ -46,6 +46,7 @@ export function HairRecoveryTracker(){
  const[userId,setUserId]=useState(initial?.user.id||"");
  const[today,setToday]=useState(todayInTZ());
  const[water,setWater]=useState<WaterRow[]>([]);
+ const[waterGoal,setWaterGoal]=useState<number|null>(null);
  const[health,setHealth]=useState<DailyHealth[]>([]);
  const[routines,setRoutines]=useState<Routine[]>([]);
  const[logs,setLogs]=useState<CareLog[]>([]);
@@ -68,14 +69,15 @@ export function HairRecoveryTracker(){
    const tz=await sb.from("profiles").select("timezone").eq("id",ctx.user.id).maybeSingle();
    const day=todayInTZ(tz.data?.timezone||"Asia/Dubai");
    const since=isoShift(day,-89);
-   const [waterResult,healthResult,routineResult,labResult,mealResult]=await Promise.all([
+   const [waterResult,healthResult,routineResult,labResult,mealResult,waterGoalResult]=await Promise.all([
     sb.from("water_logs").select("id,date,amount_ml,created_at").eq("workspace_id",ctx.workspaceId).gte("date",since).lte("date",day).order("created_at",{ascending:false}).limit(1000),
     sb.from("health_entries").select("id,date,protein").eq("workspace_id",ctx.workspaceId).gte("date",since).lte("date",day).order("date",{ascending:false}).limit(120),
     sb.from("health_routines").select("id,kind,title,details").eq("workspace_id",ctx.workspaceId).eq("kind","other").contains("details",{source:"hair_recovery"}),
     sb.from("lab_results").select("id,test_name,result,date,unit,ref_range").eq("workspace_id",ctx.workspaceId).order("date",{ascending:false}).limit(120),
-    sb.from("diet_plan_items").select("id,title,protein_g,active,days_of_week").eq("workspace_id",ctx.workspaceId)
+    sb.from("diet_plan_items").select("id,title,protein_g,active,days_of_week").eq("workspace_id",ctx.workspaceId),
+    sb.from("health_routines").select("details,active").eq("workspace_id",ctx.workspaceId).eq("kind","water")
    ]);
-   for(const result of [waterResult,healthResult,routineResult,labResult,mealResult])if(result.error)throw result.error;
+   for(const result of [waterResult,healthResult,routineResult,labResult,mealResult,waterGoalResult])if(result.error)throw result.error;
    const care=(routineResult.data||[]) as Routine[];
    let routineLogs:CareLog[]=[];
    if(care.length){
@@ -91,6 +93,9 @@ export function HairRecoveryTracker(){
    setUserId(ctx.user.id);
    setToday(day);
    setWater((waterResult.data||[]) as WaterRow[]);
+   const waterRoutine=(waterGoalResult.data||[]).find(r=>r.active)||(waterGoalResult.data||[])[0];
+   const recordedGoal=Number(waterRoutine?.details?.daily_goal_ml);
+   setWaterGoal(Number.isFinite(recordedGoal)&&recordedGoal>=250&&recordedGoal<=10000?recordedGoal:null);
    setHealth(healthRows);
    setRoutines(care);
    setLabs((labResult.data||[]) as HairLabRow[]);
@@ -110,6 +115,7 @@ export function HairRecoveryTracker(){
  const sevenDays=useMemo(()=>Array.from({length:7},(_,i)=>isoShift(today,i-6)),[today]);
  const sevenWater=waterByDay(water,sevenDays);
  const waterSevenTotal=sevenWater.reduce((sum,x)=>sum+x.ml,0);
+ const waterScale=Math.max(1000,waterGoal||0,...sevenWater.map(x=>x.ml));
  const todayProtein=health.find(h=>h.date===today);
  const recordedProtein=parseProteinGrams(todayProtein?.protein);
  const actualProteinDays=health.filter(h=>parseProteinGrams(h.protein)!==null).length;
@@ -219,7 +225,7 @@ export function HairRecoveryTracker(){
   {error&&<p className="hrx-error" role="alert">{error}</p>}
   {notice&&<p className="hrx-notice" role="status">{notice}</p>}
   <div className="hrx-summary">
-   <div><span>WATER · TODAY</span><strong>{todayWater.toLocaleString()} <small>mL</small></strong><p>{waterSevenTotal.toLocaleString()} mL recorded in the last 7 days</p></div>
+   <div><span>WATER · TODAY</span><strong>{todayWater.toLocaleString()} <small>mL</small></strong><p>{waterGoal?Math.round(todayWater/waterGoal*100)+"% of your "+waterGoal.toLocaleString()+" mL goal": "Set your personal daily goal in Health Planner"}. Last 7 days: {waterSevenTotal.toLocaleString()} mL.</p></div>
    <div><span>PROTEIN · TODAY</span><strong>{recordedProtein===null?"—":recordedProtein} <small>{recordedProtein===null?"not logged":"g"}</small></strong><p>{actualProteinDays} days with numeric protein records (last 90 days)</p></div>
    <div><span>LAB TESTS · IN LIFEOS</span><strong>{recordedLabs}<small>/{doctorChecklist.length}</small></strong><p>Tests with a recorded result; not an indication of normality</p></div>
   </div>
@@ -234,8 +240,9 @@ export function HairRecoveryTracker(){
      <label>Custom amount (mL)<input type="number" required min={1} max={5000} step={1} value={customWater} onChange={e=>setCustomWater(Number(e.target.value))}/></label>
      <button type="submit" disabled={busy}>Add water</button>
     </form>
+    {waterGoal&&<div className="hrx-progress" role="progressbar" aria-label="Water target progress" aria-valuenow={Math.min(100,Math.round(todayWater/waterGoal*100))} aria-valuemin={0} aria-valuemax={100}><span style={{width:Math.min(100,Math.round(todayWater/waterGoal*100))+"%"}}/></div>}
     <div className="hrx-water-days" aria-label="Last 7 days water intake">
-     {sevenWater.map(d=><div key={d.date} title={d.date+" • "+d.ml+" mL"}><span style={{height:(d.ml?Math.max(10,Math.min(100,d.ml/4000*100)):4)+"%"}}/><small>{localDay(d.date)}</small><b>{d.ml?d.ml:"—"}</b></div>)}
+     {sevenWater.map(d=><div key={d.date} title={d.date+" • "+d.ml+" mL"}><span style={{height:(d.ml?Math.max(10,Math.min(100,d.ml/waterScale*100)):4)+"%"}}/><small>{localDay(d.date)}</small><b>{d.ml?d.ml:"—"}</b></div>)}
     </div>
     <Link href="/health-planner">See water goal, detailed entries and reminders →</Link>
    </article>
