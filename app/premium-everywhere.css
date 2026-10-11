@@ -166,3 +166,83 @@
   .app-shell *, .app-shell *::before,.app-shell *::after{transition:none!important;animation:none!important;scroll-behavior:auto!important}
   .app-shell .metric-card:hover{transform:none}
 }
+
+
+/* October soft-type + motion refresh.
+   Applies to the presentation layer only; Supabase remains the source of truth. */
+:root[data-theme="light"] .app-shell {
+  --text: #304e43;
+  --muted: #6b8177;
+  color: #38594c;
+  background: radial-gradient(ellipse at 90% 8%,rgba(176,237,207,.20),transparent 41%),#f5faf7;
+}
+:root[data-theme="light"] .app-shell :is(h1,h2,h3,h4) {
+  color: #315348!important;
+  font-weight: 620!important;
+  letter-spacing: -.035em;
+}
+:root[data-theme="light"] .app-shell :is(.sidebar .brand,.section-heading h2,.topbar h1) {
+  font-weight: 660!important;
+  color:#285347!important;
+}
+:root[data-theme="light"] .app-shell :is(.panel-head h3,.habit-card h3,.hp-habit-details h4,.hp-aside-box h3) {
+  font-weight: 600!important;
+}
+:root[data-theme="light"] .app-shell :is(.metric-card strong,.stat-box b,.hp-stat strong,.habit-metric strong) {
+  font-weight: 650!important;
+  color:#247f63!important;
+}
+:root[data-theme="light"] .app-shell :is(.nav-item,.mobile-item,.eyebrow,.label,.pill,.habit-pill,.hp-habit-metrics span) {
+  font-weight: 520!important;
+}
+:root[data-theme="light"] .app-shell :is(p,small,.habit-lede,.habit-card-sub,.hp-head p,.hp-selected p) {
+  color: #697e73;
+  font-weight: 430;
+}
+:root[data-theme="light"] .app-shell :is(button,.primary-btn,.quick-add-btn,.ghost-btn,.soft-btn) {
+  font-weight: 590;
+}
+:root[data-theme="light"] .app-shell .hp-primary strong {color:#168063!important}
+:root[data-theme="light"] .app-shell .hp-head em {color:#0aab80!important}
+:root[data-theme="light"] .app-shell .panel,
+:root[data-theme="light"] .app-shell .metric-card {
+  box-shadow: 0 12px 37px rgba(49,113,84,.055)!important;
+}
+:root[data-theme="light"] .app-shell input,
+:root[data-theme="light"] .app-shell textarea,
+:root[data-theme="light"] .app-shell select {font-weight:450!important}
+.app-shell .page-root,
+.app-shell .hp-board,
+.app-shell .habits-v2,
+.app-shell .hp-aside-box,
+.app-shell .panel,
+.app-shell .metric-card {
+  animation: lifeos-soft-arrival .48s cubic-bezier(.2,.75,.22,1) both;
+}
+.app-shell .grid>.metric-card:nth-child(2),
+.app-shell .hp-stats>.hp-stat:nth-child(2) {animation-delay:65ms}
+.app-shell .grid>.metric-card:nth-child(3),
+.app-shell .hp-stats>.hp-stat:nth-child(3) {animation-delay:115ms}
+.app-shell .grid>.metric-card:nth-child(4),
+.app-shell .hp-stats>.hp-stat:nth-child(4) {animation-delay:160ms}
+.app-shell :is(.nav-item,.mobile-item,.primary-btn,.quick-add-btn,.icon-btn,.pill,.ghost-btn,.soft-btn) {
+  transition: color .2s ease,background-color .2s ease,border-color .2s ease,transform .22s ease,box-shadow .22s ease;
+}
+@media(hover:hover) {
+  .app-shell :is(.primary-btn,.quick-add-btn,.ghost-btn,.soft-btn):hover {transform:translateY(-2px)}
+  .app-shell :is(.panel,.metric-card):hover {box-shadow:0 16px 42px rgba(15,80,55,.11)!important}
+}
+.app-shell :is(.primary-btn,.quick-add-btn,.icon-btn,.hp-check):active {transform:scale(.97)}
+@keyframes lifeos-soft-arrival {
+  from {opacity:0;transform:translateY(8px)}
+  to {opacity:1;transform:translateY(0)}
+}
+@media(prefers-reduced-motion:reduce) {
+  .app-shell .page-root,
+  .app-shell .hp-board,
+  .app-shell .habits-v2,
+  .app-shell .hp-aside-box,
+  .app-shell .panel,
+  .app-shell .metric-card {animation:none!important}
+  .app-shell * {scroll-behavior:auto!important}
+}
