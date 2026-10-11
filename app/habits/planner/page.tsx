@@ -241,7 +241,7 @@ export default function HabitPlannerPage(){
       filtered.length===0?<div className="hp-empty">No habits match these filters. <button type="button" className="hp-outline" onClick={()=>{setSearch("");setArea("All areas");setShowAll(true);setStatusFilter("all");}}>Show all habits</button></div>:
       <>
        {statusFilter!=="done"&&<h4 className="hp-list-heading">To do <span>{remaining.length}</span></h4>}
-       {remaining.length?remaining.map(h=>renderHabit(h)): <div className="hp-done-state">✦ You're all caught up for this day.</div>}
+       {statusFilter!=="done"&&(remaining.length?remaining.map(h=>renderHabit(h)): <div className="hp-done-state">✦ You're all caught up for this day.</div>)}
        {!!completed.length&&<><h4 className="hp-list-heading">Completed <span>{completed.length}</span></h4>{completed.map(h=>renderHabit(h))}</>}
       </>}
     </div>
