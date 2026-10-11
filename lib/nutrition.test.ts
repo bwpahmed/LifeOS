@@ -28,4 +28,12 @@ describe("Nutrition estimates from real logged consumed foods",()=>{
   expect(FOOD_REFERENCE_VERSION).toBeTruthy();
   expect(FOOD_CATALOG.length).toBeGreaterThan(25);
  });
+ it("never treats plant ALA as marine EPA/DHA",()=>{
+  const flax=estimateFood(getFood("flaxseed")!,20);
+  const salmon=estimateFood(getFood("salmon-cooked")!,150);
+  expect(flax.omega3_ala_g).toBeGreaterThan(0);
+  expect(flax.omega3_marine_g).toBeUndefined();
+  expect(salmon.omega3_marine_g).toBeGreaterThan(0);
+  expect(salmon.omega3_ala_g).toBeUndefined();
+ });
 });
