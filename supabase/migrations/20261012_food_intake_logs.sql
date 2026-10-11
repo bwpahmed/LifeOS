@@ -50,4 +50,22 @@ using (created_by=auth.uid() and public.is_workspace_writer(workspace_id)
 create index if not exists food_intake_own_date_idx
   on public.food_intake_logs(workspace_id,created_by,date desc,created_at desc);
 
+
+-- Explicit access grants; RLS still determines which authenticated rows are visible.
+revoke all on table public.food_intake_logs from anon;
+grant select,insert,update,delete on table public.food_intake_logs to authenticated;
+grant all on table public.food_intake_logs to service_role;
+
+-- Use the existing real-time refresh mechanism for signed-in clients.
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname='supabase_realtime'
+      and schemaname='public' and tablename='food_intake_logs'
+  ) then
+    alter publication supabase_realtime add table public.food_intake_logs;
+  end if;
+end $$;
+
 commit;
