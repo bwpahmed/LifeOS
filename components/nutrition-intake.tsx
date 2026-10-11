@@ -32,7 +32,7 @@ export function NutritionIntakePanel(){
  const [expanded,setExpanded]=useState(false);
  const today=todayInTZ();
  const selected=getFood(foodKey);
- const grams=Number(amount)*(unit==="serving"&&selected?.servingGrams?selected.servingGrams:1);
+ const grams=Number(amount)*(!custom&&unit==="serving"&&selected?.servingGrams?selected.servingGrams:1);
  const estimated=selected&&Number.isFinite(grams)&&grams>0&&grams<=5000?estimateFood(selected,grams):{};
  const load=useCallback(async()=>{
   try{
@@ -119,7 +119,7 @@ export function NutritionIntakePanel(){
    <>
    <div className="nutrition-layout">
     <div className="nutrition-card">
-     <div className="nutrition-card-header"><h3>Add what you ate</h3><div className="nutrition-switch"><button type="button" aria-pressed={!custom} onClick={()=>setCustom(false)}>Food library</button><button type="button" aria-pressed={custom} onClick={()=>setCustom(true)}>Other food</button></div></div>
+     <div className="nutrition-card-header"><h3>Add what you ate</h3><div className="nutrition-switch"><button type="button" aria-pressed={!custom} onClick={()=>setCustom(false)}>Food library</button><button type="button" aria-pressed={custom} onClick={()=>{setCustom(true);setAmount("100");setUnit("g");}}>Other food</button></div></div>
      <form className="nutrition-form" onSubmit={e=>void add(e)}>
       <label>Meal<select value={meal} onChange={e=>setMeal(e.target.value)}>{MEALS.map(m=><option key={m}>{m}</option>)}</select></label>
       <label>Date<input type="date" value={day} max={today} min={dayOffset(today,-29)} onChange={e=>setDay(e.target.value)}/></label>
