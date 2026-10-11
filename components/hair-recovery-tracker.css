@@ -56,3 +56,7 @@
 @media(max-width:950px){.hair-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.hair-dual{grid-template-columns:1fr}}
 @media(max-width:540px){.hair-box{padding:14px}.hair-summary{gap:7px}.hair-summary>div{padding:13px;border-radius:16px}.hair-summary strong{font-size:23px}.hair-labs{grid-template-columns:1fr}.hair-starters{grid-template-columns:1fr}.hair-food-groups{grid-template-columns:1fr}.hair-hub-heading h2{font-size:25px}}
 @media(prefers-reduced-motion:reduce){.hair-hub *{animation:none!important;transition:none!important}}
+
+.hair-planned-meals{display:grid;gap:7px;margin:12px 0}
+.hair-planned-meals>div{display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px}
+.hair-planned-meals>div span{font-size:17px}.hair-planned-meals b{flex:1;min-width:0;color:var(--text);font-size:12px;font-weight:560}.hair-planned-meals small{font-size:10px;color:var(--muted)}
