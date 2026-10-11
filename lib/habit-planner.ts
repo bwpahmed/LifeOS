@@ -1,3 +1,5 @@
+import {habitConsistencyForFrequency,habitPeriodStreak} from "./habits";
+
 /**
  * Planner calculations derived from the canonical LifeOS habits/habit_logs rows.
  * No parallel database, local truth or new scheduling engine.
@@ -88,4 +90,31 @@ export function plannerCompletionTrend(habits:PlannerHabit[],logs:PlannerLog[],e
     const date=shiftHabitDate(endDate,index-(days-1));
     return {date,...dayProgress(habits,logs,date)};
   });
+}
+
+/** Ordering is a view projection only; the canonical records are unchanged. */
+export type HabitSortMode = "name" | "streak" | "consistency";
+
+export function sortPlannerHabits(
+  habits:PlannerHabit[],
+  logs:PlannerLog[],
+  days:string[],
+  mode:HabitSortMode
+):PlannerHabit[] {
+  if(mode==="name")return [...habits].sort((a,b)=>a.name.localeCompare(b.name));
+  const logMaps=new Map<string,Record<string,number>>();
+  for(const entry of logs){
+    const map=logMaps.get(entry.habit_id)||{};
+    map[entry.date]=Number(entry.value);
+    logMaps.set(entry.habit_id,map);
+  }
+  const scores=new Map(habits.map(h=>{
+    const values=logMaps.get(h.id)||{};
+    const target=Number(h.target||1);
+    const result=mode==="streak"
+      ?habitPeriodStreak(values,days,h.frequency,target)
+      :habitConsistencyForFrequency(values,days,h.frequency,target);
+    return [h.id,result] as const;
+  }));
+  return [...habits].sort((a,b)=>(scores.get(b.id)||0)-(scores.get(a.id)||0)||a.name.localeCompare(b.name));
 }
