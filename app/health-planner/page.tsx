@@ -3,6 +3,7 @@
 import { FormEvent,useCallback,useEffect,useMemo,useState } from "react";
 import Link from "next/link";
 import { PrivacyGate } from "@/components/privacy-gate";
+import { HydrationPanel } from "@/components/hydration-panel";
 import { BackHome,Panel } from "@/components/ui";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { currentWorkspace,peekWorkspaceContext } from "@/lib/supabase/workspace";
@@ -23,7 +24,7 @@ function hours(min:number|null){return min==null?"—":(min/60).toFixed(1)+"h";}
 function HealthPlannerContent(){
  const cachedWorkspace=peekWorkspaceContext();const[workspaceId,setWorkspaceId]=useState(cachedWorkspace?.workspaceId||"");const[userId,setUserId]=useState(cachedWorkspace?.user.id||"");
  const[routines,setRoutines]=useState<Routine[]>([]);const[logs,setLogs]=useState<RoutineLog[]>([]);const[water,setWater]=useState<WaterLog[]>([]);const[meals,setMeals]=useState<Meal[]>([]);const[sleep,setSleep]=useState<Sleep[]>([]);
- const[error,setError]=useState("");const[msg,setMsg]=useState("");
+ const[error,setError]=useState("");const[msg,setMsg]=useState("");const[waterBusy,setWaterBusy]=useState(false);
 
  const[kind,setKind]=useState("water");const[title,setTitle]=useState("Drink water");const[times,setTimes]=useState("09:00, 11:00, 13:00, 15:00, 17:00, 19:00");const[details,setDetails]=useState("");const[routineDays,setRoutineDays]=useState<number[]>([1,2,3,4,5,6,7]);const[waterGoalInput,setWaterGoalInput]=useState(2500);
  const[mealType,setMealType]=useState("Breakfast");const[mealTime,setMealTime]=useState("08:00");const[mealTitle,setMealTitle]=useState("");const[mealDetails,setMealDetails]=useState("");const[mealCalories,setMealCalories]=useState<number|undefined>();const[mealProtein,setMealProtein]=useState<number|undefined>();const[mealDays,setMealDays]=useState<number[]>([1,2,3,4,5,6,7]);
@@ -66,7 +67,23 @@ function HealthPlannerContent(){
  async function removeRoutine(r:Routine){if(!confirm(`Delete routine "${r.title}"?`))return;const sb=supabaseBrowser();const{error:q}=await sb.from("health_routines").delete().eq("id",r.id);if(q)setError(q.message);else await load();}
  async function doneRoutine(r:Routine,time:string){const sb=supabaseBrowser();const{error:q}=await sb.from("health_routine_logs").upsert({routine_id:r.id,workspace_id:workspaceId,created_by:userId,date:todayInTZ(),scheduled_time:time,status:"done",completed_at:new Date().toISOString()},{onConflict:"routine_id,date,scheduled_time"});if(q)setError(q.message);else await load();}
 
- async function addWater(amount:number){const sb=supabaseBrowser();const{error:q}=await sb.from("water_logs").insert({workspace_id:workspaceId,created_by:userId,date:todayInTZ(),amount_ml:amount});if(q)setError(q.message);else await load();}
+ async function addWater(amount:number){
+  if(waterBusy||!workspaceId||!userId)return;
+  if(!Number.isInteger(amount)||amount<1||amount>5000){setError("Water amount must be between 1 and 5000 ml.");return;}
+  setWaterBusy(true);setError("");setMsg("");
+  try{const sb=supabaseBrowser();const{error:q}=await sb.from("water_logs").insert({workspace_id:workspaceId,created_by:userId,date:todayInTZ(),amount_ml:amount});if(q)throw q;setMsg(amount+" ml added to your water history.");await load();}
+  catch(e){setError(e instanceof Error?e.message:"Unable to save water.");}
+  finally{setWaterBusy(false);}
+ }
+ async function undoWater(entry:WaterLog){
+  if(waterBusy||!workspaceId||!userId)return;
+  if(entry.date!==todayInTZ()){setError("Only today's water entry can be undone here.");return;}
+  setWaterBusy(true);setError("");setMsg("");
+  try{const sb=supabaseBrowser();const{error:q}=await sb.from("water_logs").delete().eq("id",entry.id).eq("workspace_id",workspaceId).eq("created_by",userId);
+   if(q)throw q;setMsg("Water entry removed.");await load();}
+  catch(e){setError(e instanceof Error?e.message:"Unable to undo water entry.");}
+  finally{setWaterBusy(false);}
+ }
  async function saveWaterGoal(){if(!workspaceId||!userId)return;const goal=clampWaterGoal(waterGoalInput);const sb=supabaseBrowser();const existing=routines.find(r=>r.kind==="water");if(existing){const{error:q}=await sb.from("health_routines").update({details:{...(existing.details||{}),daily_goal_ml:goal,default_amount_ml:Number(existing.details?.default_amount_ml||250)},updated_at:new Date().toISOString()}).eq("id",existing.id);if(q){setError(q.message);return;}}else{const{error:q}=await sb.from("health_routines").insert({workspace_id:workspaceId,created_by:userId,kind:"water",title:"Drink water",details:{daily_goal_ml:goal,default_amount_ml:250},reminder_times:["09:00","11:00","13:00","15:00","17:00","19:00"],days_of_week:[1,2,3,4,5,6,7],active:true,start_date:todayInTZ()});if(q){setError(q.message);return;}}setMsg("Water target saved.");await load();}
  async function ensureSleepReminder(){if(!workspaceId||!userId)return;const sb=supabaseBrowser();const existing=routines.find(r=>r.kind==="sleep");const payload={title:"Sleep reminder",details:{target_hours:8,note:"Bedtime reminder"},reminder_times:[bedTime],days_of_week:[1,2,3,4,5,6,7],active:true,start_date:todayInTZ(),updated_at:new Date().toISOString()};const q=existing?await sb.from("health_routines").update(payload).eq("id",existing.id):await sb.from("health_routines").insert({...payload,workspace_id:workspaceId,created_by:userId,kind:"sleep"});if(q.error)setError(q.error.message);else{setMsg("Sleep reminder saved.");await load();}}
  async function addMeal(e:FormEvent){
@@ -138,7 +155,7 @@ function HealthPlannerContent(){
  </div>
 
  <div className="grid g2 mt">
-  <Panel title="Water tracker" kicker="QUICK LOG"><div className="flex items-end gap-2"><label className="text-xs text-slate-400">Daily target (ml)<input type="number" min="250" max="10000" step="250" value={waterGoalInput} onChange={e=>setWaterGoalInput(Number(e.target.value)||2500)}/></label><button onClick={saveWaterGoal} className="ghost-btn">Save target</button></div><div className="progress mt"><i style={{width:`${Math.min(100,todayWater/waterGoal*100)}%`}}/></div><div className="progress-label"><span>{todayWater} ml</span><span>{waterGoal} ml goal</span></div><div className="quick-type-grid mt"><button onClick={()=>addWater(250)}><b>＋</b><span>250 ml</span></button><button onClick={()=>addWater(500)}><b>＋</b><span>500 ml</span></button><button onClick={()=>addWater(750)}><b>＋</b><span>750 ml</span></button></div><div className="mt list-stack">{water.filter(w=>w.date===today).slice(0,8).map(w=><div key={w.id} className="priority-item"><span className="priority-number">💧</span><div><strong>{w.amount_ml} ml</strong><small>{new Date(w.created_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</small></div></div>)}</div></Panel>
+  <HydrationPanel water={water} today={today} goal={waterGoal} goalInput={waterGoalInput} onGoalChange={setWaterGoalInput} onSaveGoal={saveWaterGoal} onAdd={addWater} onDelete={undoWater} busy={waterBusy}/>
 
   <Panel title="Medicine & health reminders" kicker="TODAY"><div className="list-stack">{activeToday.map(r=><div key={r.id} className="rounded-xl border border-white/10 p-3"><div className="flex items-start justify-between gap-3"><div><b>{r.title}</b><p className="text-xs text-slate-400">{r.kind}{r.details?.dose?" · "+r.details.dose:""}</p></div><div className="flex gap-1"><button onClick={()=>toggleRoutine(r)} className="mini-btn">{r.active?"On":"Off"}</button><button onClick={()=>removeRoutine(r)} className="mini-btn text-red-300">Delete</button></div></div><div className="mt-2 flex flex-wrap gap-2">{(r.reminder_times||[]).map(t=>{const done=logKey.has(r.id+"|"+t);return <button key={t} onClick={()=>!done&&doneRoutine(r,t)} className={done?"pill green":"mini-btn"}>{t} {done?"✓":"Done"}</button>})}</div></div>)}{!activeToday.length&&<div className="empty-state"><b>No active routines</b>Add water, medicine or sleep reminders below.</div>}</div></Panel>
  </div>
