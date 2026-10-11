@@ -42,9 +42,9 @@ export default function HabitsPage(){
      <h1>Your daily momentum.</h1>
      <p className="habit-lede">Your daily progress, beautiful and simple. Build consistency one moment at a time.</p>
     </div>
-    <button type="button" className="habit-add-btn" onClick={()=>setShowComposer(v=>!v)} aria-expanded={showComposer} aria-controls="habit-new-form">
+    <div className="habit-heading-actions"><Link href="/habits/planner" className="habit-add-btn habit-planner-link">Open advanced planner ↗</Link><button type="button" className="habit-add-btn" onClick={()=>setShowComposer(v=>!v)} aria-expanded={showComposer} aria-controls="habit-new-form">
      <span aria-hidden="true">{showComposer?"−":"+"}</span>{showComposer?"Close form":"New habit"}
-    </button>
+    </button></div>
    </header>
    {error&&<p role="alert" className="habit-feedback error">{error}</p>}
    {notice&&<p role="status" className="habit-feedback">{notice}</p>}
