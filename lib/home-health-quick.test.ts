@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest";
-import {dueForQuickLog,isHabitLogged,isRoutineTaken,ownCareRoutines,quickHabitDue,validWaterAmount,type QuickRoutine} from "./home-health-quick";
+import {dueForQuickLog,isHabitLogged,isRoutineTaken,ownCareRoutines,quickHabitDue,validWaterAmount,medicineDoseState,localHHMM,orderMedicineDoses,type QuickRoutine} from "./home-health-quick";
 const routine:QuickRoutine={id:"r1",title:"A prescribed medicine",kind:"medicine",active:true,created_by:"owner",days_of_week:[1,2,3,4,5,6,7],reminder_times:["09:00"],start_date:null,end_date:null,details:{}};
 describe("home health actions reuse canonical schedules",()=>{
  it("checks weekdays and active dates before showing medicine",()=>{
@@ -26,5 +26,26 @@ describe("home health actions reuse canonical schedules",()=>{
  it("rejects invalid water quantities",()=>{
   expect(validWaterAmount(250)).toBe(true);
   for(const n of [0,-2,5001,NaN,Infinity,1.4])expect(validWaterAmount(n)).toBe(false);
+ });
+});
+
+describe("Medicine dashboard urgent reminder states",()=>{
+ it("highlights overdue and due-soon schedules without claiming they were taken",()=>{
+  expect(medicineDoseState("08:00","08:50",false)).toBe("overdue");
+  expect(medicineDoseState("09:00","09:03",false)).toBe("due-now");
+  expect(medicineDoseState("09:30","09:10",false)).toBe("due-soon");
+  expect(medicineDoseState("19:00","09:10",false)).toBe("upcoming");
+  expect(medicineDoseState("08:00","08:50",true)).toBe("taken");
+ });
+ it("orders missed before imminent, future and completed doses",()=>{
+  const rows=[{time:"10:00",state:"taken" as const},{time:"09:00",state:"due-soon" as const},
+   {time:"07:00",state:"overdue" as const},{time:"11:00",state:"upcoming" as const}];
+  expect(orderMedicineDoses(rows).map(x=>x.state)).toEqual(["overdue","due-soon","upcoming","taken"]);
+ });
+ it("formats current time for user timezone, including Dubai",()=>{
+  expect(localHHMM("Asia/Dubai",new Date("2026-10-11T07:10:00Z"))).toBe("11:10");
+ });
+ it("ignores invalid scheduled time without treating it as missed",()=>{
+  expect(medicineDoseState("bad","08:00",false)).toBe("upcoming");
  });
 });
