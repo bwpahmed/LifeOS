@@ -88,7 +88,7 @@ console.log("Food intake RLS and canonical schema guardrails passed.");
 const medicineReminderMigration=fs.readFileSync("supabase/migrations/20261012_personal_health_reminder_safety.sql","utf8").toLowerCase();
 for(const fragment of [
  "r.created_by", "l.created_by=r.created_by", "l.status='done'",
- "health_routine_logs", "lifeos-health-reminders-15m",
+ "health_routine_logs", "lifeos-health-reminders-owner-5m", "*/5 * * * *",
  "generate_due_health_notifications"
 ]){
  if(!medicineReminderMigration.includes(fragment)){
