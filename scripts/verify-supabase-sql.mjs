@@ -59,3 +59,26 @@ for (const file of files) {
 
 if (failed) process.exit(1);
 console.log("Supabase SQL syntax and security sanity checks passed.");
+
+const nutritionMigration = fs.readFileSync("supabase/migrations/20261012_food_intake_logs.sql","utf8").toLowerCase();
+const nutritionSchema=fs.readFileSync("supabase/schema.sql","utf8").toLowerCase();
+const nutritionGuardrails=[
+  "create table if not exists public.food_intake_logs",
+  "alter table public.food_intake_logs enable row level security",
+  "created_by=auth.uid()",
+  "public.can_access_module(workspace_id,'health')",
+  "public.is_workspace_writer(workspace_id)",
+  "food intake own select",
+  "food intake own insert",
+  "food intake own update",
+  "food intake own delete",
+  "check (quantity_g > 0 and quantity_g <= 5000)"
+];
+for(const fragment of nutritionGuardrails){
+ if(!nutritionMigration.includes(fragment)||!nutritionSchema.includes(fragment)){
+  console.error("Nutrition RLS/schema guardrail missing: "+fragment);
+  process.exitCode=1;
+ }
+}
+if(process.exitCode)process.exit(process.exitCode);
+console.log("Food intake RLS and canonical schema guardrails passed.");
