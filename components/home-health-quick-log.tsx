@@ -63,7 +63,7 @@ export function HomeHealthQuickLog({day}:{day:string}){
    setHabitRows((h.data||[]) as PlannerHabit[]);
    setHabitLogs((hl.data||[]) as PlannerLog[]);
    const goal=ownR.find(x=>x.kind==="water"&&x.created_by===ctx.user.id)?.details?.daily_goal_ml;
-   setWaterGoal(clampWaterGoal(typeof goal==="number"?goal:null));
+   setWaterGoal(goal==null?2500:clampWaterGoal(Number(goal)));
    // Nutrition migration might not be installed in the connected project yet:
    // keep existing medicine/water/hair/habit controls usable.
    setFoodAvailable(!fl.error);
