@@ -41,7 +41,7 @@ export type MedicineDoseState="taken"|"overdue"|"due-now"|"due-soon"|"upcoming";
 export function medicineDoseState(time:string,nowHHMM:string,taken:boolean):MedicineDoseState {
  if(taken)return "taken";
  const minutes=(hhmm:string)=>{
-  if(!/^(?:[01]\\d|2[0-3]):[0-5]\\d$/.test(hhmm))return NaN;
+  if(!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(hhmm))return NaN;
   const [h,m]=hhmm.split(":").map(Number);return h*60+m;
  };
  const due=minutes(time),now=minutes(nowHHMM);
