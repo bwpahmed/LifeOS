@@ -3,7 +3,7 @@ import {matchHairLab,hairRoutineDone,hairActivityDays,HAIR_LAB_CHECKLIST} from "
 describe("hair recovery uses recorded source data only",()=>{
  it("shows missing lab checks as unrecorded rather than normal",()=>{
   expect(matchHairLab("Ferritin",[])).toBeNull();
-  expect(HAIR_LAB_CHECKLIST.length).toBe(12);
+  expect(HAIR_LAB_CHECKLIST.length).toBe(14);
  });
  it("matches exact keywords and the latest entered value without interpreting range",()=>{
   const values=[
@@ -14,6 +14,7 @@ describe("hair recovery uses recorded source data only",()=>{
   expect(matchHairLab("Ferritin",values)?.result).toBe("25");
   expect(matchHairLab("Vitamin B12",values)?.result).toBe("420");
   expect(matchHairLab("Serum zinc",values)).toBeNull();
+  expect(matchHairLab("KFT",[{test_name:"CMP",date:"2026-10-11",result:"Done",unit:null}])).toBeNull();
  });
  it("counts only persisted done statuses on recorded dates",()=>{
   const logs=[
