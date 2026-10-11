@@ -50,7 +50,7 @@ begin
             split_part(rt,':',1)::int * 60
             + split_part(rt,':',2)::int
           )
-        ) between 0 and 14
+        ) between 0 and 4
         and not exists (
           select 1 from public.health_routine_logs l
           where l.routine_id=r.id
@@ -111,12 +111,16 @@ revoke all on function public.generate_due_health_notifications() from public, a
 
 do $$
 begin
+  -- Retire the old 15-minute worker and install one owner-private 5-minute job.
   if exists(select 1 from cron.job where jobname='lifeos-health-reminders-15m') then
     perform cron.unschedule((select jobid from cron.job where jobname='lifeos-health-reminders-15m' limit 1));
   end if;
+  if exists(select 1 from cron.job where jobname='lifeos-health-reminders-owner-5m') then
+    perform cron.unschedule((select jobid from cron.job where jobname='lifeos-health-reminders-owner-5m' limit 1));
+  end if;
   perform cron.schedule(
-    'lifeos-health-reminders-15m',
-    '*/15 * * * *',
+    'lifeos-health-reminders-owner-5m',
+    '*/5 * * * *',
     'select public.generate_due_health_notifications();'
   );
 end $$;
