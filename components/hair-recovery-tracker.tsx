@@ -14,10 +14,10 @@ type WaterLog={date:string;amount_ml:number};
 type HealthEntry={date:string;protein:string|null};
 type PlannedMeal={title:string;protein_g:number|null;days_of_week:number[];active:boolean};
 const TRACKING_IDEAS=[
- {title:"Protein-rich meals",category:"nutrition",description:"Track meals you actually ate; enter detailed foods in Diet Planner."},
- {title:"Hair care / serum routine",category:"care",description:"Only log treatments that your clinician has approved."},
+ {title:"Protein-rich meals",category:"nutrition",description:"Mark meals you actually ate. Log exact foods and protein in Daily Nutrition Tracker."},
+ {title:"Anti-hairfall serum applied",category:"care",description:"Log actual application. No product, concentration or time is assumed."},
  {title:"Hair shedding observation",category:"observation",description:"Note changes without estimating missing measurements."},
- {title:"Scalp procedure check-in",category:"procedure",description:"Only if specifically advised by a dermatologist."},
+ {title:"Dermastamp session completed",category:"procedure",description:"Optional log only; no daily frequency is assumed. Follow dermatologist guidance."},
  {title:"Doctor-approved topical routine",category:"care",description:"Track actual use only after a clinician prescribes the product."},
  {title:"Discuss lab results with clinician",category:"consultation",description:"Record that you discussed your test results, not an automatic diagnosis."},
  {title:"Monthly hair photo review",category:"evidence",description:"Compare existing private hair photos under consistent conditions."},
@@ -103,10 +103,10 @@ export function HairRecoveryTracker(){
    const q=await sb.from("health_routines").insert({
     workspace_id:workspaceId,created_by:userId,kind:"other",title:clean,
     details:{source:"lifeos-hair-recovery",category},reminder_times:[],
-    days_of_week:[1,2,3,4,5,6,7],active:true,start_date:today
+    days_of_week:category==="care"||category==="procedure"?[]:[1,2,3,4,5,6,7],active:true,start_date:today
    });
    if(q.error)throw q.error;
-   setCustom("");setNotice("Added to your Supabase health routines. No automatic treatment reminders were set.");
+   setCustom("");setNotice("Tracking card added without a medicine dose or treatment reminder.");
    await load();
   }catch(e){setError(e instanceof Error?e.message:"Could not add routine.");}
   finally{setPending("");}
@@ -178,7 +178,7 @@ export function HairRecoveryTracker(){
       <label>Custom routine<input value={custom} onChange={e=>setCustom(e.target.value)} maxLength={110} placeholder="A personal activity you want to track"/></label>
       <button type="submit" disabled={!!pending||!custom.trim()}>Add</button>
      </form>
-     <p className="hair-sub">Scalp procedures and topical medicines should only be tracked if a qualified clinician has advised them. No treatments are automatically prescribed, scheduled or started here.</p>
+     <p className="hair-sub">Serum and dermastamp tracking records only what you actually did. They are not medicine prescriptions or automatic reminders. A dermatologist should guide scalp procedures and topical treatment; minoxidil is not added as an active medicine by default.</p>
     </section>
     <section className="hair-box">
      <div className="hair-box-head"><h3>Lab test record checklist</h3><span>{labCount} recorded</span></div>
