@@ -6,12 +6,14 @@ import {supabaseBrowser} from "@/lib/supabase/client";
 import {currentWorkspace} from "@/lib/supabase/workspace";
 import {useRealtimeRefresh} from "@/lib/use-realtime-refresh";
 import {habitDueOn,logDone,type PlannerHabit,type PlannerLog} from "@/lib/habit-planner";
+import {orderPinnedHabits} from "@/lib/habit-pins";
 import {clampWaterGoal,waterTotalForDate,parseReminderTimes} from "@/lib/health-planner";
 import {FOOD_CATALOG,FOOD_REFERENCE_VERSION,estimateFood,getFood,totalsForFoodLogs,type FoodIntakeRecord} from "@/lib/nutrition";
 import {isRoutineTaken,ownCareRoutines,validWaterAmount,medicineDoseState,orderMedicineDoses,localHHMM,type QuickRoutine,type QuickRoutineLog} from "@/lib/home-health-quick";
 import "./home-health-quick-log.css";
 
 type WaterEntry={id:string;amount_ml:number;date:string;created_at:string};
+type OwnedHabit=PlannerHabit&{created_by?:string|null};
 function isoShift(day:string,n:number){const d=new Date(day+"T12:00:00Z");d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);}
 function weekday(day:string){return ((new Date(day+"T12:00:00Z").getUTCDay()+6)%7)+1;}
 const STARTER_FOODS=["egg-boiled","chicken-roasted","chicken-raw","milk","paneer","chana-cooked","lentils-boiled"];
@@ -23,7 +25,12 @@ export function HomeHealthQuickLog({day,timeZone="Asia/Dubai"}:{day:string;timeZ
  const[water,setWater]=useState<WaterEntry[]>([]);
  const[routines,setRoutines]=useState<QuickRoutine[]>([]);
  const[routineLogs,setRoutineLogs]=useState<QuickRoutineLog[]>([]);
- const[habitRows,setHabitRows]=useState<PlannerHabit[]>([]);
+ const[habitRows,setHabitRows]=useState<OwnedHabit[]>([]);
+ const[pinnedIds,setPinnedIds]=useState<string[]>([]);
+ const[pinsReady,setPinsReady]=useState(false);
+ const[newHabit,setNewHabit]=useState("");
+ const[newHabitFrequency,setNewHabitFrequency]=useState("Daily");
+ const[showHabitForm,setShowHabitForm]=useState(false);
  const[habitLogs,setHabitLogs]=useState<PlannerLog[]>([]);
  const[foodLogs,setFoodLogs]=useState<FoodIntakeRecord[]>([]);
  const[foodAvailable,setFoodAvailable]=useState(true);
@@ -46,7 +53,7 @@ export function HomeHealthQuickLog({day,timeZone="Asia/Dubai"}:{day:string;timeZ
    const sb=supabaseBrowser(),ctx=await currentWorkspace(sb);
    if(!ctx){setWorkspace("");setLoaded(true);return;}
    const monthStart=day.slice(0,7)+"-01";
-   const [w,r,rl,h,hl,fl]=await Promise.all([
+   const [w,r,rl,h,hl,fl,pins]=await Promise.all([
     sb.from("water_logs").select("id,amount_ml,date,created_at")
       .eq("workspace_id",ctx.workspaceId).eq("created_by",ctx.user.id).eq("date",day)
       .order("created_at",{ascending:false}).limit(200),
@@ -54,18 +61,20 @@ export function HomeHealthQuickLog({day,timeZone="Asia/Dubai"}:{day:string;timeZ
       .eq("workspace_id",ctx.workspaceId).eq("created_by",ctx.user.id).eq("active",true).in("kind",["medicine","other","water"]),
     sb.from("health_routine_logs").select("routine_id,date,scheduled_time,status")
       .eq("workspace_id",ctx.workspaceId).eq("created_by",ctx.user.id).eq("date",day),
-    sb.from("habits").select("id,name,area,frequency,target,kind,unit").eq("workspace_id",ctx.workspaceId).order("created_at").limit(250),
+    sb.from("habits").select("id,name,area,frequency,target,kind,unit,created_by").eq("workspace_id",ctx.workspaceId).order("created_at").limit(250),
     sb.from("habit_logs").select("habit_id,date,value").gte("date",isoShift(monthStart,-7)).lte("date",day).limit(3000),
     sb.from("food_intake_logs").select("id,date,food_key,food_name,quantity_g,estimated_nutrients,meal_type,created_at")
       .eq("workspace_id",ctx.workspaceId).eq("created_by",ctx.user.id).eq("date",day)
-      .order("created_at",{ascending:false}).limit(200)
+      .order("created_at",{ascending:false}).limit(200),
+    sb.from("user_habit_pins").select("habit_id").eq("workspace_id",ctx.workspaceId).eq("user_id",ctx.user.id)
    ]);
    for(const q of [w,r,rl,h,hl])if(q.error)throw q.error;
    const ownR=(r.data||[]) as QuickRoutine[];
    setWater((w.data||[]) as WaterEntry[]);
    setRoutines(ownR);
    setRoutineLogs((rl.data||[]) as QuickRoutineLog[]);
-   setHabitRows((h.data||[]) as PlannerHabit[]);
+   setHabitRows((h.data||[]) as OwnedHabit[]);
+   setPinsReady(!pins.error);setPinnedIds(pins.error?[]:(pins.data||[]).map(p=>p.habit_id));
    setHabitLogs((hl.data||[]) as PlannerLog[]);
    const goal=ownR.find(x=>x.kind==="water"&&x.created_by===ctx.user.id)?.details?.daily_goal_ml;
    setWaterGoal(goal==null?2500:clampWaterGoal(Number(goal)));
@@ -78,7 +87,7 @@ export function HomeHealthQuickLog({day,timeZone="Asia/Dubai"}:{day:string;timeZ
  },[day]);
  useEffect(()=>{void load();},[load]);
  useEffect(()=>{const timer=window.setInterval(()=>setNow(new Date()),60_000);return()=>window.clearInterval(timer);},[]);
- useRealtimeRefresh(["water_logs","health_routines","health_routine_logs","habits","habit_logs","food_intake_logs"],load,Boolean(workspace));
+ useRealtimeRefresh(["water_logs","health_routines","health_routine_logs","habits","habit_logs","food_intake_logs","user_habit_pins"],load,Boolean(workspace));
 
  const waterMl=waterTotalForDate(water,day);
  const medicine=useMemo(()=>ownCareRoutines(routines,owner,day,"medicine"),[routines,owner,day]);
@@ -98,7 +107,7 @@ export function HomeHealthQuickLog({day,timeZone="Asia/Dubai"}:{day:string;timeZ
  const dueSoonDoses=medicineSlots.filter(x=>x.state==="due-soon").length;
  const medicinesTaken=medicineSlots.filter(x=>x.state==="taken").length;
  const hairDone=care.filter(r=>isRoutineTaken(routineLogs,r.id,day,"")).length;
- const visibleHabits=showMoreHabits?dueHabits:dueHabits.slice(0,4);
+ const visibleHabits=showMoreHabits?orderPinnedHabits(dueHabits,pinnedIds):orderPinnedHabits(dueHabits,pinnedIds).slice(0,4);
 
  async function act(id:string,job:()=>Promise<void>,success:string){
   if(busy)return;setBusy(id);setError("");setNotice("");
@@ -164,6 +173,36 @@ export function HomeHealthQuickLog({day,timeZone="Asia/Dubai"}:{day:string;timeZ
     await sb.from("habit_logs").upsert({habit_id:h.id,date:day,value:1},{onConflict:"habit_id,date"});
    if(result.error)throw result.error;
   },done?"Habit completion undone.":"Habit completion synced.");
+ }
+ function saveHabit(e:FormEvent){
+  e.preventDefault();const title=newHabit.trim();
+  if(!title||title.length>120||!workspace||!owner)return;
+  void act("habit-create",async()=>{
+   const sb=supabaseBrowser();
+   const result=await sb.from("habits").insert({id:crypto.randomUUID(),workspace_id:workspace,created_by:owner,
+    name:title,area:"Personal",frequency:newHabitFrequency,kind:"build",target:1,unit:"done",privacy:"private"});
+   if(result.error)throw result.error;
+   setNewHabit("");setShowHabitForm(false);
+  },"Habit added to your LifeOS workspace.");
+ }
+ function changePin(h:OwnedHabit){
+  if(!pinsReady){setError("Pin feature needs the Supabase user_habit_pins migration.");return;}
+  const pin=!pinnedIds.includes(h.id);
+  void act("pin-"+h.id,async()=>{
+   const sb=supabaseBrowser();
+   const q=pin?await sb.from("user_habit_pins").insert({workspace_id:workspace,user_id:owner,habit_id:h.id}):
+    await sb.from("user_habit_pins").delete().eq("user_id",owner).eq("habit_id",h.id);
+   if(q.error)throw q.error;
+  },pin?"Pinned to Home.":"Removed from pinned habits.");
+ }
+ function removeHabit(h:OwnedHabit){
+  if(h.created_by!==owner){setError("Only the habit creator can remove this shared habit.");return;}
+  if(!confirm('Delete "'+h.name+'" and all its history?'))return;
+  void act("delete-"+h.id,async()=>{
+   const sb=supabaseBrowser();
+   const q=await sb.from("habits").delete().eq("id",h.id).eq("workspace_id",workspace).eq("created_by",owner).select("id");
+   if(q.error)throw q.error;if(!q.data?.length)throw new Error("Delete not permitted.");
+  },"Habit and related history removed.");
  }
  function logFood(e:FormEvent){
   e.preventDefault();
@@ -260,12 +299,23 @@ export function HomeHealthQuickLog({day,timeZone="Asia/Dubai"}:{day:string;timeZ
     </article>
    </div>
    <div className="lifeos-quick-habits">
-    <div className="lifeos-quick-habits-top"><div><span>YOUR DAILY CHECKLIST</span><h3>Today's habits <small>{completedHabits}/{dueHabits.length} done</small></h3></div><Link href="/habits/planner">Full Habit Studio ↗</Link></div>
+    <div className="lifeos-quick-habits-top"><div><span>YOUR DAILY CHECKLIST</span><h3>Today's habits <small>{completedHabits}/{dueHabits.length} done</small></h3></div><div className="lifeos-habits-manage"><button type="button" onClick={()=>setShowHabitForm(v=>!v)}>＋ Add habit</button><Link href="/habits/planner">Full Habit Studio ↗</Link></div></div>
+    {showHabitForm&&<form className="lifeos-home-habit-add" onSubmit={saveHabit}>
+      <label>Habit name<input required maxLength={120} placeholder="e.g. Evening walk" value={newHabit} onChange={e=>setNewHabit(e.target.value)}/></label>
+      <label>Repeat<select value={newHabitFrequency} onChange={e=>setNewHabitFrequency(e.target.value)}><option value="Daily">Daily</option><option value="Weekly">Weekly</option><option value="Monthly">Monthly</option></select></label>
+      <button disabled={!!busy||!newHabit.trim()} type="submit">Save</button>
+     </form>}
     {dueHabits.length?<div className="lifeos-quick-habit-grid">{visibleHabits.map(h=>{
      const done=logDone(habitLogs,h.id,day);
-     return <button type="button" className={"lifeos-quick-habit"+(done?" done":"")} key={h.id} aria-pressed={done} disabled={!!busy} onClick={()=>logHabit(h)}>
-      <span className="lifeos-quick-habit-check">{done?"✓":"+"}</span><span><strong>{h.name}</strong><small>{h.area||"Personal"} · {h.frequency}</small></span>
-     </button>;
+     return <div className={"lifeos-quick-habit"+(done?" done":"")} key={h.id}>
+      <button type="button" className="lifeos-habit-done-action" aria-pressed={done} disabled={!!busy} onClick={()=>logHabit(h)}>
+       <span className="lifeos-quick-habit-check">{done?"✓":"+"}</span><span><strong>{h.name}</strong><small>{h.area||"Personal"} · {h.frequency}</small></span>
+      </button>
+      <div className="lifeos-habit-card-controls">
+       <button type="button" disabled={!!busy||!pinsReady} title={pinsReady?"Pin or unpin":"Pins await database activation"} aria-pressed={pinnedIds.includes(h.id)} aria-label={(pinnedIds.includes(h.id)?"Unpin ":"Pin ")+h.name} onClick={()=>changePin(h)}>{pinnedIds.includes(h.id)?"📌 Unpin":"📌 Pin"}</button>
+       <button type="button" disabled={!!busy||h.created_by!==owner} title="Delete your habit and its history" aria-label={"Delete "+h.name} onClick={()=>removeHabit(h)}>Remove</button>
+      </div>
+     </div>;
     })}</div>:<p className="lifeos-quick-help">No habits due right now. <Link href="/habits">Create one →</Link></p>}
     {dueHabits.length>4&&<button className="lifeos-quick-toggle" type="button" onClick={()=>setShowMoreHabits(x=>!x)}>{showMoreHabits?"Show fewer ↑":("Show all "+dueHabits.length+" habits ↓")}</button>}
    </div>
