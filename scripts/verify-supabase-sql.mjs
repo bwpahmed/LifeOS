@@ -153,7 +153,7 @@ for(const clause of [
   "created_by=auth.uid()","create policy \"health own select\"",
   "create policy \"health own insert\"","create policy \"health own update\"",
   "create policy \"health own delete\"",
-  "l.created_by","split_part(object_name,'/',2)=coalesce(auth.uid()::text,'')"
+  "r.created_by=auth.uid()","split_part(object_name,'/',2)=coalesce(auth.uid()::text,'')"
 ]){
  if(!medicalPrivacySQL.includes(clause)){console.error("Medical privacy rule missing: "+clause);process.exitCode=1;}
 }
