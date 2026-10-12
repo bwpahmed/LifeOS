@@ -1,7 +1,7 @@
 /* LifeOS service worker.
    Privacy rule: never cache authenticated HTML/API responses. Only public shell/static assets. */
-const CACHE = "lifeos-v5";
-const CORE = ["/offline.html", "/manifest.webmanifest", "/icons/icon.svg", "/today", "/tasks", "/habits", "/quick-add", "/mobile", "/sticky-notes", "/expenses", "/health-planner"];
+const CACHE = "lifeos-v6";
+const CORE = ["/offline.html", "/manifest.webmanifest", "/icons/icon.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(CORE)).then(() => self.skipWaiting()));
@@ -23,7 +23,7 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return;
 
   if (request.mode === "navigate") {
-    event.respondWith(fetch(request).catch(async () => (await caches.match(request)) || caches.match("/offline.html")));
+    event.respondWith(fetch(request).catch(() => caches.match("/offline.html")));
     return;
   }
 
