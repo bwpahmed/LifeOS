@@ -6,6 +6,7 @@ import "./habits-v2.css";
 import { ProgressHalo } from "@/components/progress-halo";
 import { BackHome, Panel } from "@/components/ui";
 import { habitConsistencyForFrequency,habitPeriodStreak,recoveryScore } from "@/lib/habits";
+import {orderPinnedHabits} from "@/lib/habit-pins";
 import { loadOfflineCache,saveOfflineCache,isProbablyNetworkError } from "@/lib/offline";
 import { queueUpsert } from "@/lib/sync-queue";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -13,15 +14,46 @@ import { currentWorkspace,peekWorkspaceContext } from "@/lib/supabase/workspace"
 import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
 import { todayInTZ } from "@/lib/timezone";
 
-type Habit={id:string;name:string;area:string|null;frequency:string;target:number|null;unit:string|null;kind:string|null};
+type Habit={id:string;name:string;area:string|null;frequency:string;target:number|null;unit:string|null;kind:string|null;created_by?:string|null};
 type Log={habit_id:string;date:string;value:number};type Cache={habits:Habit[];logs:Log[]};
 function lastDays(n:number){const today=todayInTZ();return Array.from({length:n},(_,i)=>{const d=new Date(today+"T12:00:00");d.setDate(d.getDate()-(n-1-i));return d.toISOString().slice(0,10);});}
 
 export default function HabitsPage(){
- const cachedWorkspace=peekWorkspaceContext();const[workspaceId,setWorkspaceId]=useState(cachedWorkspace?.workspaceId||"");const[userId,setUserId]=useState(cachedWorkspace?.user.id||"");const[habits,setHabits]=useState<Habit[]>([]);const[logs,setLogs]=useState<Log[]>([]);const[name,setName]=useState("");const[area,setArea]=useState("Health");const[frequency,setFrequency]=useState("Daily");const[target,setTarget]=useState(1);const[specificDays,setSpecificDays]=useState<string[]>(["Mon","Wed","Fri"]);const[kind,setKind]=useState("build");const[error,setError]=useState("");const[notice,setNotice]=useState("");const[offline,setOffline]=useState(false);const[showComposer,setShowComposer]=useState(false);const days=useMemo(()=>lastDays(30),[]);
- const load=useCallback(async()=>{try{const sb=supabaseBrowser();const ctx=await currentWorkspace(sb);if(!ctx){const c=loadOfflineCache<Cache>("habits");if(c){setHabits(c.habits);setLogs(c.logs);setOffline(true);}else setWorkspaceId("");return;}setWorkspaceId(ctx.workspaceId);setUserId(ctx.user.id);const[h,l]=await Promise.all([sb.from("habits").select("id,name,area,frequency,target,unit,kind").eq("workspace_id",ctx.workspaceId).order("created_at"),sb.from("habit_logs").select("habit_id,date,value").gte("date",days[0]).lte("date",days[days.length-1])]);if(h.error)throw h.error;if(l.error)throw l.error;const bundle={habits:(h.data||[]) as Habit[],logs:(l.data||[]) as Log[]};setHabits(bundle.habits);setLogs(bundle.logs);saveOfflineCache("habits",bundle);setOffline(false);}catch(e){const c=loadOfflineCache<Cache>("habits");if(c){setHabits(c.habits);setLogs(c.logs);setOffline(true);setNotice("Offline habit cache shown.");}else setError(e instanceof Error?e.message:"Could not load habits");}},[days]);useEffect(()=>{void load();},[load]);useRealtimeRefresh(["habits","habit_logs"],load,Boolean(workspaceId));
+ const cachedWorkspace=peekWorkspaceContext();const[workspaceId,setWorkspaceId]=useState(cachedWorkspace?.workspaceId||"");const[userId,setUserId]=useState(cachedWorkspace?.user.id||"");const[habits,setHabits]=useState<Habit[]>([]);const[logs,setLogs]=useState<Log[]>([]);const[name,setName]=useState("");const[area,setArea]=useState("Health");const[frequency,setFrequency]=useState("Daily");const[target,setTarget]=useState(1);const[specificDays,setSpecificDays]=useState<string[]>(["Mon","Wed","Fri"]);const[kind,setKind]=useState("build");const[error,setError]=useState("");const[notice,setNotice]=useState("");const[offline,setOffline]=useState(false);const[showComposer,setShowComposer]=useState(false);const[pinnedIds,setPinnedIds]=useState<string[]>([]);const[pinsReady,setPinsReady]=useState(false);const[mutating,setMutating]=useState("");const days=useMemo(()=>lastDays(30),[]);
+ const load=useCallback(async()=>{try{const sb=supabaseBrowser();const ctx=await currentWorkspace(sb);if(!ctx){const c=loadOfflineCache<Cache>("habits");if(c){setHabits(c.habits);setLogs(c.logs);setOffline(true);}else setWorkspaceId("");return;}setWorkspaceId(ctx.workspaceId);setUserId(ctx.user.id);const[h,l,pins]=await Promise.all([sb.from("habits").select("id,name,area,frequency,target,unit,kind,created_by").eq("workspace_id",ctx.workspaceId).order("created_at"),sb.from("habit_logs").select("habit_id,date,value").gte("date",days[0]).lte("date",days[days.length-1]),sb.from("user_habit_pins").select("habit_id").eq("workspace_id",ctx.workspaceId).eq("user_id",ctx.user.id)]);if(h.error)throw h.error;if(l.error)throw l.error;setPinsReady(!pins.error);setPinnedIds(pins.error?[]:(pins.data||[]).map(p=>p.habit_id));const bundle={habits:(h.data||[]) as Habit[],logs:(l.data||[]) as Log[]};setHabits(bundle.habits);setLogs(bundle.logs);saveOfflineCache("habits",bundle);setOffline(false);}catch(e){const c=loadOfflineCache<Cache>("habits");if(c){setHabits(c.habits);setLogs(c.logs);setOffline(true);setNotice("Offline habit cache shown.");}else setError(e instanceof Error?e.message:"Could not load habits");}},[days]);useEffect(()=>{void load();},[load]);useRealtimeRefresh(["habits","habit_logs","user_habit_pins"],load,Boolean(workspaceId));
  async function add(e:FormEvent){e.preventDefault();if(!workspaceId||!name.trim())return;setError("");setNotice("");const id=crypto.randomUUID();const storedFrequency=frequency==="Specific days"?`Specific days:${specificDays.join(",")}`:frequency;const row={id,workspace_id:workspaceId,created_by:userId,name:name.trim(),area,frequency:storedFrequency,target:Math.max(1,target),unit:"done",kind,privacy:area==="Health"||area==="Self-control"?"private":"family"};try{const sb=supabaseBrowser();const{error:q}=await sb.from("habits").insert(row);if(q)throw q;setName("");await load();}catch(e){if(isProbablyNetworkError(e)){queueUpsert("habits",row,`habits:${id}`);const next=[...habits,{id,name:row.name,area,frequency:storedFrequency,target:Math.max(1,target),unit:"done",kind}];setHabits(next);saveOfflineCache("habits",{habits:next,logs});setName("");setNotice("Habit saved offline and queued for sync.");}else setError(e instanceof Error?e.message:"Could not save habit");}}
  async function toggle(h:Habit){if(offline){const date=todayInTZ();const existing=logs.find(x=>x.habit_id===h.id&&x.date===date);if(existing){setNotice("Removing an existing habit log needs a connection.");return;}const id=crypto.randomUUID();const row={id,habit_id:h.id,date,value:1};queueUpsert("habit_logs",row,`habit_logs:${id}`);const next=[...logs,{habit_id:h.id,date,value:1}];setLogs(next);saveOfflineCache("habits",{habits,logs:next});setNotice("Habit completion saved offline and queued.");return;}const date=todayInTZ();const existing=logs.find(x=>x.habit_id===h.id&&x.date===date);const sb=supabaseBrowser();if(existing){const{error:q}=await sb.from("habit_logs").delete().eq("habit_id",h.id).eq("date",date);if(q)setError(q.message);}else{const{error:q}=await sb.from("habit_logs").upsert({habit_id:h.id,date,value:1},{onConflict:"habit_id,date"});if(q)setError(q.message);}await load();}
+
+ async function changePin(h:Habit){
+  if(offline||!pinsReady||!workspaceId||!userId||mutating)return;
+  setMutating(h.id);setError("");setNotice("");
+  const pin=!pinnedIds.includes(h.id);
+  try{
+   const sb=supabaseBrowser();
+   const result=pin?await sb.from("user_habit_pins").insert({user_id:userId,workspace_id:workspaceId,habit_id:h.id}):
+    await sb.from("user_habit_pins").delete().eq("user_id",userId).eq("habit_id",h.id);
+   if(result.error)throw result.error;
+   setNotice(pin?"Pinned to Home.":"Unpinned from Home.");
+   await load();
+  }catch(e){setError(e instanceof Error?e.message:"Could not update pin.");}
+  finally{setMutating("");}
+ }
+ async function removeHabit(h:Habit){
+  if(offline||!workspaceId||!userId||mutating)return;
+  if(h.created_by!==userId){setError("Only the creator can delete this shared habit.");return;}
+  if(!confirm('Delete "'+h.name+'"? This permanently removes its completion history too.'))return;
+  setMutating(h.id);setError("");setNotice("");
+  try{
+   const sb=supabaseBrowser();
+   const {data,error:q}=await sb.from("habits").delete().eq("id",h.id).eq("workspace_id",workspaceId)
+    .eq("created_by",userId).select("id");
+   if(q)throw q;
+   if(!data?.length)throw new Error("Delete not permitted by your workspace access.");
+   setNotice("Habit and related logs deleted. Personal pin removed automatically.");
+   await load();
+  }catch(e){setError(e instanceof Error?e.message:"Could not delete habit.");}
+  finally{setMutating("");}
+ }
 
  const today=todayInTZ();
  const doneToday=habits.filter(h=>logs.some(l=>l.habit_id===h.id&&l.date===today&&Number(l.value)>0)).length;
@@ -99,7 +131,7 @@ export default function HabitsPage(){
       </section>
      ):(
       <section className="habit-list" aria-label="Habit checklist">
-       {habits.map(h=>{
+       {orderPinnedHabits(habits,pinnedIds).map(h=>{
         const map:Record<string,number>={};
         logs.filter(l=>l.habit_id===h.id).forEach(l=>map[l.date]=Number(l.value));
         const done=Boolean(map[today]);
@@ -112,6 +144,16 @@ export default function HabitsPage(){
           <div className="habit-card-title">
            <h3>{h.name}</h3>
            <p className="habit-card-sub">{h.area||"Personal"} · {h.kind==="reduce"?"Reduce":h.kind==="limit"?"Limit":h.kind==="avoid"?"Avoid":h.kind==="replace"?"Replace":"Build"} · {h.frequency}</p>
+          </div>
+          <div className="habit-personal-actions">
+           <button type="button" className="habit-pin-btn" aria-pressed={pinnedIds.includes(h.id)}
+            aria-label={(pinnedIds.includes(h.id)?"Unpin ":"Pin ")+h.name}
+            disabled={offline||!pinsReady||Boolean(mutating)} title={pinsReady?"Toggle Home pin":"Pins await database activation"}
+            onClick={()=>void changePin(h)}>{pinnedIds.includes(h.id)?"📌 Unpin":"📌 Pin"}</button>
+           <button type="button" className="habit-remove-btn" aria-label={"Delete "+h.name}
+            disabled={offline||h.created_by!==userId||Boolean(mutating)}
+            title={h.created_by!==userId?"Only the creator can delete this habit":"Delete habit and logs"}
+            onClick={()=>void removeHabit(h)}>Remove</button>
           </div>
           <button type="button" className="habit-toggle" aria-label={(done?"Undo completion for ":"Mark as done: ")+h.name} aria-pressed={done} onClick={()=>void toggle(h)}>
            {done?"✓":"+"}
