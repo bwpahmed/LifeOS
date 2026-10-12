@@ -102,3 +102,24 @@ if(medicineReminderMigration.includes("wm.user_id")||medicineReminderMigration.i
 }
 if(process.exitCode)process.exit(process.exitCode);
 console.log("Owner-scoped medicine reminder and completed-dose suppression checks passed.");
+
+const habitPinSql=fs.readFileSync("supabase/migrations/20261012_user_habit_pins.sql","utf8").toLowerCase();
+const habitPinSchema=fs.readFileSync("supabase/schema.sql","utf8").toLowerCase();
+for(const clause of [
+ "create table if not exists public.user_habit_pins",
+ "alter table public.user_habit_pins enable row level security",
+ "user_id=auth.uid()",
+ "public.is_workspace_member(workspace_id)",
+ "references public.habits(id) on delete cascade",
+ "habit pins select own",
+ "habit pins insert own",
+ "habit pins delete own",
+ "grant select,insert,delete on table public.user_habit_pins to authenticated"
+]){
+ if(!habitPinSql.includes(clause)||!habitPinSchema.includes(clause)){
+  console.error("Personal habit pin guardrail missing: "+clause);
+  process.exitCode=1;
+ }
+}
+if(process.exitCode)process.exit(process.exitCode);
+console.log("Personal habit pin/unpin RLS guardrails passed.");
