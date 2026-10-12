@@ -1408,7 +1408,7 @@ begin
     -- Family: chosen lead-time and due day at 8am.
     if local_hour=8 and not quiet then
       for item in
-        select id,title,due_date,coalesce(reminder_days,2) as reminder_days
+        select id,title,due_date,coalesce(family_tasks.reminder_days,2) as reminder_days
         from public.family_tasks
         where workspace_id=ctx.workspace_id
           and status <> 'Completed'
