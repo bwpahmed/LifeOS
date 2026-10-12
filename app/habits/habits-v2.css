@@ -276,21 +276,16 @@
 }
 
 
-/* The reference app keeps the progress visualization centered on narrow phones. */
+/* Category icons preserve their established styles. Mobile layout below
+   uses a compact horizontal progress summary instead of the original centered,
+   full-screen halo that pushed actionable habits below the fold. */
 .habits-v2 .habit-card[data-area="Business"] .habit-category-icon{background:#eaf0ff}
 .habits-v2 .habit-card[data-area="Family"] .habit-category-icon{background:#fff1f5}
 .habits-v2 .habit-card[data-area="Growth"] .habit-category-icon{background:#f5ebff}
 .habits-v2 .habit-card[data-area="Europe"] .habit-category-icon{background:#e7f9fa}
 .habits-v2 .habit-card[data-area="Self-control"] .habit-category-icon{background:#fff3e0}
 :root:not([data-theme="light"]) .habits-v2 .habit-card .habit-category-icon{background:#1e4338}
-@media(max-width:680px){
- .habits-v2 .habit-summary{flex-direction:column-reverse;align-items:center;text-align:center;gap:5px;padding:18px 20px 20px}
- .habits-v2 .habit-summary-copy{max-width:310px}
- .habits-v2 .habit-summary .lifeos-halo-compact{width:min(100%,275px)}
- .habits-v2 .habit-summary h2{font-size:22px}
- .habits-v2 .habit-summary-label{font-size:10px;letter-spacing:.1em}
- .habits-v2 .habit-summary p{font-size:12px;line-height:1.5}
-}
+
 
 /* Personal pinning and safe deletion, independent of a shared habit's status. */
 .habits-v2 .habit-personal-actions{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-left:auto}
@@ -299,3 +294,163 @@
 .habits-v2 .habit-personal-actions .habit-remove-btn{color:#b8736b}
 .habits-v2 .habit-personal-actions button:disabled{opacity:.45;cursor:not-allowed}
 @media(max-width:630px){.habits-v2 .habit-personal-actions{width:100%;justify-content:flex-end;order:5}.habits-v2 .habit-card-top{flex-wrap:wrap}}
+
+/* Mobile Habit density + type audit (iPhone ~320–430 CSS px).
+   Screenshot baseline: 2026-10-12, 0% giant centered halo / bold text /
+   two full-width CTAs pushed the checklist off the first viewport.
+   Only Habits presentation changes; data, Supabase, pinning and handlers stay intact. */
+:root[data-theme="light"] .app-shell .habits-v2 {
+  --habit-ink: #315549;
+  --habit-secondary: #63786f;
+}
+:root[data-theme="light"] .app-shell .habits-v2 .habit-heading h1{
+  font-weight: 620!important;
+  letter-spacing: -.038em;
+}
+:root[data-theme="light"] .app-shell .habits-v2 .habit-summary h2,
+:root[data-theme="light"] .app-shell .habits-v2 .habit-section-heading h2,
+:root[data-theme="light"] .app-shell .habits-v2 .habit-card h3,
+:root[data-theme="light"] .app-shell .habits-v2 .habit-editor h2,
+:root[data-theme="light"] .app-shell .habits-v2 .habit-empty h2{
+  font-weight: 590!important;
+  letter-spacing: -.025em;
+}
+.habits-v2 .habit-add-btn{
+  font-weight: 580!important;
+  box-shadow: 0 4px 12px rgba(6,166,118,.09);
+}
+.habits-v2 .habit-overline{font-weight:600}
+.habits-v2 .habit-summary-label{font-weight:570}
+.habits-v2 .habit-metric strong{font-weight:620!important}
+.habits-v2 .habit-card h3{font-weight:600}
+.habits-v2 .habit-card .habit-pill{font-weight:520}
+.habits-v2 .habit-section-heading span,
+.habits-v2 .habit-field label,
+.habits-v2 .habit-field-label{font-weight:540}
+.habits-v2 .habit-heading-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.habits-v2 .habit-summary .lifeos-halo-value strong{font-weight:630}
+@media(max-width:680px){
+  .habits-v2{
+    padding:0 0 18px;
+  }
+  .habits-v2 .back-home-link{
+    display:inline-flex;align-items:center;font-size:12px;
+    margin:0 0 7px;
+  }
+  .habits-v2 .habit-heading{
+    gap:10px;margin:4px 0 13px;
+    align-items:stretch;
+  }
+  .habits-v2 .habit-heading>div:first-child{min-width:0;width:100%}
+  :root[data-theme="light"] .app-shell .habits-v2 .habit-heading h1,
+  .habits-v2 .habit-heading h1{
+    font-size:clamp(22px,6vw,25px)!important;
+    font-weight:610!important;
+    line-height:1.17;
+    margin:4px 0 4px;
+    letter-spacing:-.035em;
+  }
+  .habits-v2 .habit-overline{
+    font-size:9px;letter-spacing:.1em;font-weight:580;
+  }
+  .habits-v2 .habit-overline:before{width:6px;height:6px}
+  .habits-v2 .habit-lede{
+    font-size:12px;line-height:1.48;max-width:360px;
+  }
+  .habits-v2 .habit-heading-actions{
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;width:100%;min-width:0;
+  }
+  .habits-v2 .habit-heading .habit-add-btn{
+    width:100%;min-width:0;min-height:42px;max-height:44px;
+    padding:9px 9px;border-radius:12px;
+    font-size:12px;font-weight:575!important;
+    box-shadow:none;white-space:nowrap;gap:5px;
+  }
+  .habits-v2 .habit-dashboard{gap:8px;margin:0 0 15px;grid-template-columns:1fr}
+  .habits-v2 .habit-summary{
+    flex-direction:row;align-items:center;justify-content:space-between;text-align:left;
+    min-height:105px;padding:13px 15px;gap:8px;border-radius:18px;
+  }
+  .habits-v2 .habit-summary:after{
+    width:150px;height:150px;right:-35px;top:-48px;
+  }
+  .habits-v2 .habit-summary-copy{
+    flex:1;min-width:0;max-width:none;order:1;
+  }
+  .habits-v2 .habit-summary-label{
+    font-size:9px;font-weight:590;letter-spacing:.065em;
+  }
+  :root[data-theme="light"] .app-shell .habits-v2 .habit-summary h2,
+  .habits-v2 .habit-summary h2{
+    font-size:16px!important;font-weight:590!important;
+    line-height:1.27;margin:5px 0 4px;letter-spacing:-.025em;
+  }
+  .habits-v2 .habit-summary p{
+    font-size:10.5px;line-height:1.37;
+  }
+  .habits-v2 .habit-summary .lifeos-halo-compact{
+    order:2;flex:0 0 118px;width:118px;max-width:118px;
+    margin:0;
+  }
+  .habits-v2 .habit-summary .lifeos-halo-art{
+    width:118px;height:auto;
+  }
+  .habits-v2 .habit-summary .lifeos-halo-value{
+    top:35%;
+  }
+  .habits-v2 .habit-summary .lifeos-halo-value strong,
+  .habits-v2 .habit-summary .lifeos-halo-compact .lifeos-halo-value strong{
+    font-size:30px!important;font-weight:620!important;
+    line-height:1;
+  }
+  .habits-v2 .habit-summary .lifeos-halo-value>span{
+    font-size:8px;font-weight:520;letter-spacing:.09em;margin-top:3px;
+  }
+  .habits-v2 .habit-summary .lifeos-halo-compact>p{display:none}
+  .habits-v2 .habit-metrics{gap:8px;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .habits-v2 .habit-metric{
+    flex-direction:row;align-items:center;justify-content:flex-start;
+    gap:10px;padding:11px;border-radius:15px;min-height:65px;
+  }
+  .habits-v2 .habit-metric-icon{
+    width:34px;height:34px;flex:0 0 auto;border-radius:11px;font-size:16px;
+  }
+  .habits-v2 .habit-metric strong{
+    margin:0 0 1px;font-size:20px!important;font-weight:610!important;
+    line-height:1.12;
+  }
+  .habits-v2 .habit-metric p{
+    font-size:10px;line-height:1.33;font-weight:430;
+  }
+  .habits-v2 .habit-section-heading{margin:2px 0 10px;gap:8px}
+  :root[data-theme="light"] .app-shell .habits-v2 .habit-section-heading h2,
+  .habits-v2 .habit-section-heading h2{
+    font-size:18px!important;font-weight:600!important;
+  }
+  .habits-v2 .habit-section-heading span{font-size:11px}
+  .habits-v2 .habit-card{padding:14px;border-radius:17px}
+  .habits-v2 .habit-card-top{gap:9px}
+  .habits-v2 .habit-category-icon{width:39px;height:39px;border-radius:12px;font-size:18px}
+  .habits-v2 .habit-card h3{font-size:14px;font-weight:600!important;margin:0 0 3px}
+  .habits-v2 .habit-card-sub{font-size:10.5px}
+  .habits-v2 .habit-toggle{width:37px;height:37px;font-weight:550;font-size:18px}
+  .habits-v2 .habit-card .habit-heatmap{margin:12px 0 10px}
+  .habits-v2 .habit-card-footer{justify-content:flex-start}
+  .habits-v2 .habit-pill{font-size:9.5px;padding:5px 8px;font-weight:500}
+  .habits-v2 .habit-editor{margin:13px 0 0;padding:14px;border-radius:16px}
+  .habits-v2 .habit-feedback{font-size:11px;line-height:1.5;margin:7px 0 10px;padding:9px 11px}
+  .habits-v2 .habit-week{margin:14px 0 0}
+  .habits-v2 .habit-personal-actions{width:auto;order:5}
+  .habits-v2 .habit-personal-actions button{font-size:10px;padding:6px 9px}
+}
+@media(max-width:360px){
+  .habits-v2 .habit-summary .lifeos-halo-compact,
+  .habits-v2 .habit-summary .lifeos-halo-art{width:98px;max-width:98px}
+  .habits-v2 .habit-summary .lifeos-halo-compact{flex-basis:98px}
+  .habits-v2 .habit-heading .habit-add-btn{font-size:11px}
+  .habits-v2 .habit-summary h2{font-size:15px!important}
+}
+@media(prefers-reduced-motion:reduce){
+ .habits-v2 .habit-card,.habits-v2 .habit-add-btn{transform:none!important}
+}
