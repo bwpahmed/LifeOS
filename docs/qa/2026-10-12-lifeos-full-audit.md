@@ -71,3 +71,15 @@
 - Existing Health Planner / lab RLS still uses workspace-wide health module access for multiple legacy tables. This is the main privacy-hardening task before multi-user release, not solved by owner filters in React.
 - Signed-in browser CRUD/RLS for food, pins, water, notifications and push permission remains unverified; `main` deployment of PR #21 should be gated on those checks. Supabase backup restore and auth UX must also be verified.
 - Supabase Security Advisor reported existing `authenticated_security_definer_function_executable` warnings (8 functions) and disabled leaked password protection. These are separate hardening tasks requiring care to avoid breaking RLS helper calls.
+
+
+## Final activation and privacy verification follow-up — 12 October 2026
+- **Correct Supabase project access restored.** Applied six migrations in the existing LifeOS project: original food logging, habit pinning, owner-specific 5-minute medicine reminder, private Daily Coach digest, `health_record_owner_privacy`, and `health_reminder_midnight`. The latter two are new defensive migrations and are included in the canonical `supabase/schema.sql`.
+- Verified with SQL under **`SET LOCAL ROLE authenticated`** and a real account claim: existing two water records readable to the owner, **zero visible to a stranger claim**. All eight affected Health tables have four owner RLS policies, including routine-to-log owner checks.
+- Checked Storage owner permissions for the canonical `lifeos-private` hair file path: **owner = allowed, simulated stranger = denied**. Storage currently contains no objects, so this is permission testing, not a real signed-photo fetch.
+- Transaction-only CRUD test created a **temporary food entry and a pinned temporary habit** as authenticated owner; both inserts/reads succeeded. The transaction explicitly **rolled back** and postcheck confirmed **zero** new food, pins or habit entries; both pre-existing water rows remain.
+- The midnight fix computes dose-local timestamp from current and prior local dates and deduplicates by exact scheduled date/time, preventing 23:56–23:59 dose omissions at the next five-minute scheduler.
+- Server-side push Edge Function `lifeos-push-dispatch` upgraded from version 1 to **version 2**, retaining JWT verification, so Health and Daily Coach notifications link to Home. All four current LifeOS cron jobs report recent **succeeded** runs; function smoke check returned **0 notifications** while no medicine routine is defined.
+- Limitations remain: 1 real registered user, so these are **role simulations**, not a second human's signed-in session; no confirmed medicine routines and no verified push receipt on a phone. Supabase auth password behavior and actual signed-in web flows are not proven by database checks.
+- Password leak-protection advisor warning and several intentional `SECURITY DEFINER` helper warnings remain for separate administrator review; do not revoke permission helpers blindly or RLS could break.
+- Deployment of PR #21 needs latest GitHub checks, app build, actual browser UX and production release review. No arbitrary medicine dose or minoxidil schedule was created.
