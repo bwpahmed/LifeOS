@@ -123,3 +123,22 @@ for(const clause of [
 }
 if(process.exitCode)process.exit(process.exitCode);
 console.log("Personal habit pin/unpin RLS guardrails passed.");
+
+const coachDigestSql=fs.readFileSync("supabase/migrations/20261012_personal_coach_digest.sql","utf8").toLowerCase();
+for(const clause of [
+ "generate_personal_coach_notifications",
+ "lifeos-daily-coach-5m",
+ "*/5 * * * *",
+ "x.user_id=ctx.user_id",
+ "t.created_by=ctx.user_id or t.assigned_to=ctx.user_id",
+ "morning_planning_time",
+ "notification_dnd_blocks",
+ "status not in ('completed','cancelled')"
+]){
+ if(!coachDigestSql.includes(clause)){
+  console.error("Daily coaching / unfinished task reminder guardrail missing: "+clause);
+  process.exitCode=1;
+ }
+}
+if(process.exitCode)process.exit(process.exitCode);
+console.log("Private daily coach reminders and overdue-work notification guardrails passed.");
