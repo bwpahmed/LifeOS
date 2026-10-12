@@ -168,3 +168,15 @@ for(const clause of [
 }
 if(process.exitCode)process.exit(process.exitCode);
 console.log("Personal medical RLS, storage owner and midnight dose reminders passed static audit.");
+
+const familyReminderSQL=fs.readFileSync("supabase/migrations/20261012_fix_family_reminder_ambiguity.sql","utf8").toLowerCase();
+const canonicalSQL=fs.readFileSync("supabase/schema.sql","utf8").toLowerCase();
+for(const source of [familyReminderSQL,canonicalSQL]){
+ if(!source.includes("coalesce(family_tasks.reminder_days,2) as reminder_days") ||
+    source.includes("coalesce(reminder_days,2) as reminder_days")){
+  console.error("Family task reminder_days query must be table-qualified to avoid cron ambiguity.");
+  process.exitCode=1;
+ }
+}
+if(process.exitCode)process.exit(process.exitCode);
+console.log("8 AM family reminder ambiguous-column regression guard passed.");
