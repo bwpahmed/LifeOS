@@ -174,3 +174,9 @@ Before creating new logic:
 - **Oral minoxidil:** optional Home medicine name template only, **not active** until user explicitly confirms doctor-prescribed treatment and enters actual schedule. No guessed strength or frequency, no automatic medication/reminder record.
 - **Alert state:** Existing task notification system remains the scheduler for due tasks; Home Coach flags overdue work directly. Existing owner-scoped medicine reminder fixes and device push activation from PR #21 must be deployed/verified separately.
 - **Safe staging:** main/prod unchanged until correct LifeOS Supabase connector is accessible, food/pin/reminder migrations run with explicit approval and end-to-end account, RLS and mobile push tests pass. Do not automatically enable production or invent medicine doses.
+
+### Full security/QA audit follow-up (2026-10-12)
+- AI coach request handling in `app/api/ai/coach/route.ts` now uses `lib/ai/coach-context.ts` as a **strict runtime allowlist**; no `...context` pass-through, raw medical record or arbitrary nested field sent to providers. Regression tests in `lib/ai/coach-context.test.ts`.
+- Home Daily Coach task queries explicitly select `created_by=auth user OR assigned_to=auth user` inside the authorized workspace; other workspace members' tasks no longer appear in personal coaching summaries.
+- `supabase/migrations/20261012_personal_health_reminder_safety.sql` now deduplicates by **specific medicine reminder time**, not just routine ID, so nearby intended doses aren't silently suppressed by a preceding alert. This remains blocked on real DB/notification QA.
+- Full review and release gate matrix: `docs/qa/2026-10-12-lifeos-full-audit.md`. The existing workspace Health RLS is not a new per-user privacy boundary.
