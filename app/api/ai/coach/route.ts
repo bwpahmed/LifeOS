@@ -28,9 +28,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Question is too long" }, { status: 413 });
   }
 
+  // User-facing coaching can share only bounded aggregate health counts, not raw medical data.
+  const numeric=(v:unknown,max=10000)=>typeof v==="number"&&Number.isFinite(v)?Math.max(0,Math.min(v,max)):0;
+  const d=context?.daily_health;
+  const dailyHealth=d&&typeof d==="object"?{
+    habits_done:numeric(d.habits_done,500),habits_due:numeric(d.habits_due,500),
+    water_logged_ml:numeric(d.water_logged_ml,100000),water_user_goal_ml:numeric(d.water_user_goal_ml,100000),
+    protein_estimated_g:typeof d.protein_estimated_g==="number"&&Number.isFinite(d.protein_estimated_g)?numeric(d.protein_estimated_g,5000):null,
+    medicine_slots_unlogged:numeric(d.medicine_slots_unlogged,100),
+    hair_care_done:numeric(d.hair_care_done,100),hair_care_count:numeric(d.hair_care_count,100)
+  }:undefined;
   const safeContext: AIContext = {
     ...EMPTY_CONTEXT,
     ...context,
+    daily_health:dailyHealth,
     today_tasks: Array.isArray(context?.today_tasks) ? context!.today_tasks!.slice(0, 25) : [],
     overdue_tasks: Array.isArray(context?.overdue_tasks) ? context!.overdue_tasks!.slice(0, 25) : [],
     money_due: Array.isArray(context?.money_due) ? context!.money_due!.slice(0, 25) : [],
