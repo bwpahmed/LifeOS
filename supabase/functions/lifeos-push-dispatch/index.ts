@@ -24,7 +24,8 @@ function targetUrl(refTable: string | null) {
   if (refTable === "receivables") return "/money";
   if (refTable === "family_tasks") return "/family";
   if (refTable === "migration_documents") return "/europe";
-  if (refTable === "health_routines") return "/health-planner";
+  if (refTable === "daily_coach") return "/"; // Factual daily brief and overdue reminders open Home
+  if (refTable === "health_routines") return "/"; // Home Quick Log handles exact scheduled medicine confirmation
   return "/notifications";
 }
 

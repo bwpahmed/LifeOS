@@ -1568,4 +1568,289 @@ begin
 end $$;
 
 
+
+-- Canonical consumed nutrition data (2026-10-12). See 20261012_food_intake_logs migration.
+-- Canonical consumed-food entries. Diet plan items remain planned-only.
+-- Only creator may read/write even inside a shared health workspace.
+create table if not exists public.food_intake_logs (
+  id uuid primary key default uuid_generate_v4(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  created_by uuid not null references auth.users(id) on delete cascade,
+  date date not null,
+  food_key text not null check (length(food_key) between 1 and 90),
+  food_name text not null check (length(food_name) between 1 and 120),
+  quantity_g numeric not null check (quantity_g > 0 and quantity_g <= 5000),
+  meal_type text not null default 'Other' check (meal_type in ('Breakfast','Lunch','Dinner','Snack','Other')),
+  -- A reference snapshot: estimates are reproducible if catalog changes.
+  estimated_nutrients jsonb not null default '{}'::jsonb
+    check (jsonb_typeof(estimated_nutrients)='object'),
+  reference_version text not null default 'food-v1',
+  note text check (note is null or length(note) <= 500),
+  created_at timestamptz not null default now()
+);
+
+alter table public.food_intake_logs enable row level security;
+
+drop policy if exists "food intake own select" on public.food_intake_logs;
+drop policy if exists "food intake own insert" on public.food_intake_logs;
+drop policy if exists "food intake own update" on public.food_intake_logs;
+drop policy if exists "food intake own delete" on public.food_intake_logs;
+
+create policy "food intake own select" on public.food_intake_logs
+for select to authenticated
+using (created_by=auth.uid() and public.can_access_module(workspace_id,'health'));
+
+create policy "food intake own insert" on public.food_intake_logs
+for insert to authenticated
+with check (created_by=auth.uid() and public.is_workspace_writer(workspace_id)
+  and public.can_access_module(workspace_id,'health'));
+
+create policy "food intake own update" on public.food_intake_logs
+for update to authenticated
+using (created_by=auth.uid() and public.is_workspace_writer(workspace_id)
+  and public.can_access_module(workspace_id,'health'))
+with check (created_by=auth.uid() and public.is_workspace_writer(workspace_id)
+  and public.can_access_module(workspace_id,'health'));
+
+create policy "food intake own delete" on public.food_intake_logs
+for delete to authenticated
+using (created_by=auth.uid() and public.is_workspace_writer(workspace_id)
+  and public.can_access_module(workspace_id,'health'));
+
+create index if not exists food_intake_own_date_idx
+  on public.food_intake_logs(workspace_id,created_by,date desc,created_at desc);
+
+
+-- Explicit access grants; RLS still determines which authenticated rows are visible.
+revoke all on table public.food_intake_logs from anon;
+grant select,insert,update,delete on table public.food_intake_logs to authenticated;
+grant all on table public.food_intake_logs to service_role;
+
+-- Use the existing real-time refresh mechanism for signed-in clients.
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname='supabase_realtime'
+      and schemaname='public' and tablename='food_intake_logs'
+  ) then
+    alter publication supabase_realtime add table public.food_intake_logs;
+  end if;
+end $$;
+
+-- Personal habit pinning; see 20261012_user_habit_pins.sql
+-- Personal habit pins: the same LifeOS Supabase is authoritative.
+-- A pin never changes shared habit ownership or log history.
+create table if not exists public.user_habit_pins (
+ user_id uuid not null references auth.users(id) on delete cascade,
+ workspace_id uuid not null references public.workspaces(id) on delete cascade,
+ habit_id uuid not null references public.habits(id) on delete cascade,
+ pinned_at timestamptz not null default now(),
+ primary key(user_id,habit_id)
+);
+
+alter table public.user_habit_pins enable row level security;
+drop policy if exists "habit pins select own" on public.user_habit_pins;
+drop policy if exists "habit pins insert own" on public.user_habit_pins;
+drop policy if exists "habit pins delete own" on public.user_habit_pins;
+
+create policy "habit pins select own" on public.user_habit_pins for select to authenticated
+using(user_id=auth.uid() and public.is_workspace_member(workspace_id));
+create policy "habit pins insert own" on public.user_habit_pins for insert to authenticated
+with check(user_id=auth.uid() and public.is_workspace_member(workspace_id)
+ and exists(select 1 from public.habits h where h.id=habit_id and h.workspace_id=user_habit_pins.workspace_id));
+create policy "habit pins delete own" on public.user_habit_pins for delete to authenticated
+using(user_id=auth.uid() and public.is_workspace_member(workspace_id));
+
+revoke all on table public.user_habit_pins from anon;
+grant select,insert,delete on table public.user_habit_pins to authenticated;
+grant all on table public.user_habit_pins to service_role;
+
+create index if not exists user_habit_pins_workspace_idx on public.user_habit_pins(workspace_id,user_id,pinned_at);
+
+do $$
+begin
+ if not exists(select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='user_habit_pins') then
+  alter publication supabase_realtime add table public.user_habit_pins;
+ end if;
+end $$;
+
+
+-- Personal medical-record RLS hardening, see 20261012_health_record_owner_privacy.sql
+-- Enforce per-person healthcare privacy in the database, not merely in UI filters.
+-- No rows or medical values are changed.
+do $$
+declare t text;
+begin
+  foreach t in array array[
+    'health_routines','health_routine_logs','water_logs','diet_plan_items',
+    'sleep_sessions','health_entries','lab_results','hair_photos'
+  ] loop
+    execute format('alter table public.%I enable row level security',t);
+    execute format('drop policy if exists %I on public.%I','health planner select',t);
+    execute format('drop policy if exists %I on public.%I','health planner insert',t);
+    execute format('drop policy if exists %I on public.%I','health planner update',t);
+    execute format('drop policy if exists %I on public.%I','health planner delete',t);
+    execute format('drop policy if exists %I on public.%I','private module select',t);
+    execute format('drop policy if exists %I on public.%I','private module insert',t);
+    execute format('drop policy if exists %I on public.%I','private module update',t);
+    execute format('drop policy if exists %I on public.%I','private module delete',t);
+    execute format('drop policy if exists %I on public.%I','health own select',t);
+    execute format('drop policy if exists %I on public.%I','health own insert',t);
+    execute format('drop policy if exists %I on public.%I','health own update',t);
+    execute format('drop policy if exists %I on public.%I','health own delete',t);
+    execute format('create policy "health own select" on public.%I for select to authenticated using (created_by=auth.uid() and public.can_access_module(workspace_id,%L))',t,'health');
+    execute format('create policy "health own insert" on public.%I for insert to authenticated with check (created_by=auth.uid() and public.is_workspace_writer(workspace_id) and public.can_access_module(workspace_id,%L))',t,'health');
+    execute format('create policy "health own update" on public.%I for update to authenticated using (created_by=auth.uid() and public.is_workspace_writer(workspace_id) and public.can_access_module(workspace_id,%L)) with check (created_by=auth.uid() and public.is_workspace_writer(workspace_id) and public.can_access_module(workspace_id,%L))',t,'health','health');
+    execute format('create policy "health own delete" on public.%I for delete to authenticated using (created_by=auth.uid() and public.is_workspace_writer(workspace_id) and public.can_access_module(workspace_id,%L))',t,'health');
+  end loop;
+end $$;
+
+-- Completion rows must reference a routine belonging to that same person/workspace.
+drop policy if exists "health own insert" on public.health_routine_logs;
+create policy "health own insert" on public.health_routine_logs for insert to authenticated
+with check (
+ created_by=auth.uid()
+ and public.is_workspace_writer(workspace_id)
+ and public.can_access_module(workspace_id,'health')
+ and exists(select 1 from public.health_routines r
+            where r.id=routine_id and r.workspace_id=health_routine_logs.workspace_id
+              and r.created_by=auth.uid())
+);
+drop policy if exists "health own update" on public.health_routine_logs;
+create policy "health own update" on public.health_routine_logs for update to authenticated
+using (created_by=auth.uid() and public.is_workspace_writer(workspace_id)
+       and public.can_access_module(workspace_id,'health'))
+with check (created_by=auth.uid() and public.is_workspace_writer(workspace_id)
+       and public.can_access_module(workspace_id,'health')
+       and exists(select 1 from public.health_routines r
+            where r.id=routine_id and r.workspace_id=health_routine_logs.workspace_id
+              and r.created_by=auth.uid()));
+
+-- Photos live in the same private Supabase bucket. Health/hair paths are
+-- <workspace>/<owner>/health|hair/..., so a colleague must never read/signed-URL them.
+create or replace function public.can_read_private_storage(object_name text)
+returns boolean language plpgsql stable security definer set search_path=public
+as $$
+declare ws uuid; module_name text;
+begin
+ if split_part(object_name,'/',1)=coalesce(auth.uid()::text,'') then return true; end if;
+ ws:=public.private_storage_workspace(object_name);
+ module_name:=public.private_storage_module(object_name);
+ return ws is not null and module_name is not null
+   and public.can_access_module(ws,module_name)
+   and (module_name <> 'health' or split_part(object_name,'/',2)=coalesce(auth.uid()::text,''));
+end $$;
+
+create or replace function public.can_manage_private_storage(object_name text)
+returns boolean language plpgsql stable security definer set search_path=public
+as $$
+declare ws uuid; module_name text;
+begin
+ if split_part(object_name,'/',1)=coalesce(auth.uid()::text,'') then return true; end if;
+ ws:=public.private_storage_workspace(object_name);
+ module_name:=public.private_storage_module(object_name);
+ return ws is not null and module_name is not null
+   and public.is_workspace_writer(ws) and public.can_access_module(ws,module_name)
+   and (module_name <> 'health' or split_part(object_name,'/',2)=coalesce(auth.uid()::text,''));
+end $$;
+
+do $$
+declare t text;
+begin
+ foreach t in array array['health_routines','health_routine_logs','water_logs',
+ 'diet_plan_items','sleep_sessions','health_entries','lab_results','hair_photos'] loop
+  execute format('create index if not exists %I on public.%I(workspace_id,created_by)',t||'_owner_idx',t);
+ end loop;
+end $$;
+
+-- Near-midnight local scheduled health reminder correctness
+-- Calculate dose time from the OWNER'S LOCAL DATE, including yesterday's
+-- 23:56–23:59 slots that a five-minute worker can first see just after 00:00.
+-- Never send a different day's dose as Taken or suppress a second slot.
+create or replace function public.generate_due_health_notifications()
+returns integer
+language plpgsql
+security definer
+set search_path=public
+as $$
+declare inserted_count integer:=0;
+begin
+  insert into public.notifications
+    (workspace_id,user_id,title,body,severity,ref_table,ref_id,created_at)
+  select
+    r.workspace_id,r.created_by,
+    case when r.kind='medicine' then 'LifeOS medicine reminder'
+         when r.kind='water' then 'LifeOS water reminder'
+         when r.kind='sleep' then 'LifeOS sleep reminder'
+         when r.kind='meal' then 'LifeOS meal reminder'
+         else 'LifeOS health reminder' end,
+    'A private health routine needs attention for ' ||
+       to_char(slot.planned_local,'YYYY-MM-DD HH24:MI') || ' (scheduled).',
+    case when r.kind='medicine' then 'important' else 'normal' end,
+    'health_routines',r.id,now()
+  from public.health_routines r
+  left join public.profiles p on p.id=r.created_by
+  left join public.notification_preferences np on np.user_id=r.created_by
+  cross join lateral (
+    select now() at time zone coalesce(p.timezone,'Asia/Dubai') as local_now
+  ) lt
+  cross join lateral (
+    select q.scheduled_time,
+      (lt.local_now::date + d.day_offset
+        + case when q.scheduled_time ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+             then q.scheduled_time::time else time '00:00' end) as planned_local
+    from unnest(r.reminder_times) q(scheduled_time)
+    cross join (values (0),(-1)) d(day_offset)
+    where q.scheduled_time ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+  ) slot
+  where r.active=true
+    and (r.start_date is null or r.start_date<=slot.planned_local::date)
+    and (r.end_date is null or r.end_date>=slot.planned_local::date)
+    and extract(isodow from slot.planned_local)::int=any(r.days_of_week)
+    and slot.planned_local<=lt.local_now
+    and slot.planned_local>lt.local_now-interval '5 minutes'
+    and not exists(
+      select 1 from public.health_routine_logs l
+      where l.routine_id=r.id and l.created_by=r.created_by
+        and l.date=slot.planned_local::date and l.scheduled_time=slot.scheduled_time
+        and l.status='done'
+    )
+    and not (
+      (coalesce(np.quiet_start,'22:30')<=coalesce(np.quiet_end,'07:00')
+       and to_char(lt.local_now,'HH24:MI')>=coalesce(np.quiet_start,'22:30')
+       and to_char(lt.local_now,'HH24:MI')<coalesce(np.quiet_end,'07:00'))
+      or
+      (coalesce(np.quiet_start,'22:30')>coalesce(np.quiet_end,'07:00')
+       and (to_char(lt.local_now,'HH24:MI')>=coalesce(np.quiet_start,'22:30')
+         or to_char(lt.local_now,'HH24:MI')<coalesce(np.quiet_end,'07:00')))
+    )
+    and not exists(
+      select 1 from public.notification_dnd_blocks d
+      where d.user_id=r.created_by and d.active=true
+        and extract(isodow from lt.local_now)::int=any(d.days_of_week)
+        and (
+          (d.start_time<=d.end_time
+            and to_char(lt.local_now,'HH24:MI')>=d.start_time
+            and to_char(lt.local_now,'HH24:MI')<d.end_time)
+          or
+          (d.start_time>d.end_time
+            and (to_char(lt.local_now,'HH24:MI')>=d.start_time
+              or to_char(lt.local_now,'HH24:MI')<d.end_time))
+        )
+    )
+    and not exists(
+      select 1 from public.notifications n
+      where n.user_id=r.created_by and n.workspace_id=r.workspace_id
+        and n.ref_table='health_routines' and n.ref_id=r.id
+        and n.body='A private health routine needs attention for ' ||
+          to_char(slot.planned_local,'YYYY-MM-DD HH24:MI') || ' (scheduled).'
+    );
+  get diagnostics inserted_count=row_count;
+  return inserted_count;
+end;
+$$;
+
+revoke all on function public.generate_due_health_notifications() from public,anon,authenticated;
+
 commit;

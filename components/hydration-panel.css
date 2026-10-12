@@ -1,0 +1,33 @@
+.hydration-meter{background:linear-gradient(125deg,rgba(34,181,162,.12),rgba(79,162,219,.10));border-radius:19px;padding:17px;margin:5px 0 14px}
+.hydration-meter>span{font-size:11px;color:var(--muted);font-weight:550}
+.hydration-meter strong{display:block;font-size:32px;letter-spacing:-.045em;color:var(--text);font-weight:640;margin:4px 0}
+.hydration-meter strong small{font-size:15px;font-weight:480;color:var(--muted)}
+.hydration-meter p{font-size:11px;margin:8px 0 0;color:var(--muted)}
+.hydration-progress{height:11px;border-radius:99px;background:rgba(61,128,140,.16);overflow:hidden}
+.hydration-progress span{height:100%;display:block;background:linear-gradient(90deg,#2cb4cf,#1db6a0);border-radius:99px;transition:width .45s cubic-bezier(.2,.7,.2,1)}
+.hydration-presets{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.hydration-presets button{min-height:47px;padding:8px 5px;background:var(--panel2);border:1px solid var(--line);border-radius:13px;color:var(--text);font-size:12px;font-weight:560}
+.hydration-presets button:hover,.hydration-custom button:hover{border-color:#59bbac;transform:translateY(-1px)}
+.hydration-custom,.hydration-goal{display:flex;align-items:end;gap:9px;margin-top:14px}
+.hydration-custom label,.hydration-goal label{font-size:11px;color:var(--muted);flex:1;min-width:0}
+.hydration-custom input,.hydration-goal input{display:block;margin-top:5px;width:100%;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px;min-height:43px}
+.hydration-custom button,.hydration-goal button{min-height:43px;padding:10px 15px;border-radius:12px;background:#12b39e;border:1px solid #12b39e;color:#fff;font-size:12px}
+.hydration-goal button{background:var(--panel2);border-color:var(--line);color:var(--text)}
+.hydration-week{margin:20px 0 17px}
+.hydration-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:10px 0}
+.hydration-head h4{font-size:13px;font-weight:610;margin:0;color:var(--text)}
+.hydration-head small{font-size:10px;color:var(--muted)}
+.hydration-bars{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:9px;align-items:end}
+.hydration-bar-day{text-align:center;min-width:0;display:flex;flex-direction:column;align-items:center;gap:5px}
+.hydration-bar-track{height:78px;width:min(100%,32px);border-radius:11px;background:var(--panel2);display:flex;align-items:end;overflow:hidden;border:1px solid var(--line)}
+.hydration-bar-track i{display:block;width:100%;background:linear-gradient(180deg,#27b9ba,#4aaadc);border-radius:8px 8px 0 0;transition:height .3s}
+.hydration-bar-day strong{font-size:10px;font-weight:500;color:var(--muted)}.hydration-bar-day small{font-size:9px;color:var(--muted)}
+.hydration-entries{display:flex;flex-direction:column;gap:7px;max-height:230px;overflow:auto}
+.hydration-entry{padding:9px;border:1px solid var(--line);border-radius:13px;background:var(--panel2);display:flex;align-items:center;gap:9px}
+.hydration-entry>span{font-size:17px}.hydration-entry>div{flex:1;min-width:0}
+.hydration-entry strong{font-size:12px;font-weight:580;color:var(--text);display:block}.hydration-entry small{font-size:10px;color:var(--muted)}
+.hydration-entry button{background:transparent;border:1px solid var(--line);padding:6px 9px;border-radius:9px;color:var(--muted);font-size:11px}
+.hydration-empty,.hydration-note{font-size:11px;color:var(--muted);line-height:1.7}.hydration-note{margin:14px 0 0}
+.hydration-custom button:disabled,.hydration-goal button:disabled,.hydration-presets button:disabled,.hydration-entry button:disabled{opacity:.5;cursor:not-allowed}
+@media(max-width:520px){.hydration-presets{grid-template-columns:repeat(2,minmax(0,1fr))}.hydration-meter{padding:14px}}
+@media(prefers-reduced-motion:reduce){.hydration-progress span,.hydration-bar-track i,.hydration-presets button{transition:none!important;transform:none!important}}

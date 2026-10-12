@@ -59,3 +59,112 @@ for (const file of files) {
 
 if (failed) process.exit(1);
 console.log("Supabase SQL syntax and security sanity checks passed.");
+
+const nutritionMigration = fs.readFileSync("supabase/migrations/20261012_food_intake_logs.sql","utf8").toLowerCase();
+const nutritionSchema=fs.readFileSync("supabase/schema.sql","utf8").toLowerCase();
+const nutritionGuardrails=[
+  "create table if not exists public.food_intake_logs",
+  "alter table public.food_intake_logs enable row level security",
+  "created_by=auth.uid()",
+  "public.can_access_module(workspace_id,'health')",
+  "public.is_workspace_writer(workspace_id)",
+  "food intake own select",
+  "food intake own insert",
+  "food intake own update",
+  "food intake own delete",
+  "grant select,insert,update,delete on table public.food_intake_logs to authenticated",
+  "alter publication supabase_realtime add table public.food_intake_logs",
+  "check (quantity_g > 0 and quantity_g <= 5000)"
+];
+for(const fragment of nutritionGuardrails){
+ if(!nutritionMigration.includes(fragment)||!nutritionSchema.includes(fragment)){
+  console.error("Nutrition RLS/schema guardrail missing: "+fragment);
+  process.exitCode=1;
+ }
+}
+if(process.exitCode)process.exit(process.exitCode);
+console.log("Food intake RLS and canonical schema guardrails passed.");
+
+const medicineReminderMigration=fs.readFileSync("supabase/migrations/20261012_personal_health_reminder_safety.sql","utf8").toLowerCase();
+for(const fragment of [
+ "r.created_by", "l.created_by=r.created_by", "l.status='done'",
+ "health_routine_logs", "lifeos-health-reminders-owner-5m", "*/5 * * * *",
+ "cross join lateral unnest(r.reminder_times) as slot(scheduled_time)",
+ "l.scheduled_time=slot.scheduled_time", "n.body='a private health routine needs attention at '",
+ "n.workspace_id=r.workspace_id",
+ "generate_due_health_notifications"
+]){
+ if(!medicineReminderMigration.includes(fragment)){
+  console.error("Owner-safe medicine reminder guardrail missing: "+fragment);
+  process.exitCode=1;
+ }
+}
+if(medicineReminderMigration.includes("wm.user_id")||medicineReminderMigration.includes("join public.workspace_members")){
+ console.error("Medicine reminders must not broadcast to all workspace members.");
+ process.exitCode=1;
+}
+if(process.exitCode)process.exit(process.exitCode);
+console.log("Owner-scoped medicine reminder and completed-dose suppression checks passed.");
+
+const habitPinSql=fs.readFileSync("supabase/migrations/20261012_user_habit_pins.sql","utf8").toLowerCase();
+const habitPinSchema=fs.readFileSync("supabase/schema.sql","utf8").toLowerCase();
+for(const clause of [
+ "create table if not exists public.user_habit_pins",
+ "alter table public.user_habit_pins enable row level security",
+ "user_id=auth.uid()",
+ "public.is_workspace_member(workspace_id)",
+ "references public.habits(id) on delete cascade",
+ "habit pins select own",
+ "habit pins insert own",
+ "habit pins delete own",
+ "grant select,insert,delete on table public.user_habit_pins to authenticated"
+]){
+ if(!habitPinSql.includes(clause)||!habitPinSchema.includes(clause)){
+  console.error("Personal habit pin guardrail missing: "+clause);
+  process.exitCode=1;
+ }
+}
+if(process.exitCode)process.exit(process.exitCode);
+console.log("Personal habit pin/unpin RLS guardrails passed.");
+
+const coachDigestSql=fs.readFileSync("supabase/migrations/20261012_personal_coach_digest.sql","utf8").toLowerCase();
+for(const clause of [
+ "generate_personal_coach_notifications",
+ "lifeos-daily-coach-5m",
+ "*/5 * * * *",
+ "x.user_id=ctx.user_id",
+ "t.created_by=ctx.user_id or t.assigned_to=ctx.user_id",
+ "morning_planning_time",
+ "notification_dnd_blocks",
+ "status not in ('completed','cancelled')"
+]){
+ if(!coachDigestSql.includes(clause)){
+  console.error("Daily coaching / unfinished task reminder guardrail missing: "+clause);
+  process.exitCode=1;
+ }
+}
+if(process.exitCode)process.exit(process.exitCode);
+console.log("Private daily coach reminders and overdue-work notification guardrails passed.");
+
+const medicalPrivacySQL=fs.readFileSync("supabase/migrations/20261012_health_record_owner_privacy.sql","utf8").toLowerCase();
+const midnightSQL=fs.readFileSync("supabase/migrations/20261012_health_reminder_midnight.sql","utf8").toLowerCase();
+for(const clause of [
+  "health_routine_logs","lab_results","hair_photos","water_logs",
+  "created_by=auth.uid()","create policy \"health own select\"",
+  "create policy \"health own insert\"","create policy \"health own update\"",
+  "create policy \"health own delete\"",
+  "r.created_by=auth.uid()","split_part(object_name,'/',2)=coalesce(auth.uid()::text,'')"
+]){
+ if(!medicalPrivacySQL.includes(clause)){console.error("Medical privacy rule missing: "+clause);process.exitCode=1;}
+}
+for(const clause of [
+ "local_now::date + d.day_offset","values (0),(-1)",
+ "slot.planned_local::date","slot.planned_local>lt.local_now-interval '5 minutes'",
+ "l.scheduled_time=slot.scheduled_time","l.status='done'",
+ "to_char(slot.planned_local,'yyyy-mm-dd hh24:mi')",
+ "notification_dnd_blocks"
+]){
+ if(!midnightSQL.includes(clause)){console.error("Midnight reminder rule missing: "+clause);process.exitCode=1;}
+}
+if(process.exitCode)process.exit(process.exitCode);
+console.log("Personal medical RLS, storage owner and midnight dose reminders passed static audit.");

@@ -1,15 +1,7 @@
 import { NextResponse } from "next/server";
 import { coachAnswer, type AIContext } from "@/lib/ai/service";
+import {sanitizeCoachContext} from "@/lib/ai/coach-context";
 import { supabaseServer } from "@/lib/supabase/server";
-
-const EMPTY_CONTEXT: AIContext = {
-  today_tasks: [],
-  overdue_tasks: [],
-  money_due: [],
-  active_goals: [],
-  upcoming_family: [],
-  migration_blockers: [],
-};
 
 export async function POST(req: Request) {
   const supabase = await supabaseServer();
@@ -28,18 +20,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Question is too long" }, { status: 413 });
   }
 
-  const safeContext: AIContext = {
-    ...EMPTY_CONTEXT,
-    ...context,
-    today_tasks: Array.isArray(context?.today_tasks) ? context!.today_tasks!.slice(0, 25) : [],
-    overdue_tasks: Array.isArray(context?.overdue_tasks) ? context!.overdue_tasks!.slice(0, 25) : [],
-    money_due: Array.isArray(context?.money_due) ? context!.money_due!.slice(0, 25) : [],
-    active_goals: Array.isArray(context?.active_goals) ? context!.active_goals!.slice(0, 25) : [],
-    upcoming_family: Array.isArray(context?.upcoming_family) ? context!.upcoming_family!.slice(0, 25) : [],
-    migration_blockers: Array.isArray(context?.migration_blockers) ? context!.migration_blockers!.slice(0, 25) : [],
-    energy: context?.energy && typeof context.energy === "object" ? context.energy : undefined,
-    calendar_items: Array.isArray(context?.calendar_items) ? context!.calendar_items!.slice(0,25) : [],
-  };
+  // Strict field-level whitelist before the external AI provider. No spreading
+  // untrusted request context, nested lab results, medication names or secrets.
+  const safeContext:AIContext=sanitizeCoachContext(context);
 
   const result = await coachAnswer(question.trim(), safeContext, process.env);
   return NextResponse.json({
