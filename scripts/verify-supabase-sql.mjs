@@ -89,6 +89,9 @@ const medicineReminderMigration=fs.readFileSync("supabase/migrations/20261012_pe
 for(const fragment of [
  "r.created_by", "l.created_by=r.created_by", "l.status='done'",
  "health_routine_logs", "lifeos-health-reminders-owner-5m", "*/5 * * * *",
+ "cross join lateral unnest(r.reminder_times) as slot(scheduled_time)",
+ "l.scheduled_time=slot.scheduled_time", "n.body='a private health routine needs attention at '",
+ "n.workspace_id=r.workspace_id",
  "generate_due_health_notifications"
 ]){
  if(!medicineReminderMigration.includes(fragment)){
