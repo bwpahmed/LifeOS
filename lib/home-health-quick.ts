@@ -18,10 +18,15 @@ export function dueForQuickLog(r:QuickRoutine,day:string):boolean{
  (!r.start_date||r.start_date<=day)&&(!r.end_date||r.end_date>=day);
 }
 export function ownCareRoutines(rows:QuickRoutine[],userId:string,day:string,kind:"medicine"|"hair"){
- return rows.filter(r=>r.created_by===userId&&dueForQuickLog(r,day)&&(
-  kind==="medicine"?r.kind==="medicine":
-  r.kind==="other"&&r.details?.source==="lifeos-hair-recovery"
- ));
+ return rows.filter(r=>{
+  if(r.created_by!==userId||!r.active||r.start_date&&r.start_date>day||r.end_date&&r.end_date<day)return false;
+  if(kind==="medicine")return r.kind==="medicine"&&dueForQuickLog(r,day);
+  // Empty weekdays for optional scalp care means "track when used", never
+  // a daily prescription or scheduled dose. Still expose a one-tap log on Home.
+  return r.kind==="other"&&r.details?.source==="lifeos-hair-recovery"&&(
+   r.days_of_week.length===0||dueForQuickLog(r,day)
+  );
+ });
 }
 export function isRoutineTaken(logs:QuickRoutineLog[],routineId:string,day:string,slot:string){
  return logs.some(x=>x.routine_id===routineId&&x.date===day&&x.scheduled_time===slot&&x.status==="done");
