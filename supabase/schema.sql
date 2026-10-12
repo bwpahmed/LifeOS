@@ -1687,18 +1687,18 @@ begin
     'sleep_sessions','health_entries','lab_results','hair_photos'
   ] loop
     execute format('alter table public.%I enable row level security',t);
-    execute format('drop policy if exists %L on public.%I','health planner select',t);
-    execute format('drop policy if exists %L on public.%I','health planner insert',t);
-    execute format('drop policy if exists %L on public.%I','health planner update',t);
-    execute format('drop policy if exists %L on public.%I','health planner delete',t);
-    execute format('drop policy if exists %L on public.%I','private module select',t);
-    execute format('drop policy if exists %L on public.%I','private module insert',t);
-    execute format('drop policy if exists %L on public.%I','private module update',t);
-    execute format('drop policy if exists %L on public.%I','private module delete',t);
-    execute format('drop policy if exists %L on public.%I','health own select',t);
-    execute format('drop policy if exists %L on public.%I','health own insert',t);
-    execute format('drop policy if exists %L on public.%I','health own update',t);
-    execute format('drop policy if exists %L on public.%I','health own delete',t);
+    execute format('drop policy if exists %I on public.%I','health planner select',t);
+    execute format('drop policy if exists %I on public.%I','health planner insert',t);
+    execute format('drop policy if exists %I on public.%I','health planner update',t);
+    execute format('drop policy if exists %I on public.%I','health planner delete',t);
+    execute format('drop policy if exists %I on public.%I','private module select',t);
+    execute format('drop policy if exists %I on public.%I','private module insert',t);
+    execute format('drop policy if exists %I on public.%I','private module update',t);
+    execute format('drop policy if exists %I on public.%I','private module delete',t);
+    execute format('drop policy if exists %I on public.%I','health own select',t);
+    execute format('drop policy if exists %I on public.%I','health own insert',t);
+    execute format('drop policy if exists %I on public.%I','health own update',t);
+    execute format('drop policy if exists %I on public.%I','health own delete',t);
     execute format('create policy "health own select" on public.%I for select to authenticated using (created_by=auth.uid() and public.can_access_module(workspace_id,%L))',t,'health');
     execute format('create policy "health own insert" on public.%I for insert to authenticated with check (created_by=auth.uid() and public.is_workspace_writer(workspace_id) and public.can_access_module(workspace_id,%L))',t,'health');
     execute format('create policy "health own update" on public.%I for update to authenticated using (created_by=auth.uid() and public.is_workspace_writer(workspace_id) and public.can_access_module(workspace_id,%L)) with check (created_by=auth.uid() and public.is_workspace_writer(workspace_id) and public.can_access_module(workspace_id,%L))',t,'health','health');
