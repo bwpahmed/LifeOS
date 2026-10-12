@@ -39,7 +39,7 @@ export function HomeDailyCoach({timeZone="Asia/Dubai"}:{timeZone?:string}){
    const start=new Date(todayDate+"T12:00:00Z");start.setUTCDate(start.getUTCDate()-8);
    const weekStart=start.toISOString().slice(0,10);
    const [tasks,habits,water,routines,healthLogs,food,habitLogs]=await Promise.all([
-    sb.from("tasks").select("name,status,deadline,completed_at,importance").eq("workspace_id",ctx.workspaceId).limit(350),
+    sb.from("tasks").select("name,status,deadline,completed_at,importance").eq("workspace_id",ctx.workspaceId).or(`created_by.eq.${ctx.user.id},assigned_to.eq.${ctx.user.id}`).limit(350),
     sb.from("habits").select("id,name,area,frequency,target,kind,unit").eq("workspace_id",ctx.workspaceId).limit(250),
     sb.from("water_logs").select("amount_ml").eq("workspace_id",ctx.workspaceId).eq("created_by",ctx.user.id).eq("date",todayDate),
     sb.from("health_routines").select("id,title,kind,active,created_by,days_of_week,reminder_times,start_date,end_date,details").eq("workspace_id",ctx.workspaceId).eq("created_by",ctx.user.id).eq("active",true).in("kind",["water","medicine","other"]),
