@@ -145,3 +145,26 @@ for(const clause of [
 }
 if(process.exitCode)process.exit(process.exitCode);
 console.log("Private daily coach reminders and overdue-work notification guardrails passed.");
+
+const medicalPrivacySQL=fs.readFileSync("supabase/migrations/20261012_health_record_owner_privacy.sql","utf8").toLowerCase();
+const midnightSQL=fs.readFileSync("supabase/migrations/20261012_health_reminder_midnight.sql","utf8").toLowerCase();
+for(const clause of [
+  "health_routine_logs","lab_results","hair_photos","water_logs",
+  "created_by=auth.uid()","create policy \"health own select\"",
+  "create policy \"health own insert\"","create policy \"health own update\"",
+  "create policy \"health own delete\"",
+  "l.created_by","split_part(object_name,'/',2)=coalesce(auth.uid()::text,'')"
+]){
+ if(!medicalPrivacySQL.includes(clause)){console.error("Medical privacy rule missing: "+clause);process.exitCode=1;}
+}
+for(const clause of [
+ "local_now::date + d.day_offset","values (0),(-1)",
+ "slot.planned_local::date","slot.planned_local>lt.local_now-interval '5 minutes'",
+ "l.scheduled_time=slot.scheduled_time","l.status='done'",
+ "to_char(slot.planned_local,'yyyy-mm-dd hh24:mi')",
+ "notification_dnd_blocks"
+]){
+ if(!midnightSQL.includes(clause)){console.error("Midnight reminder rule missing: "+clause);process.exitCode=1;}
+}
+if(process.exitCode)process.exit(process.exitCode);
+console.log("Personal medical RLS, storage owner and midnight dose reminders passed static audit.");
