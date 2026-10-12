@@ -134,3 +134,13 @@ Before creating new logic:
 - **Offline:** existing \`/habits\` page remains the offline write-queue implementation; advanced planner is online-only for mutations, rather than introducing a second offline queue. Its error message must not claim new writes are queued.
 - **Reminders / health / goals:** continue to live in \`/automations\`, \`/notifications\`, \`/health-planner\`, and \`/goals\`. The planner links to them; it does not introduce a second notification dispatcher or duplicate health/goal facts.
 - **Release verification:** unauthenticated/real-account UI smoke QA is still required; link/PR merges do not prove user data interactions without project access.
+
+
+### Hair recovery and water/protein monitoring (2026-10-11)
+- The connected hair dashboard lives in `components/hair-recovery-tracker.tsx` and is rendered inside the existing private `app/hair/page.tsx` with its photo comparison. The code never stores a second authoritative habit/health record.
+- Hydration writes are **always** `public.water_logs` (both `/health-planner` and `/hair`). Daily target is stored in the existing `health_routines.details.daily_goal_ml`; don't mix target with measured intake. Water history and totals are projections from actual event rows.
+- Daily protein grams write to **existing** `health_entries.protein` (stored as `<number> g`). Existing free-text protein notes aren't overwritten automatically. Existing planned meal protein in `diet_plan_items.protein_g` is clearly labeled planned, not consumed.
+- Hair-care actions and subjective shedding check-ins use existing `health_routines` (`kind="other"`, `details.source="hair_recovery"`) and `health_routine_logs` (one record per step/date, `scheduled_time="00:00"` as valid sentinel, actual UTC `completed_at` timestamp). Creating manual-only steps must **not** schedule drug/device use or claim clinician approval.
+- Hair photo capture/compare remains `hair_photos` and the `lifeos-private` Supabase Storage bucket, with signed URLs. Blood tests remain `lab_results` and `/health`; the hair checklist merely locates existing rows, and does not auto-diagnose or infer "normal" from missing data.
+- Pure source-of-truth projections: `lib/hair-recovery.ts` plus `lib/hair-recovery.test.ts`.
+- Authorization: reuse `currentWorkspace`, existing Supabase RLS and `PrivacyGate`; never use browser-local state as a canonical record.
