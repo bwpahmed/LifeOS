@@ -6,5 +6,5 @@ export function orderPinnedHabits<T extends {id:string;name:string}>(habits:T[],
 export function addOrRemovePin(ids:readonly string[],id:string,pin:boolean):string[]{
  const existing=new Set(ids);
  if(pin)existing.add(id);else existing.delete(id);
- return [...existing];
+ return Array.from(existing);
 }
