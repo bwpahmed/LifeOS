@@ -26,6 +26,13 @@ export interface AIContext {
   migration_blockers: string[];
   energy?: { score: number | null; sleepHours: number | null; mainGoal: string | null };
   calendar_items?: { title: string; date: string; kind: string }[];
+  // Optional aggregate health facts — no raw diagnoses, meds, lab values or doses.
+  daily_health?: {
+    habits_done: number; habits_due: number;
+    water_logged_ml: number; water_user_goal_ml: number;
+    protein_estimated_g: number|null; medicine_slots_unlogged: number;
+    hair_care_done: number; hair_care_count: number;
+  };
 }
 
 export interface ParseCaptureResult {
@@ -236,6 +243,7 @@ export async function coachAnswer(
     return [
       money ? `Outstanding: ${money}.` : "No outstanding-money context provided.",
       overdue ? `Overdue: ${overdue}.` : "No overdue-task context provided.",
+      context.daily_health ? `Recorded habits: ${context.daily_health.habits_done}/${context.daily_health.habits_due}. Water logged: ${context.daily_health.water_logged_ml} ml. Scheduled medicine slots not marked Taken: ${context.daily_health.medicine_slots_unlogged}; check actual intake, never double a dose without advice.` : "",
     ].join(" ");
   };
 
@@ -245,6 +253,9 @@ export async function coachAnswer(
     "You are the LifeOS planning coach.",
     "Use ONLY facts present in the provided structured context.",
     "Never invent money, health results, deadlines, people, or completed work.",
+    "Health information, if present, is self-logged. Never diagnose deficiencies, prescribe supplements, oral minoxidil or doses, or tell users to double a missed dose.",
+    "If a medicine is not logged, suggest verifying intake with their clinician/pharmacist; never assume it was missed.",
+    "Keep recommendations task-focused and concrete, with no fabricated progress.",
     "Give concise, prioritized actions and explain the factual reason for each.",
     "If the context does not support an answer, say that plainly.",
   ].join("\n");
