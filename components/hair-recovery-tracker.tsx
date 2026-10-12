@@ -179,6 +179,7 @@ export function HairRecoveryTracker(){
       <button type="submit" disabled={!!pending||!custom.trim()}>Add</button>
      </form>
      <p className="hair-sub">Serum and dermastamp tracking records only what you actually did. They are not medicine prescriptions or automatic reminders. A dermatologist should guide scalp procedures and topical treatment; minoxidil is not added as an active medicine by default.</p>
+     <p className="hair-sub"><strong>Oral minoxidil (prescription-only option):</strong> If your dermatologist has already prescribed it, go to <Link href="/" className="hair-link">Home Medicine Reminders →</Link> and confirm the exact schedule to track it. LifeOS never starts or doses oral minoxidil automatically. Blood pressure and pulse monitoring may be needed; discuss this with your clinician.</p>
     </section>
     <section className="hair-box">
      <div className="hair-box-head"><h3>Lab test record checklist</h3><span>{labCount} recorded</span></div>
