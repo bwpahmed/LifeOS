@@ -12,6 +12,7 @@ import { LifeClock } from "@/components/life-clock";
 import { ProgressHalo } from "@/components/progress-halo";
 import { PrivacyGate } from "@/components/privacy-gate";
 import { HomeHealthQuickLog } from "@/components/home-health-quick-log";
+import { HomeDailyCoach } from "@/components/home-daily-coach";
 import "./home-next.css";
 import { safeNextPath } from "@/lib/auth-routing";
 
@@ -296,7 +297,7 @@ export default function Home(){
   return <main className="page-root home-next">
     {error&&<p className="mb-4 rounded-xl border border-red-400/20 bg-red-400/10 p-3 text-sm text-red-200">{error}</p>}
 
-    <PrivacyGate><HomeHealthQuickLog day={today} timeZone={timezone}/></PrivacyGate>
+    <PrivacyGate><HomeHealthQuickLog day={today} timeZone={timezone}/><HomeDailyCoach timeZone={timezone}/></PrivacyGate>
     <section className="home-next-hero" aria-label="Daily LifeOS overview">
       <div className="home-next-hero-top">
         <span className="home-next-overline">✳ YOUR PERSONAL COMMAND CENTER</span>
