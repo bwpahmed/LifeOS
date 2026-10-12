@@ -291,3 +291,11 @@
  .habits-v2 .habit-summary-label{font-size:10px;letter-spacing:.1em}
  .habits-v2 .habit-summary p{font-size:12px;line-height:1.5}
 }
+
+/* Personal pinning and safe deletion, independent of a shared habit's status. */
+.habits-v2 .habit-personal-actions{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-left:auto}
+.habits-v2 .habit-personal-actions button{border:1px solid var(--line);background:var(--panel2);color:var(--muted);border-radius:10px;padding:7px 9px;font-size:11px;white-space:nowrap}
+.habits-v2 .habit-personal-actions .habit-pin-btn[aria-pressed=true]{border-color:#8edebb;background:rgba(21,172,119,.11);color:#07966a}
+.habits-v2 .habit-personal-actions .habit-remove-btn{color:#b8736b}
+.habits-v2 .habit-personal-actions button:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:630px){.habits-v2 .habit-personal-actions{width:100%;justify-content:flex-end;order:5}.habits-v2 .habit-card-top{flex-wrap:wrap}}
