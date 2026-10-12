@@ -46,7 +46,8 @@ export function HomeHealthQuickLog({day,timeZone="Asia/Dubai"}:{day:string;timeZ
  const[now,setNow]=useState(()=>new Date());
  const[showMedicineSetup,setShowMedicineSetup]=useState(false);
  const[newMedicine,setNewMedicine]=useState("");
- const[newMedicineTime,setNewMedicineTime]=useState("09:00");
+ const[newMedicineTime,setNewMedicineTime]=useState("");
+ const[oralPrescriptionConfirmed,setOralPrescriptionConfirmed]=useState(false);
  const[newMedicineDays,setNewMedicineDays]=useState("daily");
  const load=useCallback(async()=>{
   try{
@@ -140,6 +141,7 @@ export function HomeHealthQuickLog({day,timeZone="Asia/Dubai"}:{day:string;timeZ
   const title=newMedicine.trim();
   const times=parseReminderTimes(newMedicineTime);
   if(!title||title.length>120){setError("Enter the exact name from your prescribed medicine.");return;}
+  if(/oral\s+minoxidil/i.test(title)&&!oralPrescriptionConfirmed){setError("Confirm an actual clinician prescription before scheduling oral minoxidil.");return;}
   if(times.invalid.length||times.times.length!==1){setError("Enter one valid reminder time (HH:MM).");return;}
   if(!workspace||!owner)return;
   const days=newMedicineDays==="weekdays"?[1,2,3,4,5]:newMedicineDays==="weekends"?[6,7]:[1,2,3,4,5,6,7];
@@ -151,7 +153,7 @@ export function HomeHealthQuickLog({day,timeZone="Asia/Dubai"}:{day:string;timeZ
     reminder_times:times.times,days_of_week:days,active:true,start_date:day
    });
    if(q.error)throw q.error;
-   setNewMedicine("");setShowMedicineSetup(false);
+   setNewMedicine("");setNewMedicineTime("");setOralPrescriptionConfirmed(false);setShowMedicineSetup(false);
   },"Medicine reminder saved. Enable device push notifications to receive alerts.");
  }
  function logCare(r:QuickRoutine){
@@ -277,11 +279,15 @@ export function HomeHealthQuickLog({day,timeZone="Asia/Dubai"}:{day:string;timeZ
       <button type="button" aria-expanded={showMedicineSetup} onClick={()=>setShowMedicineSetup(v=>!v)}>{showMedicineSetup?"Close setup":"＋ Add medicine time"}</button>
       <Link href="/notifications">🔔 Enable phone alerts ↗</Link>
      </div>
+     <button type="button" className="lifeos-minoxidil-option" onClick={()=>{setShowMedicineSetup(true);setNewMedicine("Oral minoxidil");setNewMedicineTime("");setOralPrescriptionConfirmed(false);}}>
+      Oral minoxidil · track **only if prescribed** →</button>
+     <small className="lifeos-minoxidil-note">This is a template, not an active treatment. Oral minoxidil for hair loss may affect blood pressure/heart rate; obtain a clinician-prescribed schedule first.</small>
      {showMedicineSetup&&<form className="lifeos-med-setup" onSubmit={saveMedicine}>
       <label>Prescribed medicine name<input type="text" required maxLength={120} placeholder="Name on your actual prescription" value={newMedicine} onChange={e=>setNewMedicine(e.target.value)}/></label>
       <label>Reminder time<input type="time" required value={newMedicineTime} onChange={e=>setNewMedicineTime(e.target.value)}/></label>
       <label>Repeat<select value={newMedicineDays} onChange={e=>setNewMedicineDays(e.target.value)}><option value="daily">Every day</option><option value="weekdays">Monday–Friday</option><option value="weekends">Saturday–Sunday</option></select></label>
-      <button disabled={!!busy} type="submit">Save reminder</button>
+      {/oral\s+minoxidil/i.test(newMedicine)&&<label><input type="checkbox" checked={oralPrescriptionConfirmed} onChange={e=>setOralPrescriptionConfirmed(e.target.checked)}/> I confirm this oral minoxidil schedule was prescribed by my clinician</label>}
+      <button disabled={!!busy||(/oral\s+minoxidil/i.test(newMedicine)&&!oralPrescriptionConfirmed)} type="submit">Save reminder</button>
       <small>Enter only your prescribed schedule. This does not prescribe a dose; use Health Planner for complex schedules.</small>
      </form>}
      <p className="lifeos-quick-disclaimer">Overdue means not logged, not proof you missed it. Don't double a dose if unsure—ask your pharmacist or clinician. Phone push requires device permission and a working scheduler.</p>
