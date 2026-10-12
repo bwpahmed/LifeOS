@@ -83,7 +83,7 @@ export function HomeDailyCoach({timeZone="Asia/Dubai"}:{timeZone?:string}){
    setSnapshot(snap);setWorkspaceId(ctx.workspaceId);setError("");setLoading(false);
   }catch(e){setError(e instanceof Error?e.message:"Daily Brief could not load from Supabase.");setLoading(false);}
  },[timeZone]);
- useEffect(()=>{void load();},[load]);
+ useEffect(()=>{void load();},[load,clock]);
  useEffect(()=>{const id=window.setInterval(()=>setClock(new Date()),60000);return()=>window.clearInterval(id);},[]);
  useRealtimeRefresh(["tasks","habits","habit_logs","water_logs","food_intake_logs","health_routines","health_routine_logs"],load,Boolean(workspaceId));
  const tips=useMemo(()=>dailyCoachTips(snapshot),[snapshot]);
