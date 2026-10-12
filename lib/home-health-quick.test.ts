@@ -49,3 +49,16 @@ describe("Medicine dashboard urgent reminder states",()=>{
   expect(medicineDoseState("bad","08:00",false)).toBe("upcoming");
  });
 });
+
+describe("Optional, unscheduled hair-care actions",()=>{
+ it("allows manually logging serum/dermastamp without treating it as a daily medication",()=>{
+  const optional={...routine,id:"care",kind:"other",days_of_week:[],details:{source:"lifeos-hair-recovery"}};
+  expect(ownCareRoutines([optional],"owner","2026-10-12","hair").map(x=>x.id)).toEqual(["care"]);
+  expect(ownCareRoutines([optional],"owner","2026-10-12","medicine")).toEqual([]);
+  expect(dueForQuickLog(optional,"2026-10-12")).toBe(false);
+ });
+ it("never exposes paused or another person's optional hair routine",()=>{
+  const optional={...routine,id:"care",kind:"other",days_of_week:[],details:{source:"lifeos-hair-recovery"}};
+  expect(ownCareRoutines([{...optional,active:false},{...optional,id:"other",created_by:"someone"}],"owner","2026-10-12","hair")).toEqual([]);
+ });
+});
