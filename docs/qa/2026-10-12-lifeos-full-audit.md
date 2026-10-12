@@ -59,3 +59,15 @@
 - [ ] Reconcile feature branch against latest `main` and only then request release approval.
 
 **Release recommendation:** keep PR #21 as **draft / no production merge** until all high-risk gates above pass. This report is source-backed code/test audit, **not certification of a working live installation**.
+
+
+## Database activation follow-up — 12 October 2026
+
+- User re-authorized the exact LifeOS Supabase project `fdtbftuxziicubztgcde`; `list_projects`, `get_project`, `list_migrations`, read-only SQL and advisor checks now succeed.
+- Four migrations have been **applied successfully to the real LifeOS project**, tracked in `supabase_migrations.schema_migrations`: `food_intake_logs`, `user_habit_pins`, `personal_health_reminder_safety`, `personal_coach_digest`.
+- Post-apply SQL audit confirms **4/4 installed**; two new tables have **RLS on**, food table has four owner policies, pins table three owner policies. Both new tables have zero user records so far, no fabricated testing data.
+- Supabase cron jobs verified active: `lifeos-health-reminders-owner-5m`, `lifeos-daily-coach-5m`, `lifeos-push-dispatch-5m`, plus existing general reminders hourly. Old `lifeos-health-reminders-15m` no longer appears.
+- Existing actual water logs stayed intact (2 entries). At check time there were 0 health routines; we therefore **did not test** actual push delivery, two-dose suppression, or pharmacy reminder behavior.
+- Existing Health Planner / lab RLS still uses workspace-wide health module access for multiple legacy tables. This is the main privacy-hardening task before multi-user release, not solved by owner filters in React.
+- Signed-in browser CRUD/RLS for food, pins, water, notifications and push permission remains unverified; `main` deployment of PR #21 should be gated on those checks. Supabase backup restore and auth UX must also be verified.
+- Supabase Security Advisor reported existing `authenticated_security_definer_function_executable` warnings (8 functions) and disabled leaked password protection. These are separate hardening tasks requiring care to avoid breaking RLS helper calls.
