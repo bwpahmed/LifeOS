@@ -24,41 +24,38 @@ begin
       when r.kind='meal' then 'LifeOS meal reminder'
       else 'LifeOS health reminder'
     end,
-    'A private health routine needs attention.',
+    'A private health routine needs attention at ' || slot.scheduled_time || ' (scheduled).',
     case when r.kind='medicine' then 'important' else 'normal' end,
     'health_routines',
     r.id,
     now()
   from public.health_routines r
+  cross join lateral unnest(r.reminder_times) as slot(scheduled_time)
   left join public.profiles p on p.id=r.created_by
   left join public.notification_preferences np on np.user_id=r.created_by
   where r.active=true
     and (r.start_date is null or r.start_date <= (now() at time zone coalesce(p.timezone,'Asia/Dubai'))::date)
     and (r.end_date is null or r.end_date >= (now() at time zone coalesce(p.timezone,'Asia/Dubai'))::date)
     and extract(isodow from (now() at time zone coalesce(p.timezone,'Asia/Dubai')))::int = any(r.days_of_week)
-    and exists (
-      select 1
-      from unnest(r.reminder_times) as rt
-      where
-        (
-          (
-            extract(hour from (now() at time zone coalesce(p.timezone,'Asia/Dubai')))::int * 60
-            + extract(minute from (now() at time zone coalesce(p.timezone,'Asia/Dubai')))::int
-          )
-          -
-          (
-            split_part(rt,':',1)::int * 60
-            + split_part(rt,':',2)::int
-          )
-        ) between 0 and 4
-        and not exists (
-          select 1 from public.health_routine_logs l
-          where l.routine_id=r.id
-            and l.created_by=r.created_by
-            and l.date=(now() at time zone coalesce(p.timezone,'Asia/Dubai'))::date
-            and l.scheduled_time=rt
-            and l.status='done'
-        )
+    and slot.scheduled_time ~ '^[0-2][0-9]:[0-5][0-9]$'
+    and (
+      (
+        extract(hour from (now() at time zone coalesce(p.timezone,'Asia/Dubai')))::int * 60
+        + extract(minute from (now() at time zone coalesce(p.timezone,'Asia/Dubai')))::int
+      )
+      -
+      (
+        split_part(slot.scheduled_time,':',1)::int * 60
+        + split_part(slot.scheduled_time,':',2)::int
+      )
+    ) between 0 and 4
+    and not exists (
+      select 1 from public.health_routine_logs l
+      where l.routine_id=r.id
+        and l.created_by=r.created_by
+        and l.date=(now() at time zone coalesce(p.timezone,'Asia/Dubai'))::date
+        and l.scheduled_time=slot.scheduled_time
+        and l.status='done'
     )
     and not (
       (
@@ -97,9 +94,12 @@ begin
       select 1
       from public.notifications n
       where n.user_id=r.created_by
+        and n.workspace_id=r.workspace_id
         and n.ref_table='health_routines'
         and n.ref_id=r.id
-        and n.created_at > now() - interval '16 minutes'
+        and n.body='A private health routine needs attention at ' || slot.scheduled_time || ' (scheduled).'
+        and (n.created_at at time zone coalesce(p.timezone,'Asia/Dubai'))::date=
+          (now() at time zone coalesce(p.timezone,'Asia/Dubai'))::date
     );
 
   get diagnostics inserted_count = row_count;
