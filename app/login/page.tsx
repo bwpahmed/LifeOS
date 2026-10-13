@@ -17,8 +17,9 @@ function readableAuthError(error: unknown) {
 }
 
 export default function LoginPage() {
-  // Preserve the existing owner-login convenience without locking other authorized users out.
-  const [email, setEmail] = useState("bwpahmed@gmail.com");
+  // The login form is public: never reveal an account email to anonymous visitors.
+  // Browser password managers can still provide per-device username autofill.
+  const [email, setEmail] = useState("");
   const emailInputRef = useRef<HTMLInputElement>(null);
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState<Message | null>(null);
