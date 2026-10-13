@@ -1,0 +1,176 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		1D60589B0D05DD56006BFB54 /* LifeOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D60589A0D05DD56006BFB54 /* LifeOSApp.swift */; };
+		1D60589D0D05DD56006BFB54 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D60589C0D05DD56006BFB54 /* ContentView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		1D6058940D05DD56006BFB54 /* LifeOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LifeOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		1D60589A0D05DD56006BFB54 /* LifeOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifeOSApp.swift; sourceTree = "<group>"; };
+		1D60589C0D05DD56006BFB54 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		1D60589E0D05DD56006BFB54 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		1D60588E0D05DD56006BFB54 = {
+			isa = PBXGroup;
+			children = (
+				1D6058990D05DD56006BFB54 /* LifeOSApp */,
+				1D6058950D05DD56006BFB54 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		1D6058950D05DD56006BFB54 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				1D6058940D05DD56006BFB54 /* LifeOS.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		1D6058990D05DD56006BFB54 /* LifeOSApp */ = {
+			isa = PBXGroup;
+			children = (
+				1D60589A0D05DD56006BFB54 /* LifeOSApp.swift */,
+				1D60589C0D05DD56006BFB54 /* ContentView.swift */,
+				1D60589E0D05DD56006BFB54 /* Info.plist */,
+			);
+			path = LifeOSApp;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		1D6058930D05DD56006BFB54 /* LifeOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1D6058A60D05DD56006BFB54 /* Build configuration list for PBXNativeTarget "LifeOS" */;
+			buildPhases = (
+				1D6058900D05DD56006BFB54 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = LifeOS;
+			productName = LifeOS;
+			productReference = 1D6058940D05DD56006BFB54 /* LifeOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		1D60588F0D05DD56006BFB54 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastUpgradeCheck = 1500;
+			};
+			buildConfigurationList = 1D6058920D05DD56006BFB54 /* Build configuration list for PBXProject "LifeOSApp" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 1D60588E0D05DD56006BFB54;
+			productRefGroup = 1D6058950D05DD56006BFB54 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				1D6058930D05DD56006BFB54 /* LifeOS */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		1D6058900D05DD56006BFB54 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1D60589B0D05DD56006BFB54 /* LifeOSApp.swift in Sources */,
+				1D60589D0D05DD56006BFB54 /* ContentView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		1D6058A40D05DD56006BFB54 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.lifeos.mobile;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		1D6058A50D05DD56006BFB54 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				PRODUCT_BUNDLE_IDENTIFIER = com.lifeos.mobile;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		1D6058A70D05DD56006BFB54 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				INFOPLIST_FILE = LifeOSApp/Info.plist;
+				PRODUCT_BUNDLE_IDENTIFIER = com.lifeos.mobile;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		1D6058A80D05DD56006BFB54 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				INFOPLIST_FILE = LifeOSApp/Info.plist;
+				PRODUCT_BUNDLE_IDENTIFIER = com.lifeos.mobile;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		1D6058920D05DD56006BFB54 /* Build configuration list for PBXProject "LifeOSApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1D6058A40D05DD56006BFB54 /* Debug */,
+				1D6058A50D05DD56006BFB54 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		1D6058A60D05DD56006BFB54 /* Build configuration list for PBXNativeTarget "LifeOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1D6058A70D05DD56006BFB54 /* Debug */,
+				1D6058A80D05DD56006BFB54 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+	};
+	rootObject = 1D60588F0D05DD56006BFB54 /* Project object */;
+}
