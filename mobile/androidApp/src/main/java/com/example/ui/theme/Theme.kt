@@ -11,55 +11,55 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-private val LightColorScheme = lightColorScheme(
-    primary = EmeraldGreen,
-    onPrimary = White,
-    primaryContainer = EmeraldSoftBg,
-    onPrimaryContainer = EmeraldDark,
-    secondary = CyanBright,
-    onSecondary = White,
-    secondaryContainer = Slate100,
-    onSecondaryContainer = Slate900,
-    tertiary = AmberGold,
-    onTertiary = White,
-    background = BackgroundCleanLight,
-    onBackground = Slate950,
-    surface = White,
-    onSurface = Slate950,
-    surfaceVariant = Slate50,
-    onSurfaceVariant = Slate700,
-    outline = Slate200,
-    outlineVariant = Slate100,
-    error = RoseRed,
-    onError = White
+private val DarkColorScheme = darkColorScheme(
+    primary = EmeraldAccent,
+    onPrimary = ObsidianDark,
+    primaryContainer = ObsidianCard,
+    onPrimaryContainer = EmeraldAccent,
+    secondary = VioletAccent,
+    onSecondary = ObsidianDark,
+    secondaryContainer = ObsidianCardHover,
+    onSecondaryContainer = TextPrimaryDark,
+    tertiary = AmberAccent,
+    onTertiary = ObsidianDark,
+    background = ObsidianDark,
+    onBackground = TextPrimaryDark,
+    surface = ObsidianCard,
+    onSurface = TextPrimaryDark,
+    surfaceVariant = ObsidianCardHover,
+    onSurfaceVariant = TextSecondaryDark,
+    outline = ObsidianBorder,
+    outlineVariant = ObsidianBorderSubtle,
+    error = RoseAccent,
+    onError = ObsidianDark
 )
 
-private val DarkColorScheme = darkColorScheme(
-    primary = EmeraldGreen,
-    onPrimary = Slate950,
-    primaryContainer = Slate900,
-    onPrimaryContainer = EmeraldLight,
-    secondary = CyanBright,
-    onSecondary = Slate950,
-    secondaryContainer = Slate850,
-    onSecondaryContainer = CyanBright,
-    tertiary = AmberLight,
-    onTertiary = Slate950,
-    background = Color(0xFF0B1120),
-    onBackground = Slate100,
-    surface = Color(0xFF111827),
-    onSurface = Slate100,
-    surfaceVariant = Color(0xFF1F2937),
-    onSurfaceVariant = Slate300,
-    outline = Color(0xFF374151),
-    outlineVariant = Color(0xFF1F2937),
-    error = RoseRed,
-    onError = White
+private val LightColorScheme = lightColorScheme(
+    primary = EmeraldAccent,
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFF0FDF4),
+    onPrimaryContainer = Color(0xFF166534),
+    secondary = VioletAccent,
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFFF5F3FF),
+    onSecondaryContainer = Color(0xFF5B21B6),
+    tertiary = AmberAccent,
+    onTertiary = Color.White,
+    background = StudioLightBg,
+    onBackground = TextPrimaryLight,
+    surface = StudioLightCard,
+    onSurface = TextPrimaryLight,
+    surfaceVariant = Color(0xFFF1F5F9),
+    onSurfaceVariant = TextSecondaryLight,
+    outline = StudioLightBorder,
+    outlineVariant = Color(0xFFE2E8F0),
+    error = RoseAccent,
+    onError = Color.White
 )
 
 @Composable
 fun LifeOsTheme(
-    darkTheme: Boolean = false, // Clean, crisp LifeOS web app light theme by default
+    darkTheme: Boolean = true, // Executive Obsidian dark mode by default for premium feel
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme

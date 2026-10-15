@@ -59,21 +59,21 @@ fun PlannerScreen(
                     Text(
                         text = "Allocate every hour intentionally.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Slate700
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(EmeraldSoftBg)
-                        .border(1.dp, EmeraldBorder, RoundedCornerShape(8.dp))
+                        .background(EmeraldAccent.copy(alpha = 0.12f))
+                        .border(1.dp, EmeraldAccent.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
                     Text(
                         text = "${scheduleEvents.count { it.isDone }}/${scheduleEvents.size} Blocks",
                         style = MaterialTheme.typography.labelSmall,
-                        color = EmeraldDark,
+                        color = EmeraldAccent,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -86,7 +86,10 @@ fun PlannerScreen(
                         .weight(1f),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("No time blocks scheduled. Tap '+' to block an event.", color = Slate600)
+                    Text(
+                        "No time blocks scheduled. Tap '+' to block an event.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             } else {
                 LazyColumn(
@@ -111,8 +114,8 @@ fun PlannerScreen(
                 .align(Alignment.BottomEnd)
                 .padding(bottom = 96.dp, end = 20.dp)
                 .testTag("add_schedule_fab"),
-            containerColor = EmeraldGreen,
-            contentColor = White
+            containerColor = EmeraldAccent,
+            contentColor = ObsidianDark
         ) {
             Icon(Icons.Default.Add, contentDescription = "Add Time Block")
         }
@@ -130,7 +133,7 @@ fun PlannerBlockCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = androidx.compose.foundation.BorderStroke(
             1.dp,
-            if (event.isDone) Slate200 else MaterialTheme.colorScheme.outline
+            if (event.isDone) MaterialTheme.colorScheme.outlineVariant else MaterialTheme.colorScheme.outline
         ),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -149,12 +152,12 @@ fun PlannerBlockCard(
                     text = event.startTime,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
-                    color = EmeraldDark
+                    color = EmeraldAccent
                 )
                 Text(
                     text = event.endTime,
                     style = MaterialTheme.typography.labelSmall,
-                    color = Slate600
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -164,7 +167,7 @@ fun PlannerBlockCard(
                     .width(3.dp)
                     .height(36.dp)
                     .clip(RoundedCornerShape(1.5.dp))
-                    .background(if (event.isDone) Slate300 else EmeraldGreen)
+                    .background(if (event.isDone) MaterialTheme.colorScheme.outlineVariant else EmeraldAccent)
             )
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -179,20 +182,20 @@ fun PlannerBlockCard(
                     text = event.title,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
-                    color = if (event.isDone) Slate400 else MaterialTheme.colorScheme.onSurface,
+                    color = if (event.isDone) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
                     textDecoration = if (event.isDone) androidx.compose.ui.text.style.TextDecoration.LineThrough else null
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(4.dp))
-                        .background(Slate100)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
                         text = event.category,
                         style = MaterialTheme.typography.labelSmall,
-                        color = Slate700,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium
                     )
@@ -203,7 +206,7 @@ fun PlannerBlockCard(
                 Icon(
                     imageVector = if (event.isDone) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
                     contentDescription = "Toggle Done",
-                    tint = if (event.isDone) EmeraldGreen else Slate400
+                    tint = if (event.isDone) EmeraldAccent else MaterialTheme.colorScheme.outline
                 )
             }
 
@@ -211,7 +214,7 @@ fun PlannerBlockCard(
                 Icon(
                     Icons.Default.DeleteOutline,
                     contentDescription = "Delete",
-                    tint = Slate400,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(16.dp)
                 )
             }

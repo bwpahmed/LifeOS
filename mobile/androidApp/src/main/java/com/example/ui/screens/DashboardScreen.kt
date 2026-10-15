@@ -1,5 +1,8 @@
 package com.example.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -10,14 +13,20 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.LifeOsRepository
@@ -41,22 +50,24 @@ fun DashboardScreen(
     onOpenBrainDump: () -> Unit
 ) {
     val todayDate = LifeOsRepository.getTodayDateString()
-    val topTasks = tasks.filter { it.isTopPriorityToday || it.priority == TaskPriority.URGENT }.take(3)
-    val completedTasksCount = tasks.count { it.status == TaskStatus.DONE }
-    val totalTasksCount = tasks.size
+    val topTasks = tasks.filter { it.isTopPriorityToday || it.priority == TaskPriority.URGENT }
+    val primaryTask = topTasks.firstOrNull { it.status != TaskStatus.DONE } ?: tasks.firstOrNull { it.status != TaskStatus.DONE }
     val completedHabitsCount = habits.count { it.completedDates.contains(todayDate) }
     val totalHabitsCount = habits.size
+    val completedTasksCount = tasks.count { it.status == TaskStatus.DONE }
+    val totalTasksCount = tasks.size
+    val habitProgress = if (totalHabitsCount > 0) completedHabitsCount.toFloat() / totalHabitsCount else 0f
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = 16.dp)
+            .padding(horizontal = 20.dp)
             .testTag("dashboard_screen"),
-        contentPadding = PaddingValues(top = 12.dp, bottom = 88.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        contentPadding = PaddingValues(top = 16.dp, bottom = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        // Daily Command Center Greeting Card (Inspired by Web LifeOS)
+        // 1. Executive Summary & Daily Momentum
         item {
             Card(
                 modifier = Modifier
@@ -66,258 +77,550 @@ fun DashboardScreen(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
             ) {
-                Column(modifier = Modifier.padding(18.dp)) {
+                Column(modifier = Modifier.padding(20.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .clip(CircleShape)
-                                    .background(EmeraldSoftBg),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    Icons.Default.AutoAwesome,
-                                    contentDescription = null,
-                                    tint = EmeraldGreen,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "DAILY COMMAND CENTER",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = EmeraldDark,
-                                letterSpacing = 0.5.sp
-                            )
-                        }
+                        Text(
+                            text = "COMMAND COCKPIT",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = EmeraldAccent,
+                            letterSpacing = 1.sp
+                        )
 
-                        IconButton(
-                            onClick = onOpenBrainDump,
-                            modifier = Modifier
-                                .size(30.dp)
-                                .clip(CircleShape)
-                                .background(AmberSoftBg)
-                        ) {
-                            Icon(Icons.Default.FlashOn, contentDescription = "Quick AI", tint = AmberGold, modifier = Modifier.size(16.dp))
-                        }
+                        Text(
+                            text = todayDate,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))
+
                     Text(
                         text = aiBrief.greeting,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.ExtraBold,
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
                     Text(
-                        text = aiBrief.motivationalQuote,
+                        text = aiBrief.motivationalQuote.replace("“", "").replace("”", ""),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Slate700,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         lineHeight = 20.sp
                     )
 
-                    Spacer(modifier = Modifier.height(14.dp))
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outline)
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                    aiBrief.topRecommendations.forEach { rec ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(vertical = 3.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .clip(CircleShape)
-                                    .background(EmeraldGreen)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = rec,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Slate900
-                            )
-                        }
+                    // Daily Momentum Progress Bar
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Habit Momentum",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "$completedHabitsCount / $totalHabitsCount completed",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = EmeraldAccent
+                        )
                     }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    LinearProgressIndicator(
+                        progress = { habitProgress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(3.dp)),
+                        color = EmeraldAccent,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
                 }
             }
         }
 
-        // Executive Metrics Counters
+        // 2. High-Density Metrics Strip (Linear / Raycast Style)
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                MetricWidget(
-                    title = "Today's Habits",
-                    value = "$completedHabitsCount / $totalHabitsCount",
-                    progress = if (totalHabitsCount > 0) completedHabitsCount.toFloat() / totalHabitsCount else 0f,
-                    color = EmeraldGreen,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onNavigate(LifeOsScreen.HABITS) }
-                )
-                MetricWidget(
-                    title = "Tasks Progress",
+                // Metric 1: Tasks Done
+                ExecutiveMetricCard(
+                    title = "Tasks",
                     value = "$completedTasksCount / $totalTasksCount",
-                    progress = if (totalTasksCount > 0) completedTasksCount.toFloat() / totalTasksCount else 0f,
-                    color = ElectricCyan,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onNavigate(LifeOsScreen.TASKS) }
+                    subtext = "${totalTasksCount - completedTasksCount} pending",
+                    accentColor = VioletAccent,
+                    modifier = Modifier.weight(1f).clickable { onNavigate(LifeOsScreen.TASKS) }
+                )
+
+                // Metric 2: Habits
+                ExecutiveMetricCard(
+                    title = "Habits",
+                    value = "$completedHabitsCount",
+                    subtext = "Today's checkins",
+                    accentColor = EmeraldAccent,
+                    modifier = Modifier.weight(1f).clickable { onNavigate(LifeOsScreen.HABITS) }
+                )
+
+                // Metric 3: Deep Work
+                ExecutiveMetricCard(
+                    title = "Deep Work",
+                    value = "Focus",
+                    subtext = "25m Sprint",
+                    accentColor = AmberAccent,
+                    modifier = Modifier.weight(1f).clickable { onNavigate(LifeOsScreen.FOCUS) }
                 )
             }
         }
 
-        // Must-Win Priorities (Top 3 daily anchors)
+        // 3. Primary Focus Anchor (Hero Task)
         item {
-            Column(modifier = Modifier.fillMaxWidth()) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Star, contentDescription = null, tint = AmberGold, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Must-Win Priorities Today",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                    TextButton(onClick = { onNavigate(LifeOsScreen.TASKS) }) {
-                        Text("View All", color = EmeraldGreen, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                    }
+                    Text(
+                        text = "PRIMARY OBJECTIVE",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        letterSpacing = 0.8.sp
+                    )
+                    Text(
+                        text = "View All",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = EmeraldAccent,
+                        modifier = Modifier.clickable { onNavigate(LifeOsScreen.TASKS) }
+                    )
                 }
 
-                if (topTasks.isEmpty()) {
-                    Box(
+                if (primaryTask != null) {
+                    val isDone = primaryTask.status == TaskStatus.DONE
+                    Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.surface)
-                            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
-                            .padding(16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            "No anchor priorities designated today. Tap '+' to anchor a task.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Slate600
+                            .testTag("primary_task_card"),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            if (primaryTask.isTopPriorityToday) EmeraldAccent.copy(alpha = 0.5f)
+                            else MaterialTheme.colorScheme.outline
                         )
+                    ) {
+                        Column(modifier = Modifier.padding(18.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                // Crisp Custom Checkbox
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(
+                                            if (isDone) EmeraldAccent else Color.Transparent
+                                        )
+                                        .border(
+                                            1.5.dp,
+                                            if (isDone) EmeraldAccent else MaterialTheme.colorScheme.outline,
+                                            RoundedCornerShape(6.dp)
+                                        )
+                                        .clickable { onToggleTaskStatus(primaryTask.id) }
+                                        .testTag("toggle_task_${primaryTask.id}"),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (isDone) {
+                                        Icon(
+                                            Icons.Default.Check,
+                                            contentDescription = "Done",
+                                            tint = Color.Black,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = primaryTask.title,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = if (isDone) MaterialTheme.colorScheme.onSurfaceVariant
+                                                else MaterialTheme.colorScheme.onSurface,
+                                        textDecoration = if (isDone) TextDecoration.LineThrough else null,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+
+                                    if (primaryTask.notes.isNotEmpty()) {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = primaryTask.notes,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Workspace tag & priority
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Text(
+                                            text = primaryTask.workspaceId.uppercase(),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+
+                                    if (primaryTask.isTopPriorityToday) {
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(EmeraldAccent.copy(alpha = 0.15f))
+                                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                        ) {
+                                            Text(
+                                                text = "TOP ANCHOR",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = EmeraldAccent
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // Quick Focus Launcher
+                                Row(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                                        .clickable { onNavigate(LifeOsScreen.FOCUS) }
+                                        .padding(horizontal = 10.dp, vertical = 5.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.PlayArrow,
+                                        contentDescription = "Start Focus",
+                                        tint = EmeraldAccent,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = "Focus",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+                        }
                     }
                 } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        topTasks.forEach { task ->
-                            TaskRowItem(
-                                task = task,
-                                onToggleStatus = { onToggleTaskStatus(task.id) }
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.CheckCircleOutline,
+                                contentDescription = null,
+                                tint = EmeraldAccent,
+                                modifier = Modifier.size(24.dp)
                             )
+                            Column {
+                                Text(
+                                    text = "All priorities cleared",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "Ready to capture a new goal or take a breath.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }
             }
         }
 
-        // Daily Habits Checklist with 7-Day Matrix Navigation
+        // 4. Daily Habits Quick Check-in
         item {
-            Column(modifier = Modifier.fillMaxWidth()) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.LocalFireDepartment, contentDescription = null, tint = EmeraldGreen, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Today's Habit Checklist",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                    TextButton(onClick = { onNavigate(LifeOsScreen.HABITS) }) {
-                        Text("7-Day Matrix →", color = EmeraldGreen, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                    }
+                    Text(
+                        text = "DAILY RHYTHM",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        letterSpacing = 0.8.sp
+                    )
+                    Text(
+                        text = "Matrix",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = EmeraldAccent,
+                        modifier = Modifier.clickable { onNavigate(LifeOsScreen.HABITS) }
+                    )
                 }
 
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    habits.take(4).forEach { habit ->
-                        val isDone = habit.completedDates.contains(todayDate)
-                        HabitCompactRow(
-                            habit = habit,
-                            isDone = isDone,
-                            onToggle = { onToggleHabitToday(habit.id) }
-                        )
+                if (habits.isNotEmpty()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        habits.take(4).forEach { habit ->
+                            val isCompletedToday = habit.completedDates.contains(todayDate)
+
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("habit_quick_row_${habit.id}"),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        // Streak Counter
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.LocalFireDepartment,
+                                                contentDescription = null,
+                                                tint = if (habit.streakCount > 0) AmberAccent else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Text(
+                                                text = "${habit.streakCount}",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (habit.streakCount > 0) AmberAccent else MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+
+                                        Text(
+                                            text = habit.title,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Medium,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+
+                                    // Tactile Today Toggle Button with Scale Feedback
+                                    val animatedScale by animateFloatAsState(
+                                        targetValue = if (isCompletedToday) 1.0f else 0.94f,
+                                        animationSpec = spring(dampingRatio = 0.6f),
+                                        label = "dash_habit_scale"
+                                    )
+
+                                    Box(
+                                        modifier = Modifier
+                                            .size(34.dp)
+                                            .scale(animatedScale)
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(
+                                                if (isCompletedToday) EmeraldAccent
+                                                else MaterialTheme.colorScheme.surfaceVariant
+                                            )
+                                            .border(
+                                                1.dp,
+                                                if (isCompletedToday) EmeraldAccent else MaterialTheme.colorScheme.outline,
+                                                RoundedCornerShape(10.dp)
+                                            )
+                                            .clickable { onToggleHabitToday(habit.id) }
+                                            .testTag("toggle_habit_${habit.id}"),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (isCompletedToday) {
+                                            Icon(
+                                                Icons.Default.Check,
+                                                contentDescription = "Completed",
+                                                tint = Color.Black,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        } else {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(8.dp)
+                                                    .clip(CircleShape)
+                                                    .background(MaterialTheme.colorScheme.outline)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
 
-        // Today's Time-Blocked Schedule
+        // 5. Today's Agenda / Timeline
         item {
-            Column(modifier = Modifier.fillMaxWidth()) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.AccessTime, contentDescription = null, tint = EmeraldDark, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Today's Schedule",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                    TextButton(onClick = { onNavigate(LifeOsScreen.PLANNER) }) {
-                        Text("Planner", color = EmeraldGreen, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                    }
+                    Text(
+                        text = "AGENDA TIMELINE",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        letterSpacing = 0.8.sp
+                    )
+                    Text(
+                        text = "Planner",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = EmeraldAccent,
+                        modifier = Modifier.clickable { onNavigate(LifeOsScreen.PLANNER) }
+                    )
                 }
 
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    scheduleEvents.take(3).forEach { event ->
-                        ScheduleRowItem(
-                            event = event,
-                            onToggle = { onToggleScheduleEvent(event.id) }
-                        )
+                if (scheduleEvents.isNotEmpty()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            scheduleEvents.take(3).forEach { event ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    // Time Badge
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Text(
+                                            text = event.startTime,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = event.title,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Medium,
+                                            color = if (event.isDone) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                                            textDecoration = if (event.isDone) TextDecoration.LineThrough else null,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+
+                                    IconButton(
+                                        onClick = { onToggleScheduleEvent(event.id) },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = if (event.isDone) Icons.Default.CheckCircle else Icons.Outlined.Circle,
+                                            contentDescription = "Toggle",
+                                            tint = if (event.isDone) EmeraldAccent else MaterialTheme.colorScheme.outline,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
-                }
-            }
-        }
-
-        // Life Pillars Balance Overview
-        item {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = "Life Spheres Equilibrium",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    pillars.take(3).forEach { pillar ->
-                        PillarMiniCard(
-                            pillar = pillar,
-                            modifier = Modifier.weight(1f),
-                            onClick = { onNavigate(LifeOsScreen.KNOWLEDGE) }
-                        )
+                } else {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.CalendarToday,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = "No scheduled time-blocks today. Tap Planner to schedule.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
@@ -326,281 +629,56 @@ fun DashboardScreen(
 }
 
 @Composable
-fun MetricWidget(
+private fun ExecutiveMetricCard(
     title: String,
     value: String,
-    progress: Float,
-    color: Color,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
+    subtext: String,
+    accentColor: Color,
+    modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.clickable { onClick() },
+        modifier = modifier,
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
-            Text(title, style = MaterialTheme.typography.labelSmall, color = Slate700)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onSurface)
-            Spacer(modifier = Modifier.height(8.dp))
-            LinearProgressIndicator(
-                progress = { progress.coerceIn(0f, 1f) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(6.dp)
-                    .clip(RoundedCornerShape(3.dp)),
-                color = color,
-                trackColor = Slate100
-            )
-        }
-    }
-}
-
-@Composable
-fun TaskRowItem(
-    task: TaskItem,
-    onToggleStatus: () -> Unit
-) {
-    val isDone = task.status == TaskStatus.DONE
-    val priorityColor = when (task.priority) {
-        TaskPriority.LOW -> Slate600
-        TaskPriority.MEDIUM -> ElectricCyan
-        TaskPriority.HIGH -> AmberGold
-        TaskPriority.URGENT -> RoseRed
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surface)
-            .border(1.dp, if (isDone) Slate200 else MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
-            .clickable { onToggleStatus() }
-            .padding(12.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Checkbox(
-                checked = isDone,
-                onCheckedChange = { onToggleStatus() },
-                colors = CheckboxDefaults.colors(
-                    checkedColor = EmeraldGreen,
-                    uncheckedColor = Slate400,
-                    checkmarkColor = White
-                )
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = task.title,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (isDone) Slate400 else MaterialTheme.colorScheme.onSurface,
-                    textDecoration = if (isDone) androidx.compose.ui.text.style.TextDecoration.LineThrough else null
-                )
-                if (task.notes.isNotBlank()) {
-                    Text(
-                        text = task.notes,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Slate600,
-                        maxLines = 1
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(priorityColor.copy(alpha = 0.12f))
-                    .padding(horizontal = 8.dp, vertical = 3.dp)
-            ) {
-                Text(
-                    text = task.priority.label,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = priorityColor,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun HabitCompactRow(
-    habit: HabitItem,
-    isDone: Boolean,
-    onToggle: () -> Unit
-) {
-    val color = try {
-        Color(android.graphics.Color.parseColor(habit.colorHex))
-    } catch (_: Exception) { EmeraldGreen }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surface)
-            .border(1.dp, if (isDone) EmeraldBorder else MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
-            .padding(12.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Box(
                     modifier = Modifier
-                        .size(10.dp)
+                        .size(6.dp)
                         .clip(CircleShape)
-                        .background(color)
+                        .background(accentColor)
                 )
-                Spacer(modifier = Modifier.width(10.dp))
-                Column {
-                    Text(
-                        text = habit.title,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.LocalFireDepartment,
-                            contentDescription = null,
-                            tint = AmberGold,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(2.dp))
-                        Text(
-                            text = "${habit.streakCount} day streak",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = AmberGold,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-
-            IconButton(
-                onClick = onToggle,
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(if (isDone) EmeraldGreen else Slate100)
-                    .border(1.dp, if (isDone) EmeraldGreen else Slate200, CircleShape)
-            ) {
-                Icon(
-                    Icons.Default.Check,
-                    contentDescription = "Complete Habit",
-                    tint = if (isDone) White else Slate400,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun ScheduleRowItem(
-    event: ScheduleEvent,
-    onToggle: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surface)
-            .border(1.dp, if (event.isDone) Slate200 else MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
-            .clickable { onToggle() }
-            .padding(12.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "${event.startTime} - ${event.endTime}",
+                    text = title.uppercase(),
                     style = MaterialTheme.typography.labelSmall,
-                    color = EmeraldDark,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = event.title,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (event.isDone) Slate400 else MaterialTheme.colorScheme.onSurface,
-                    textDecoration = if (event.isDone) androidx.compose.ui.text.style.TextDecoration.LineThrough else null
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(Slate100)
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-            ) {
-                Text(
-                    text = event.category,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Slate700,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-        }
-    }
-}
 
-@Composable
-fun PillarMiniCard(
-    pillar: LifePillar,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    val color = try {
-        Color(android.graphics.Color.parseColor(pillar.colorHex))
-    } catch (_: Exception) { EmeraldGreen }
+            Spacer(modifier = Modifier.height(8.dp))
 
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surface)
-            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
-            .clickable { onClick() }
-            .padding(10.dp)
-    ) {
-        Column {
             Text(
-                text = pillar.title.split(" ").firstOrNull() ?: "",
-                style = MaterialTheme.typography.labelMedium,
+                text = value,
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1
+                color = MaterialTheme.colorScheme.onSurface
             )
-            Spacer(modifier = Modifier.height(4.dp))
+
+            Spacer(modifier = Modifier.height(2.dp))
+
             Text(
-                text = "${(pillar.progressPercent * 100).toInt()}%",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.ExtraBold,
-                color = color
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            LinearProgressIndicator(
-                progress = { pillar.progressPercent },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp)),
-                color = color,
-                trackColor = Slate100
+                text = subtext,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }

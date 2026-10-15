@@ -96,10 +96,10 @@ fun TasksScreen(
                 TaskPriority.values().reversed().forEach { priority ->
                     val isSel = selectedPriorityFilter == priority
                     val color = when (priority) {
-                        TaskPriority.URGENT -> RoseRed
-                        TaskPriority.HIGH -> AmberGold
-                        TaskPriority.MEDIUM -> ElectricCyan
-                        TaskPriority.LOW -> Slate600
+                        TaskPriority.URGENT -> RoseAccent
+                        TaskPriority.HIGH -> AmberAccent
+                        TaskPriority.MEDIUM -> CyanAccent
+                        TaskPriority.LOW -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     }
                     Box(
                         modifier = Modifier
@@ -114,7 +114,7 @@ fun TasksScreen(
                         Text(
                             text = priority.label,
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (isSel) color else Slate700,
+                            color = if (isSel) color else MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = if (isSel) FontWeight.Bold else FontWeight.Medium
                         )
                     }
@@ -132,21 +132,21 @@ fun TasksScreen(
                         Icon(
                             Icons.Default.CheckCircleOutline,
                             contentDescription = null,
-                            tint = Slate400,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                             modifier = Modifier.size(52.dp)
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             "No tasks found for the active filter.",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Slate600
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
                         Button(
                             onClick = onOpenAddTask,
-                            colors = ButtonDefaults.buttonColors(containerColor = EmeraldGreen, contentColor = White)
+                            colors = ButtonDefaults.buttonColors(containerColor = EmeraldAccent, contentColor = ObsidianDark)
                         ) {
-                            Text("Create New Task")
+                            Text("Create New Task", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -196,19 +196,22 @@ fun TaskDetailCard(
     var isExpanded by remember { mutableStateOf(false) }
 
     val priorityColor = when (task.priority) {
-        TaskPriority.LOW -> Slate600
-        TaskPriority.MEDIUM -> ElectricCyan
-        TaskPriority.HIGH -> AmberGold
-        TaskPriority.URGENT -> RoseRed
+        TaskPriority.LOW -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+        TaskPriority.MEDIUM -> CyanAccent
+        TaskPriority.HIGH -> AmberAccent
+        TaskPriority.URGENT -> RoseAccent
     }
 
     Card(
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, if (isDone) Slate200 else MaterialTheme.colorScheme.outline),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            if (task.isTopPriorityToday) AmberAccent.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outline
+        ),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -217,9 +220,9 @@ fun TaskDetailCard(
                     checked = isDone,
                     onCheckedChange = { onToggleStatus() },
                     colors = CheckboxDefaults.colors(
-                        checkedColor = EmeraldGreen,
-                        uncheckedColor = Slate400,
-                        checkmarkColor = White
+                        checkedColor = EmeraldAccent,
+                        uncheckedColor = MaterialTheme.colorScheme.outline,
+                        checkmarkColor = ObsidianDark
                     )
                 )
 
@@ -232,14 +235,14 @@ fun TaskDetailCard(
                         text = task.title,
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.SemiBold,
-                        color = if (isDone) Slate400 else MaterialTheme.colorScheme.onSurface,
+                        color = if (isDone) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface,
                         textDecoration = if (isDone) androidx.compose.ui.text.style.TextDecoration.LineThrough else null
                     )
                     if (task.notes.isNotBlank()) {
                         Text(
                             text = task.notes,
                             style = MaterialTheme.typography.bodySmall,
-                            color = Slate600,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = if (isExpanded) 10 else 1
                         )
                     }
@@ -268,7 +271,7 @@ fun TaskDetailCard(
                     Icon(
                         imageVector = if (task.isTopPriorityToday) Icons.Default.Star else Icons.Default.StarBorder,
                         contentDescription = "Anchor",
-                        tint = if (task.isTopPriorityToday) AmberGold else Slate400,
+                        tint = if (task.isTopPriorityToday) AmberAccent else MaterialTheme.colorScheme.outline,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -278,22 +281,23 @@ fun TaskDetailCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 40.dp, top = 4.dp),
+                    .padding(start = 40.dp, top = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     task.tags.forEach { tag ->
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(Slate100)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(6.dp))
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 text = "#$tag",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Slate700,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontSize = 10.sp
                             )
                         }
@@ -306,7 +310,7 @@ fun TaskDetailCard(
                         Text(
                             text = "$subDone/${task.subTasks.size} subtasks",
                             style = MaterialTheme.typography.labelSmall,
-                            color = EmeraldDark,
+                            color = EmeraldAccent,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.clickable { isExpanded = !isExpanded }
                         )
@@ -318,7 +322,7 @@ fun TaskDetailCard(
                         Icon(
                             Icons.Default.DeleteOutline,
                             contentDescription = "Delete",
-                            tint = Slate400,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -332,7 +336,7 @@ fun TaskDetailCard(
                         .fillMaxWidth()
                         .padding(start = 36.dp, top = 8.dp)
                 ) {
-                    HorizontalDivider(color = Slate200, modifier = Modifier.padding(vertical = 4.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(vertical = 4.dp))
                     task.subTasks.forEach { sub ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -346,16 +350,16 @@ fun TaskDetailCard(
                                 onCheckedChange = { onToggleSubTask(sub.id) },
                                 modifier = Modifier.size(28.dp),
                                 colors = CheckboxDefaults.colors(
-                                    checkedColor = EmeraldGreen,
-                                    uncheckedColor = Slate400,
-                                    checkmarkColor = White
+                                    checkedColor = EmeraldAccent,
+                                    uncheckedColor = MaterialTheme.colorScheme.outline,
+                                    checkmarkColor = ObsidianDark
                                 )
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = sub.title,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = if (sub.isDone) Slate400 else Slate900,
+                                color = if (sub.isDone) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
                                 textDecoration = if (sub.isDone) androidx.compose.ui.text.style.TextDecoration.LineThrough else null
                             )
                         }
@@ -368,8 +372,8 @@ fun TaskDetailCard(
 
 @Composable
 fun chipColors() = FilterChipDefaults.filterChipColors(
-    selectedContainerColor = EmeraldSoftBg,
-    selectedLabelColor = EmeraldDark,
-    containerColor = White,
-    labelColor = Slate700
+    selectedContainerColor = EmeraldAccent.copy(alpha = 0.15f),
+    selectedLabelColor = EmeraldAccent,
+    containerColor = MaterialTheme.colorScheme.surface,
+    labelColor = MaterialTheme.colorScheme.onSurfaceVariant
 )

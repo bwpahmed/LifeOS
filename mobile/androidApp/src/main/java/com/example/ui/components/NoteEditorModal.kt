@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.graphics.Color
 import com.example.model.NoteItem
 import com.example.ui.theme.*
 
@@ -65,7 +66,7 @@ fun NoteEditorModal(
                             Icon(
                                 Icons.Default.PushPin,
                                 contentDescription = "Pin Note",
-                                tint = if (isPinned) VioletAccent else Slate400
+                                tint = if (isPinned) VioletAccent else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                         IconButton(onClick = {
@@ -75,13 +76,13 @@ fun NoteEditorModal(
                             Icon(
                                 Icons.Default.DeleteOutline,
                                 contentDescription = "Delete Note",
-                                tint = RoseRed
+                                tint = RoseAccent
                             )
                         }
                     }
 
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Slate600)
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
 
@@ -127,7 +128,7 @@ fun NoteEditorModal(
                     OutlinedButton(
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Slate700)
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
                     ) {
                         Text("Cancel")
                     }
@@ -147,7 +148,7 @@ fun NoteEditorModal(
                             onDismiss()
                         },
                         modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = VioletAccent, contentColor = White)
+                        colors = ButtonDefaults.buttonColors(containerColor = VioletAccent, contentColor = Color.White)
                     ) {
                         Text("Save Changes", fontWeight = FontWeight.Bold)
                     }

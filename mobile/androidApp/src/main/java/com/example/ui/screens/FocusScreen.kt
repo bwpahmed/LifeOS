@@ -61,13 +61,13 @@ fun FocusScreen(
         Text(
             text = "Deep Focus Cockpit",
             style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.ExtraBold,
-            color = Slate100
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground
         )
         Text(
             text = "Eliminate all distractions. Enter monk mode.",
             style = MaterialTheme.typography.bodyMedium,
-            color = Slate400
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         Spacer(modifier = Modifier.height(20.dp))
@@ -90,8 +90,8 @@ fun FocusScreen(
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(10.dp))
-                        .background(if (isSelected) RoseRed.copy(alpha = 0.2f) else Slate900)
-                        .border(1.dp, if (isSelected) RoseRed else Slate800, RoundedCornerShape(10.dp))
+                        .background(if (isSelected) EmeraldAccent.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant)
+                        .border(1.dp, if (isSelected) EmeraldAccent else MaterialTheme.colorScheme.outline, RoundedCornerShape(10.dp))
                         .clickable { onSelectPreset(mins) }
                         .padding(vertical = 8.dp),
                     contentAlignment = Alignment.Center
@@ -100,7 +100,7 @@ fun FocusScreen(
                         text = label,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                        color = if (isSelected) RoseRed else Slate400
+                        color = if (isSelected) EmeraldAccent else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -140,7 +140,7 @@ fun FocusScreen(
                     text = timeFormatted,
                     fontSize = 48.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Slate100,
+                    color = MaterialTheme.colorScheme.onSurface,
                     letterSpacing = 1.sp
                 )
                 Spacer(modifier = Modifier.height(4.dp))
@@ -148,7 +148,7 @@ fun FocusScreen(
                     text = if (isTimerRunning) "FLOW STATE ACTIVE" else "PAUSED",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    color = if (isTimerRunning) RoseRed else Slate500,
+                    color = if (isTimerRunning) RoseAccent else MaterialTheme.colorScheme.onSurfaceVariant,
                     letterSpacing = 1.sp
                 )
             }
@@ -166,10 +166,10 @@ fun FocusScreen(
                 modifier = Modifier
                     .size(54.dp)
                     .clip(CircleShape)
-                    .background(Slate900)
-                    .border(1.dp, Slate700, CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
             ) {
-                Icon(Icons.Default.Refresh, contentDescription = "Reset Timer", tint = Slate300)
+                Icon(Icons.Default.Refresh, contentDescription = "Reset Timer", tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
 
             Button(
@@ -180,8 +180,8 @@ fun FocusScreen(
                     .testTag("timer_toggle_btn"),
                 shape = RoundedCornerShape(28.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isTimerRunning) Slate800 else RoseRed,
-                    contentColor = White
+                    containerColor = if (isTimerRunning) MaterialTheme.colorScheme.surfaceVariant else EmeraldAccent,
+                    contentColor = if (isTimerRunning) MaterialTheme.colorScheme.onSurface else ObsidianDark
                 )
             ) {
                 Icon(
@@ -202,8 +202,8 @@ fun FocusScreen(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp),
-            colors = CardDefaults.cardColors(containerColor = Slate900),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Slate800)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
         ) {
             Row(
                 modifier = Modifier
@@ -213,13 +213,13 @@ fun FocusScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Today's Blocks", style = MaterialTheme.typography.labelSmall, color = Slate400)
+                    Text("Today's Blocks", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         "$sessionsCompleted",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = RoseRed
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
 
@@ -227,17 +227,17 @@ fun FocusScreen(
                     modifier = Modifier
                         .width(1.dp)
                         .height(30.dp)
-                        .background(Slate800)
+                        .background(MaterialTheme.colorScheme.outlineVariant)
                 )
 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Focus Time Logged", style = MaterialTheme.typography.labelSmall, color = Slate400)
+                    Text("Focus Time Logged", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         "${sessionsCompleted * 25} mins",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = Slate100
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }

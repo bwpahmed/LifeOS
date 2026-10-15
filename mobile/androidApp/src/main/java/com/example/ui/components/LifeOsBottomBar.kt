@@ -1,17 +1,29 @@
 package com.example.ui.components
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.ui.theme.*
 import com.example.ui.viewmodel.LifeOsScreen
 
@@ -20,132 +32,135 @@ fun LifeOsBottomBar(
     currentScreen: LifeOsScreen,
     onScreenSelected: (LifeOsScreen) -> Unit
 ) {
-    Column(modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars)) {
-        HorizontalDivider(color = Slate200)
-        NavigationBar(
-            modifier = Modifier.testTag("lifeos_bottom_navigation"),
-            containerColor = MaterialTheme.colorScheme.surface,
-            tonalElevation = 0.dp
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.background)
+            .windowInsetsPadding(WindowInsets.navigationBars)
+    ) {
+        HorizontalDivider(
+            color = MaterialTheme.colorScheme.outlineVariant,
+            thickness = 0.5.dp
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(64.dp)
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(horizontal = 8.dp)
+                .testTag("lifeos_bottom_navigation"),
+            horizontalArrangement = Arrangement.SpaceAround,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            NavigationBarItem(
-                selected = currentScreen == LifeOsScreen.DASHBOARD,
+            ExecutiveNavItem(
+                label = "Cockpit",
+                selectedIcon = Icons.Filled.GridView,
+                unselectedIcon = Icons.Outlined.GridView,
+                isSelected = currentScreen == LifeOsScreen.DASHBOARD,
                 onClick = { onScreenSelected(LifeOsScreen.DASHBOARD) },
-                icon = {
-                    Icon(
-                        imageVector = if (currentScreen == LifeOsScreen.DASHBOARD) Icons.Filled.Dashboard else Icons.Outlined.Dashboard,
-                        contentDescription = "Cockpit"
-                    )
-                },
-                label = { Text("Home", style = MaterialTheme.typography.labelSmall) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = EmeraldGreen,
-                    selectedTextColor = EmeraldGreen,
-                    unselectedIconColor = Slate700,
-                    unselectedTextColor = Slate700,
-                    indicatorColor = EmeraldSoftBg
-                ),
-                modifier = Modifier.testTag("nav_cockpit")
+                tag = "nav_cockpit"
             )
 
-            NavigationBarItem(
-                selected = currentScreen == LifeOsScreen.TASKS,
+            ExecutiveNavItem(
+                label = "Tasks",
+                selectedIcon = Icons.Filled.CheckCircle,
+                unselectedIcon = Icons.Outlined.CheckCircle,
+                isSelected = currentScreen == LifeOsScreen.TASKS,
                 onClick = { onScreenSelected(LifeOsScreen.TASKS) },
-                icon = {
-                    Icon(
-                        imageVector = if (currentScreen == LifeOsScreen.TASKS) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle,
-                        contentDescription = "Tasks"
-                    )
-                },
-                label = { Text("Tasks", style = MaterialTheme.typography.labelSmall) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = EmeraldGreen,
-                    selectedTextColor = EmeraldGreen,
-                    unselectedIconColor = Slate700,
-                    unselectedTextColor = Slate700,
-                    indicatorColor = EmeraldSoftBg
-                ),
-                modifier = Modifier.testTag("nav_tasks")
+                tag = "nav_tasks"
             )
 
-            NavigationBarItem(
-                selected = currentScreen == LifeOsScreen.HABITS,
+            ExecutiveNavItem(
+                label = "Habits",
+                selectedIcon = Icons.Filled.LocalFireDepartment,
+                unselectedIcon = Icons.Outlined.LocalFireDepartment,
+                isSelected = currentScreen == LifeOsScreen.HABITS,
                 onClick = { onScreenSelected(LifeOsScreen.HABITS) },
-                icon = {
-                    Icon(
-                        imageVector = if (currentScreen == LifeOsScreen.HABITS) Icons.Filled.LocalFireDepartment else Icons.Outlined.LocalFireDepartment,
-                        contentDescription = "Habits"
-                    )
-                },
-                label = { Text("Habits", style = MaterialTheme.typography.labelSmall) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = EmeraldGreen,
-                    selectedTextColor = EmeraldGreen,
-                    unselectedIconColor = Slate700,
-                    unselectedTextColor = Slate700,
-                    indicatorColor = EmeraldSoftBg
-                ),
-                modifier = Modifier.testTag("nav_habits")
+                tag = "nav_habits"
             )
 
-            NavigationBarItem(
-                selected = currentScreen == LifeOsScreen.PLANNER,
+            ExecutiveNavItem(
+                label = "Planner",
+                selectedIcon = Icons.Filled.CalendarMonth,
+                unselectedIcon = Icons.Outlined.CalendarMonth,
+                isSelected = currentScreen == LifeOsScreen.PLANNER,
                 onClick = { onScreenSelected(LifeOsScreen.PLANNER) },
-                icon = {
-                    Icon(
-                        imageVector = if (currentScreen == LifeOsScreen.PLANNER) Icons.Filled.CalendarMonth else Icons.Outlined.CalendarMonth,
-                        contentDescription = "Planner"
-                    )
-                },
-                label = { Text("Planner", style = MaterialTheme.typography.labelSmall) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = EmeraldGreen,
-                    selectedTextColor = EmeraldGreen,
-                    unselectedIconColor = Slate700,
-                    unselectedTextColor = Slate700,
-                    indicatorColor = EmeraldSoftBg
-                ),
-                modifier = Modifier.testTag("nav_planner")
+                tag = "nav_planner"
             )
 
-            NavigationBarItem(
-                selected = currentScreen == LifeOsScreen.KNOWLEDGE,
+            ExecutiveNavItem(
+                label = "Vault",
+                selectedIcon = Icons.Filled.FolderSpecial,
+                unselectedIcon = Icons.Outlined.FolderSpecial,
+                isSelected = currentScreen == LifeOsScreen.KNOWLEDGE || currentScreen == LifeOsScreen.FOCUS,
                 onClick = { onScreenSelected(LifeOsScreen.KNOWLEDGE) },
-                icon = {
-                    Icon(
-                        imageVector = if (currentScreen == LifeOsScreen.KNOWLEDGE) Icons.Filled.FolderSpecial else Icons.Outlined.FolderSpecial,
-                        contentDescription = "Vault"
-                    )
-                },
-                label = { Text("Vault", style = MaterialTheme.typography.labelSmall) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = EmeraldGreen,
-                    selectedTextColor = EmeraldGreen,
-                    unselectedIconColor = Slate700,
-                    unselectedTextColor = Slate700,
-                    indicatorColor = EmeraldSoftBg
-                ),
-                modifier = Modifier.testTag("nav_knowledge")
+                tag = "nav_knowledge"
             )
+        }
+    }
+}
 
-            NavigationBarItem(
-                selected = currentScreen == LifeOsScreen.FOCUS,
-                onClick = { onScreenSelected(LifeOsScreen.FOCUS) },
-                icon = {
-                    Icon(
-                        imageVector = if (currentScreen == LifeOsScreen.FOCUS) Icons.Filled.Timer else Icons.Outlined.Timer,
-                        contentDescription = "Focus"
-                    )
-                },
-                label = { Text("Focus", style = MaterialTheme.typography.labelSmall) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = EmeraldGreen,
-                    selectedTextColor = EmeraldGreen,
-                    unselectedIconColor = Slate700,
-                    unselectedTextColor = Slate700,
-                    indicatorColor = EmeraldSoftBg
-                ),
-                modifier = Modifier.testTag("nav_focus")
+@Composable
+private fun ExecutiveNavItem(
+    label: String,
+    selectedIcon: ImageVector,
+    unselectedIcon: ImageVector,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    tag: String
+) {
+    val iconColor by animateColorAsState(
+        targetValue = if (isSelected) EmeraldAccent else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+        label = "nav_icon_color"
+    )
+    val textColor by animateColorAsState(
+        targetValue = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+        label = "nav_text_color"
+    )
+
+    Column(
+        modifier = Modifier
+            .defaultMinSize(minWidth = 56.dp, minHeight = 48.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
             )
+            .padding(vertical = 6.dp, horizontal = 8.dp)
+            .testTag(tag),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = if (isSelected) selectedIcon else unselectedIcon,
+            contentDescription = label,
+            tint = iconColor,
+            modifier = Modifier.size(22.dp)
+        )
+
+        Spacer(modifier = Modifier.height(3.dp))
+
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+            fontSize = 10.sp,
+            color = textColor
+        )
+
+        // Micro dot indicator under active item
+        if (isSelected) {
+            Spacer(modifier = Modifier.height(2.dp))
+            Box(
+                modifier = Modifier
+                    .size(3.dp)
+                    .clip(CircleShape)
+                    .background(EmeraldAccent)
+            )
+        } else {
+            Spacer(modifier = Modifier.height(5.dp))
         }
     }
 }

@@ -57,7 +57,7 @@ fun KnowledgeAndGoalsScreen(
                     .fillMaxWidth()
                     .padding(vertical = 10.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Slate900)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
                     .padding(4.dp)
             ) {
                 Box(
@@ -73,7 +73,7 @@ fun KnowledgeAndGoalsScreen(
                         text = "Knowledge Vault (${notes.size})",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        color = if (selectedTab == 0) White else Slate400
+                        color = if (selectedTab == 0) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
@@ -90,7 +90,7 @@ fun KnowledgeAndGoalsScreen(
                         text = "Life Pillars & OKRs",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        color = if (selectedTab == 1) Slate950 else Slate400
+                        color = if (selectedTab == 1) ObsidianDark else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -99,7 +99,7 @@ fun KnowledgeAndGoalsScreen(
                 // Notes View
                 if (notes.isEmpty()) {
                     Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                        Text("No notes found. Tap '+' to create your first knowledge entry.", color = Slate400)
+                        Text("No notes found. Tap '+' to create your first knowledge entry.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 } else {
                     LazyColumn(
@@ -132,7 +132,7 @@ fun KnowledgeAndGoalsScreen(
                             text = "Life Spheres Equilibrium",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Slate100
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -154,12 +154,12 @@ fun KnowledgeAndGoalsScreen(
                                 text = "Active Objectives & Milestones",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = Slate100
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
                                 text = "${goals.size} Active Goals",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = CyanBright
+                                color = CyanAccent
                             )
                         }
                     }
@@ -200,10 +200,10 @@ fun NoteCard(
 ) {
     Card(
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = Slate900),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = androidx.compose.foundation.BorderStroke(
             1.dp,
-            if (note.isPinned) VioletAccent.copy(alpha = 0.5f) else Slate800
+            if (note.isPinned) VioletAccent.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outline
         ),
         modifier = Modifier.fillMaxWidth().clickable { onOpen() }
     ) {
@@ -227,7 +227,7 @@ fun NoteCard(
                         text = note.title,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Slate100
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
 
@@ -236,7 +236,7 @@ fun NoteCard(
                         Icon(
                             imageVector = if (note.isPinned) Icons.Default.PushPin else Icons.Default.VerticalAlignTop,
                             contentDescription = "Pin",
-                            tint = if (note.isPinned) VioletAccent else Slate500,
+                            tint = if (note.isPinned) VioletAccent else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -244,7 +244,7 @@ fun NoteCard(
                         Icon(
                             Icons.Default.DeleteOutline,
                             contentDescription = "Delete",
-                            tint = Slate500,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -255,7 +255,7 @@ fun NoteCard(
             Text(
                 text = note.content,
                 style = MaterialTheme.typography.bodySmall,
-                color = Slate300,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 3,
                 lineHeight = 18.sp
             )
@@ -267,13 +267,13 @@ fun NoteCard(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(4.dp))
-                                .background(Slate800)
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 text = "#$tag",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Slate400,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontSize = 10.sp
                             )
                         }
@@ -292,8 +292,8 @@ fun PillarFullCard(pillar: LifePillar) {
 
     Card(
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Slate900),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Slate800),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
@@ -302,7 +302,7 @@ fun PillarFullCard(pillar: LifePillar) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(pillar.title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, color = Slate100)
+                Text(pillar.title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                 Text(
                     "${(pillar.progressPercent * 100).toInt()}%",
                     style = MaterialTheme.typography.labelLarge,
@@ -310,7 +310,7 @@ fun PillarFullCard(pillar: LifePillar) {
                     color = color
                 )
             }
-            Text(pillar.subtitle, style = MaterialTheme.typography.bodySmall, color = Slate400)
+            Text(pillar.subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(modifier = Modifier.height(8.dp))
             LinearProgressIndicator(
                 progress = { pillar.progressPercent },
@@ -319,7 +319,7 @@ fun PillarFullCard(pillar: LifePillar) {
                     .height(6.dp)
                     .clip(RoundedCornerShape(3.dp)),
                 color = color,
-                trackColor = Slate800
+                trackColor = MaterialTheme.colorScheme.surfaceVariant
             )
         }
     }
@@ -333,8 +333,8 @@ fun GoalDetailedCard(
 ) {
     Card(
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = Slate900),
-        border = androidx.compose.foundation.BorderStroke(1.dp, CyanBright.copy(alpha = 0.3f)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
@@ -348,7 +348,7 @@ fun GoalDetailedCard(
                         text = goal.title,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Slate100
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = "Target: ${goal.targetDate}",
@@ -361,7 +361,7 @@ fun GoalDetailedCard(
                     Icon(
                         Icons.Default.DeleteOutline,
                         contentDescription = "Delete",
-                        tint = Slate600,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -376,8 +376,8 @@ fun GoalDetailedCard(
                     .fillMaxWidth()
                     .height(6.dp)
                     .clip(RoundedCornerShape(3.dp)),
-                color = CyanBright,
-                trackColor = Slate800
+                color = CyanAccent,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -395,13 +395,17 @@ fun GoalDetailedCard(
                         checked = milestone.isCompleted,
                         onCheckedChange = { onToggleMilestone(milestone.id) },
                         modifier = Modifier.size(24.dp),
-                        colors = CheckboxDefaults.colors(checkedColor = CyanBright, uncheckedColor = Slate600)
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = CyanAccent,
+                            uncheckedColor = MaterialTheme.colorScheme.outline,
+                            checkmarkColor = ObsidianDark
+                        )
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = milestone.title,
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (milestone.isCompleted) Slate400 else Slate200,
+                        color = if (milestone.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface,
                         textDecoration = if (milestone.isCompleted) androidx.compose.ui.text.style.TextDecoration.LineThrough else null
                     )
                 }

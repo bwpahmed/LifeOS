@@ -706,14 +706,14 @@ fun PrivacyGateLockScreen(
                 modifier = Modifier
                     .size(72.dp)
                     .clip(CircleShape)
-                    .background(EmeraldSoftBg)
-                    .border(2.dp, EmeraldGreen, CircleShape),
+                    .background(EmeraldAccent.copy(alpha = 0.15f))
+                    .border(2.dp, EmeraldAccent, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Lock,
                     contentDescription = "Locked",
-                    tint = EmeraldGreen,
+                    tint = EmeraldAccent,
                     modifier = Modifier.size(36.dp)
                 )
             }
@@ -728,7 +728,7 @@ fun PrivacyGateLockScreen(
             Text(
                 text = "Enter 4-digit PIN to access cockpit (default: 1234)",
                 style = MaterialTheme.typography.bodyMedium,
-                color = Slate600
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -744,8 +744,8 @@ fun PrivacyGateLockScreen(
                         modifier = Modifier
                             .size(18.dp)
                             .clip(CircleShape)
-                            .background(if (isFilled) EmeraldGreen else MaterialTheme.colorScheme.surfaceVariant)
-                            .border(1.dp, if (isFilled) EmeraldGreen else MaterialTheme.colorScheme.outline, CircleShape)
+                            .background(if (isFilled) EmeraldAccent else MaterialTheme.colorScheme.surfaceVariant)
+                            .border(1.dp, if (isFilled) EmeraldAccent else MaterialTheme.colorScheme.outline, CircleShape)
                     )
                 }
             }
@@ -755,7 +755,7 @@ fun PrivacyGateLockScreen(
                 Text(
                     text = errorMessage,
                     style = MaterialTheme.typography.bodySmall,
-                    color = RoseRed
+                    color = RoseAccent
                 )
             }
 
@@ -821,14 +821,14 @@ fun PrivacyGateLockScreen(
 
 @Composable
 fun outlinedFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedBorderColor = EmeraldGreen,
-    unfocusedBorderColor = Slate200,
+    focusedBorderColor = EmeraldAccent,
+    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
     focusedContainerColor = MaterialTheme.colorScheme.surface,
     unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-    focusedTextColor = Slate950,
-    unfocusedTextColor = Slate950,
-    focusedLabelColor = EmeraldDark,
-    unfocusedLabelColor = Slate600
+    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+    focusedLabelColor = EmeraldAccent,
+    unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -877,7 +877,7 @@ fun CloudSyncModal(
                                 com.example.data.supabase.SupabaseSyncStatus.CONNECTED -> EmeraldSoftBg
                                 com.example.data.supabase.SupabaseSyncStatus.SYNCING -> CyanSoftBg
                                 com.example.data.supabase.SupabaseSyncStatus.SYNC_ERROR -> RoseSoftBg
-                                else -> Slate100
+                                else -> MaterialTheme.colorScheme.surfaceVariant
                             }
                         ),
                     contentAlignment = Alignment.Center
@@ -891,10 +891,10 @@ fun CloudSyncModal(
                         },
                         contentDescription = "Cloud Status",
                         tint = when (syncStatus) {
-                            com.example.data.supabase.SupabaseSyncStatus.CONNECTED -> EmeraldGreen
-                            com.example.data.supabase.SupabaseSyncStatus.SYNCING -> CyanBlue
-                            com.example.data.supabase.SupabaseSyncStatus.SYNC_ERROR -> RoseRed
-                            else -> Slate700
+                            com.example.data.supabase.SupabaseSyncStatus.CONNECTED -> EmeraldAccent
+                            com.example.data.supabase.SupabaseSyncStatus.SYNCING -> CyanAccent
+                            com.example.data.supabase.SupabaseSyncStatus.SYNC_ERROR -> RoseAccent
+                            else -> MaterialTheme.colorScheme.onSurfaceVariant
                         },
                         modifier = Modifier.size(24.dp)
                     )
@@ -910,7 +910,7 @@ fun CloudSyncModal(
                     Text(
                         text = "Supabase Ecosystem • Postgres & RLS",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Slate600
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -919,9 +919,9 @@ fun CloudSyncModal(
 
             // Backend Status Banner
             Card(
-                colors = CardDefaults.cardColors(containerColor = Slate50),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 shape = RoundedCornerShape(12.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Slate200),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
@@ -934,17 +934,17 @@ fun CloudSyncModal(
                             text = "Connected Backend",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Slate700
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
                                 .background(
                                     when (syncStatus) {
-                                        com.example.data.supabase.SupabaseSyncStatus.CONNECTED -> EmeraldSoftBg
-                                        com.example.data.supabase.SupabaseSyncStatus.SYNCING -> CyanSoftBg
-                                        com.example.data.supabase.SupabaseSyncStatus.SYNC_ERROR -> RoseSoftBg
-                                        else -> Slate200
+                                        com.example.data.supabase.SupabaseSyncStatus.CONNECTED -> EmeraldAccent.copy(alpha = 0.15f)
+                                        com.example.data.supabase.SupabaseSyncStatus.SYNCING -> CyanAccent.copy(alpha = 0.15f)
+                                        com.example.data.supabase.SupabaseSyncStatus.SYNC_ERROR -> RoseAccent.copy(alpha = 0.15f)
+                                        else -> MaterialTheme.colorScheme.outlineVariant
                                     }
                                 )
                                 .padding(horizontal = 8.dp, vertical = 3.dp)
@@ -959,10 +959,10 @@ fun CloudSyncModal(
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = when (syncStatus) {
-                                    com.example.data.supabase.SupabaseSyncStatus.CONNECTED -> EmeraldDark
-                                    com.example.data.supabase.SupabaseSyncStatus.SYNCING -> CyanBlue
-                                    com.example.data.supabase.SupabaseSyncStatus.SYNC_ERROR -> RoseRed
-                                    else -> Slate700
+                                    com.example.data.supabase.SupabaseSyncStatus.CONNECTED -> EmeraldAccent
+                                    com.example.data.supabase.SupabaseSyncStatus.SYNCING -> CyanAccent
+                                    com.example.data.supabase.SupabaseSyncStatus.SYNC_ERROR -> RoseAccent
+                                    else -> MaterialTheme.colorScheme.onSurfaceVariant
                                 }
                             )
                         }
@@ -972,14 +972,14 @@ fun CloudSyncModal(
                     Text(
                         text = "Project: fdtbftuxziicubztgcde.supabase.co",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Slate600,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
                         fontSize = 11.sp
                     )
                     Text(
                         text = lastSyncMessage,
                         style = MaterialTheme.typography.bodySmall,
-                        color = Slate700,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp
                     )
                 }
@@ -1016,13 +1016,13 @@ fun CloudSyncModal(
                             text = accountEmail,
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.SemiBold,
-                            color = Slate950
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "Row Level Security (RLS) is active. Your tasks and habits sync across Web, Android, and iOS.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Slate700
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }

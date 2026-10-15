@@ -2,13 +2,16 @@ package com.example.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.example.data.local.*
 import com.example.data.supabase.*
 import com.example.model.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
@@ -69,6 +72,14 @@ class LifeOsRepository(private val context: Context) {
     // Supabase Cloud Integration
     val supabaseClient: SupabaseClient = SupabaseClient(context)
 
+    // Room Database Integration for Offline Availability and Consistency
+    val database: LifeOsDatabase = LifeOsDatabase.getInstance(context)
+    val taskDao: TaskDao = database.taskDao()
+    val habitDao: HabitDao = database.habitDao()
+
+    val roomTasksFlow: Flow<List<TaskItem>> = taskDao.getAllTasks().map { list -> list.map { it.toDomainModel() } }
+    val roomHabitsFlow: Flow<List<HabitItem>> = habitDao.getAllHabits().map { list -> list.map { it.toDomainModel() } }
+
     private val _syncStatus = MutableStateFlow<SupabaseSyncStatus>(
         if (supabaseClient.isAuthenticated) SupabaseSyncStatus.CONNECTED else SupabaseSyncStatus.OFFLINE_LOCAL
     )
@@ -83,6 +94,22 @@ class LifeOsRepository(private val context: Context) {
     private val repoScope = CoroutineScope(Dispatchers.IO)
 
     init {
+        // Observe Room reactive Flow for real-time local persistence updates
+        repoScope.launch {
+            taskDao.getAllTasks().collect { entities ->
+                if (entities.isNotEmpty()) {
+                    _tasks.value = entities.map { it.toDomainModel() }
+                }
+            }
+        }
+        repoScope.launch {
+            habitDao.getAllHabits().collect { entities ->
+                if (entities.isNotEmpty()) {
+                    _habits.value = entities.map { it.toDomainModel() }
+                }
+            }
+        }
+
         loadData()
         if (supabaseClient.isAuthenticated) {
             repoScope.launch {
@@ -186,6 +213,18 @@ class LifeOsRepository(private val context: Context) {
         initDefaultNotes()
         initPillars()
         initDefaultGoals()
+
+        // Seed Room SQLite persistence if empty
+        repoScope.launch {
+            try {
+                if (taskDao.getCount() == 0 && _tasks.value.isNotEmpty()) {
+                    taskDao.insertTasks(_tasks.value.map { TaskEntity.fromDomainModel(it) })
+                }
+                if (habitDao.getCount() == 0 && _habits.value.isNotEmpty()) {
+                    habitDao.insertHabits(_habits.value.map { HabitEntity.fromDomainModel(it) })
+                }
+            } catch (_: Exception) {}
+        }
 
         _privacyGateEnabled.value = prefs.getBoolean("privacy_gate_enabled", false)
         _pin.value = prefs.getString("user_pin", "1234") ?: "1234"
@@ -448,22 +487,38 @@ class LifeOsRepository(private val context: Context) {
     fun addTask(task: TaskItem) {
         val updated = listOf(task) + _tasks.value
         _tasks.value = updated
+        repoScope.launch {
+            try {
+                taskDao.insertTask(TaskEntity.fromDomainModel(task, isSynced = false))
+            } catch (_: Exception) {}
+        }
         saveTasks()
     }
 
     fun updateTask(task: TaskItem) {
         val updated = _tasks.value.map { if (it.id == task.id) task else it }
         _tasks.value = updated
+        repoScope.launch {
+            try {
+                taskDao.insertTask(TaskEntity.fromDomainModel(task, isSynced = false))
+            } catch (_: Exception) {}
+        }
         saveTasks()
     }
 
     fun deleteTask(taskId: String) {
         val updated = _tasks.value.filterNot { it.id == taskId }
         _tasks.value = updated
+        repoScope.launch {
+            try {
+                taskDao.deleteTaskById(taskId)
+            } catch (_: Exception) {}
+        }
         saveTasks()
     }
 
     fun toggleTaskStatus(taskId: String) {
+        var updatedTask: TaskItem? = null
         val updated = _tasks.value.map { task ->
             if (task.id == taskId) {
                 val newStatus = when (task.status) {
@@ -471,31 +526,62 @@ class LifeOsRepository(private val context: Context) {
                     TaskStatus.TODO -> TaskStatus.DONE
                     TaskStatus.IN_PROGRESS -> TaskStatus.DONE
                 }
-                task.copy(status = newStatus)
+                val t = task.copy(status = newStatus)
+                updatedTask = t
+                t
             } else task
         }
         _tasks.value = updated
+        updatedTask?.let { task ->
+            repoScope.launch {
+                try {
+                    taskDao.insertTask(TaskEntity.fromDomainModel(task, isSynced = false))
+                } catch (_: Exception) {}
+            }
+        }
         saveTasks()
     }
 
     fun toggleSubTask(taskId: String, subTaskId: String) {
+        var updatedTask: TaskItem? = null
         val updated = _tasks.value.map { task ->
             if (task.id == taskId) {
                 val newSubTasks = task.subTasks.map { sub ->
                     if (sub.id == subTaskId) sub.copy(isDone = !sub.isDone) else sub
                 }
-                task.copy(subTasks = newSubTasks)
+                val t = task.copy(subTasks = newSubTasks)
+                updatedTask = t
+                t
             } else task
         }
         _tasks.value = updated
+        updatedTask?.let { task ->
+            repoScope.launch {
+                try {
+                    taskDao.insertTask(TaskEntity.fromDomainModel(task, isSynced = false))
+                } catch (_: Exception) {}
+            }
+        }
         saveTasks()
     }
 
     fun toggleTopPriorityToday(taskId: String) {
+        var updatedTask: TaskItem? = null
         val updated = _tasks.value.map { task ->
-            if (task.id == taskId) task.copy(isTopPriorityToday = !task.isTopPriorityToday) else task
+            if (task.id == taskId) {
+                val t = task.copy(isTopPriorityToday = !task.isTopPriorityToday)
+                updatedTask = t
+                t
+            } else task
         }
         _tasks.value = updated
+        updatedTask?.let { task ->
+            repoScope.launch {
+                try {
+                    taskDao.insertTask(TaskEntity.fromDomainModel(task, isSynced = false))
+                } catch (_: Exception) {}
+            }
+        }
         saveTasks()
     }
 
@@ -503,12 +589,22 @@ class LifeOsRepository(private val context: Context) {
     fun addHabit(habit: HabitItem) {
         val updated = _habits.value + habit
         _habits.value = updated
+        repoScope.launch {
+            try {
+                habitDao.insertHabit(HabitEntity.fromDomainModel(habit, isSynced = false))
+            } catch (_: Exception) {}
+        }
         saveHabits()
     }
 
     fun deleteHabit(habitId: String) {
         val updated = _habits.value.filterNot { it.id == habitId }
         _habits.value = updated
+        repoScope.launch {
+            try {
+                habitDao.deleteHabitById(habitId)
+            } catch (_: Exception) {}
+        }
         saveHabits()
     }
 
@@ -518,6 +614,7 @@ class LifeOsRepository(private val context: Context) {
 
     fun toggleHabitDate(habitId: String, dateString: String) {
         var willBeCompleted = false
+        var targetHabit: HabitItem? = null
         val updated = _habits.value.map { habit ->
             if (habit.id == habitId) {
                 val isCompleted = habit.completedDates.contains(dateString)
@@ -530,19 +627,38 @@ class LifeOsRepository(private val context: Context) {
                 val newStreak = calculateStreak(newDates)
                 val newBest = maxOf(habit.bestStreak, newStreak)
 
-                habit.copy(
+                val h = habit.copy(
                     completedDates = newDates,
                     streakCount = newStreak,
                     bestStreak = newBest
                 )
+                targetHabit = h
+                h
             } else habit
         }
         _habits.value = updated
+        targetHabit?.let { habit ->
+            repoScope.launch {
+                try {
+                    habitDao.insertHabit(HabitEntity.fromDomainModel(habit, isSynced = false))
+                } catch (_: Exception) {}
+            }
+        }
         saveHabits()
 
         if (supabaseClient.isAuthenticated) {
             repoScope.launch {
-                supabaseClient.logHabitCompletionToCloud(habitId, dateString, willBeCompleted)
+                try {
+                    val logSuccess = supabaseClient.logHabitCompletionToCloud(habitId, dateString, willBeCompleted)
+                    if (logSuccess.isSuccess) {
+                        targetHabit?.let { h ->
+                            habitDao.insertHabit(HabitEntity.fromDomainModel(h, isSynced = true))
+                        }
+                    }
+                } catch (e: Exception) {
+                    _syncStatus.value = SupabaseSyncStatus.OFFLINE_LOCAL
+                    _lastSyncTimeMessage.value = "Offline mode: habit saved to local Room database"
+                }
             }
         }
     }
@@ -802,9 +918,15 @@ class LifeOsRepository(private val context: Context) {
 
     // Persistence helpers
     private fun saveTasks() {
+        val currentTasks = _tasks.value
+        repoScope.launch {
+            try {
+                taskDao.insertTasks(currentTasks.map { TaskEntity.fromDomainModel(it) })
+            } catch (_: Exception) {}
+        }
         try {
             val arr = JSONArray()
-            for (t in _tasks.value) {
+            for (t in currentTasks) {
                 val obj = JSONObject()
                 obj.put("id", t.id)
                 obj.put("title", t.title)
@@ -835,9 +957,15 @@ class LifeOsRepository(private val context: Context) {
     }
 
     private fun saveHabits() {
+        val currentHabits = _habits.value
+        repoScope.launch {
+            try {
+                habitDao.insertHabits(currentHabits.map { HabitEntity.fromDomainModel(it) })
+            } catch (_: Exception) {}
+        }
         try {
             val arr = JSONArray()
-            for (h in _habits.value) {
+            for (h in currentHabits) {
                 val obj = JSONObject()
                 obj.put("id", h.id)
                 obj.put("title", h.title)
@@ -881,7 +1009,7 @@ class LifeOsRepository(private val context: Context) {
         supabaseClient.clearSession()
         _syncAccountEmail.value = null
         _syncStatus.value = SupabaseSyncStatus.OFFLINE_LOCAL
-        _lastSyncTimeMessage.value = "Local offline mode active"
+        _lastSyncTimeMessage.value = "Local offline mode active (Room database preserved)"
     }
 
     suspend fun checkCloudConnection(): Boolean {
@@ -891,6 +1019,7 @@ class LifeOsRepository(private val context: Context) {
     suspend fun syncWithSupabase(): Result<String> {
         if (!supabaseClient.isAuthenticated) {
             _syncStatus.value = SupabaseSyncStatus.OFFLINE_LOCAL
+            _lastSyncTimeMessage.value = "Offline mode: local Room SQLite database active"
             return Result.failure(Exception("Not authenticated with Supabase"))
         }
 
@@ -911,6 +1040,7 @@ class LifeOsRepository(private val context: Context) {
                         }
                     }
                     _habits.value = merged
+                    habitDao.insertHabits(merged.map { HabitEntity.fromDomainModel(it, isSynced = true) })
                     saveHabits()
                 }
             }
@@ -929,8 +1059,22 @@ class LifeOsRepository(private val context: Context) {
                         }
                     }
                     _tasks.value = mergedTasks
+                    taskDao.insertTasks(mergedTasks.map { TaskEntity.fromDomainModel(it, isSynced = true) })
                     saveTasks()
                 }
+            }
+
+            // 3. Push any unsynced offline habit check-ins to Supabase cloud
+            try {
+                val unsyncedHabits = habitDao.getUnsyncedHabits()
+                for (unsynced in unsyncedHabits) {
+                    for (date in unsynced.completedDates) {
+                        supabaseClient.logHabitCompletionToCloud(unsynced.id, date, true)
+                    }
+                    habitDao.insertHabit(unsynced.copy(isSynced = true))
+                }
+            } catch (_: Exception) {
+                // Intermittent network during upstream sync: local changes stay safely in Room
             }
 
             val sdf = SimpleDateFormat("hh:mm a", Locale.getDefault())
@@ -938,7 +1082,9 @@ class LifeOsRepository(private val context: Context) {
             _syncStatus.value = SupabaseSyncStatus.CONNECTED
             return Result.success("Synchronization successful")
         } catch (e: Exception) {
-            _syncStatus.value = SupabaseSyncStatus.SYNC_ERROR
+            // Supabase network unreachable or intermittent - seamlessly fall back to local Room persistence
+            _syncStatus.value = SupabaseSyncStatus.OFFLINE_LOCAL
+            _lastSyncTimeMessage.value = "Offline mode: habits & tasks secured in local Room database"
             return Result.failure(e)
         }
     }

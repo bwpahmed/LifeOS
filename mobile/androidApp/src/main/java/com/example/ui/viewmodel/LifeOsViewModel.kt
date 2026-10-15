@@ -1,6 +1,7 @@
 package com.example.ui.viewmodel
 
 import android.app.Application
+import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.LifeOsRepository
@@ -27,6 +28,17 @@ enum class QuickCaptureType {
 class LifeOsViewModel(application: Application) : AndroidViewModel(application) {
 
     val repository = LifeOsRepository(application.applicationContext)
+
+    // Dark/Light Theme state persisted in SharedPreferences
+    private val themePrefs = application.getSharedPreferences("lifeos_theme_prefs", Context.MODE_PRIVATE)
+    private val _isDarkTheme = MutableStateFlow(themePrefs.getBoolean("is_dark_theme", true))
+    val isDarkTheme: StateFlow<Boolean> = _isDarkTheme.asStateFlow()
+
+    fun toggleTheme() {
+        val next = !_isDarkTheme.value
+        _isDarkTheme.value = next
+        themePrefs.edit().putBoolean("is_dark_theme", next).apply()
+    }
 
     // Current navigation tab
     private val _currentScreen = MutableStateFlow(LifeOsScreen.DASHBOARD)
