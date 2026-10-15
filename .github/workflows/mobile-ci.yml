@@ -62,8 +62,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_16.app/Contents/Developer || true
+      - name: Verify Xcode Version
+        run: xcodebuild -version
 
       - name: Verify iOS Project Structure
         run: |
@@ -76,9 +76,9 @@ jobs:
         run: |
           cd mobile/iosApp
           xcodebuild -project LifeOSApp.xcodeproj \
-                     -scheme LifeOSApp \
+                     -scheme LifeOS \
                      -sdk iphonesimulator \
-                     -destination 'platform=iOS Simulator,name=iPhone 16' \
+                     -destination 'generic/platform=iOS Simulator' \
                      clean build \
                      CODE_SIGNING_ALLOWED=NO \
                      CODE_SIGNING_REQUIRED=NO
