@@ -28,15 +28,16 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            LifeOsTheme {
-                LifeOsApp(viewModel = viewModel)
+            val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
+            LifeOsTheme(darkTheme = isDarkTheme) {
+                LifeOsApp(viewModel = viewModel, isDarkTheme = isDarkTheme)
             }
         }
     }
 }
 
 @Composable
-fun LifeOsApp(viewModel: LifeOsViewModel) {
+fun LifeOsApp(viewModel: LifeOsViewModel, isDarkTheme: Boolean) {
     val currentScreen by viewModel.currentScreen.collectAsStateWithLifecycle()
     val isLocked by viewModel.isLocked.collectAsStateWithLifecycle()
 
@@ -99,7 +100,9 @@ fun LifeOsApp(viewModel: LifeOsViewModel) {
                 privacyGateEnabled = privacyGateEnabled,
                 onLockGate = { viewModel.lockGate() },
                 syncStatus = syncStatus,
-                onOpenCloudSync = { viewModel.openCloudSyncModal() }
+                onOpenCloudSync = { viewModel.openCloudSyncModal() },
+                isDarkTheme = isDarkTheme,
+                onToggleTheme = { viewModel.toggleTheme() }
             )
         },
         bottomBar = {
@@ -149,7 +152,9 @@ fun LifeOsApp(viewModel: LifeOsViewModel) {
                         getWeekRangeLabel = { offset -> viewModel.getWeekRangeLabel(offset) },
                         onToggleHabitDate = { habitId, dateStr -> viewModel.toggleHabitDate(habitId, dateStr) },
                         onDeleteHabit = { viewModel.deleteHabit(it) },
-                        onOpenAddHabit = { viewModel.openQuickCapture(QuickCaptureType.HABIT) }
+                        onOpenAddHabit = { viewModel.openQuickCapture(QuickCaptureType.HABIT) },
+                        isDarkTheme = isDarkTheme,
+                        onToggleTheme = { viewModel.toggleTheme() }
                     )
                 }
                 LifeOsScreen.PLANNER -> {
