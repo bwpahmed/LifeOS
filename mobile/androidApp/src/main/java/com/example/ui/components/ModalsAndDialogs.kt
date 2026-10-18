@@ -605,7 +605,7 @@ fun SettingsModal(
                             HorizontalDivider(color = MaterialTheme.colorScheme.outline)
                             Spacer(modifier = Modifier.height(12.dp))
 
-                            Text("Change Security PIN (Default: 1234)", style = MaterialTheme.typography.labelSmall, color = Slate600)
+                            Text("Configure Security PIN", style = MaterialTheme.typography.labelSmall, color = Slate600)
                             Spacer(modifier = Modifier.height(6.dp))
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -726,7 +726,7 @@ fun PrivacyGateLockScreen(
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = "Enter 4-digit PIN to access cockpit (default: 1234)",
+                text = "Enter 4-digit PIN to unlock private modules",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

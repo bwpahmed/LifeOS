@@ -6,4 +6,5 @@ object SupabaseConfig {
     const val AUTH_ENDPOINT = "$PROJECT_URL/auth/v1"
     const val REST_ENDPOINT = "$PROJECT_URL/rest/v1"
     const val REALTIME_ENDPOINT = "wss://fdtbftuxziicubztgcde.supabase.co/realtime/v1/websocket"
+    const val OWNER_EMAIL = "bwpahmed@gmail.com"
 }

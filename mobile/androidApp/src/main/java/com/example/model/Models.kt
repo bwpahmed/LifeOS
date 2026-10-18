@@ -38,7 +38,11 @@ data class TaskItem(
     val subTasks: List<SubTask> = emptyList(),
     val tags: List<String> = emptyList(),
     val isTopPriorityToday: Boolean = false,
-    val createdAtMillis: Long = System.currentTimeMillis()
+    val createdAtMillis: Long = System.currentTimeMillis(),
+    val updatedAtMillis: Long = System.currentTimeMillis(),
+    val isSynced: Boolean = true,
+    val isDeleted: Boolean = false,
+    val isDemoData: Boolean = false
 )
 
 enum class HabitFrequency(val label: String) {
@@ -55,7 +59,9 @@ data class HabitItem(
     val streakCount: Int = 0,
     val bestStreak: Int = 0,
     val completedDates: List<String> = emptyList(), // ISO date "yyyy-MM-dd"
-    val colorHex: String = "#06B6D4"
+    val colorHex: String = "#06B6D4",
+    val isSynced: Boolean = true,
+    val isDemoData: Boolean = false
 )
 
 data class ScheduleEvent(
@@ -65,7 +71,9 @@ data class ScheduleEvent(
     val endTime: String,   // e.g. "10:30 AM"
     val workspaceId: String,
     val category: String = "Focus Block",
-    val isDone: Boolean = false
+    val isDone: Boolean = false,
+    val isSynced: Boolean = true,
+    val isDemoData: Boolean = false
 )
 
 data class NoteItem(
@@ -75,7 +83,11 @@ data class NoteItem(
     val workspaceId: String,
     val tags: List<String> = emptyList(),
     val isPinned: Boolean = false,
-    val updatedAtMillis: Long = System.currentTimeMillis()
+    val color: String = "yellow",
+    val isArchived: Boolean = false,
+    val updatedAtMillis: Long = System.currentTimeMillis(),
+    val isSynced: Boolean = true,
+    val isDemoData: Boolean = false
 )
 
 data class LifePillar(
@@ -100,7 +112,9 @@ data class GoalItem(
     val title: String,
     val targetDate: String,
     val milestones: List<GoalMilestone> = emptyList(),
-    val progress: Float = 0f
+    val progress: Float = 0f,
+    val isSynced: Boolean = true,
+    val isDemoData: Boolean = false
 )
 
 data class FocusSession(
@@ -115,4 +129,20 @@ data class DailyAiBrief(
     val motivationalQuote: String,
     val topRecommendations: List<String>,
     val habitSummary: String
+)
+
+enum class SyncQueueOp {
+    CREATE,
+    UPDATE,
+    DELETE
+}
+
+data class SyncPendingOp(
+    val id: String,
+    val entityType: String, // "TASK", "HABIT_LOG", "STICKY_NOTE", "CALENDAR_ITEM", "GOAL"
+    val entityId: String,
+    val opType: SyncQueueOp,
+    val payloadJson: String,
+    val timestamp: Long,
+    val retryCount: Int = 0
 )

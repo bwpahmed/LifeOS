@@ -1,11 +1,15 @@
 package com.lifeos.mobile.supabase
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class AuthUser(
     val id: String,
     val email: String,
     val displayName: String = "LifeOS User"
 )
 
+@Serializable
 data class AuthSession(
     val accessToken: String,
     val refreshToken: String,
@@ -27,7 +31,8 @@ interface SupabaseAuthService {
     val userEmail: String?
     val userId: String?
 
-    suspend fun signIn(email: String, password: String): Result<AuthSession>
-    suspend fun signUp(email: String, password: String): Result<String>
+    suspend fun signIn(email: String, pass: String): Result<AuthSession>
+    suspend fun signUp(email: String, pass: String): Result<String>
+    suspend fun refreshSession(): Result<AuthSession>
     fun signOut()
 }

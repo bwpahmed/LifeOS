@@ -5,6 +5,8 @@ import android.content.SharedPreferences
 import com.example.data.local.*
 import com.example.data.supabase.*
 import com.example.model.*
+import com.example.model.SyncPendingOp
+import com.example.model.SyncQueueOp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -64,7 +66,7 @@ class LifeOsRepository(private val context: Context) {
     private val _isLocked = MutableStateFlow<Boolean>(false)
     val isLocked: StateFlow<Boolean> = _isLocked.asStateFlow()
 
-    private val _pin = MutableStateFlow<String>("1234")
+    private val _pin = MutableStateFlow<String>("")
 
     private val _searchQuery = MutableStateFlow<String>("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
@@ -119,6 +121,7 @@ class LifeOsRepository(private val context: Context) {
     }
 
     private fun loadData() {
+        loadPendingOps()
         val initialWorkspaces = listOf(
             Workspace("ALL", "All Spheres", "Dashboard", "#10B981", "Consolidated view across all areas of life"),
             Workspace("health", "Health & Energy", "Favorite", "#10B981", "Fitness, nutrition, sleep, and recovery"),
@@ -227,7 +230,7 @@ class LifeOsRepository(private val context: Context) {
         }
 
         _privacyGateEnabled.value = prefs.getBoolean("privacy_gate_enabled", false)
-        _pin.value = prefs.getString("user_pin", "1234") ?: "1234"
+        _pin.value = prefs.getString("user_pin", "") ?: ""
     }
 
     private fun initDefaultTasks() {
@@ -239,7 +242,7 @@ class LifeOsRepository(private val context: Context) {
                 workspaceId = "work",
                 priority = TaskPriority.URGENT,
                 status = TaskStatus.IN_PROGRESS,
-                isTopPriorityToday = true,
+                isTopPriorityToday = true, isDemoData = true,
                 tags = listOf("Engineering", "MVP", "Release"),
                 subTasks = listOf(
                     SubTask("s1", "Implement 7-day matrix grid layout", true),
@@ -255,7 +258,7 @@ class LifeOsRepository(private val context: Context) {
                 workspaceId = "health",
                 priority = TaskPriority.HIGH,
                 status = TaskStatus.TODO,
-                isTopPriorityToday = true,
+                isTopPriorityToday = true, isDemoData = true,
                 tags = listOf("Hydration", "Health")
             ),
             TaskItem(
@@ -265,7 +268,7 @@ class LifeOsRepository(private val context: Context) {
                 workspaceId = "finance",
                 priority = TaskPriority.MEDIUM,
                 status = TaskStatus.TODO,
-                isTopPriorityToday = true,
+                isTopPriorityToday = true, isDemoData = true,
                 tags = listOf("Finance", "Audit")
             ),
             TaskItem(
@@ -274,7 +277,7 @@ class LifeOsRepository(private val context: Context) {
                 notes = "Chapter 4: Feedback loops and delay mechanisms",
                 workspaceId = "growth",
                 priority = TaskPriority.LOW,
-                status = TaskStatus.TODO,
+                status = TaskStatus.TODO, isDemoData = true,
                 tags = listOf("Reading", "Mental Models")
             ),
             TaskItem(
@@ -283,7 +286,7 @@ class LifeOsRepository(private val context: Context) {
                 notes = "Log high-protein lunch and clean dinner macros",
                 workspaceId = "health",
                 priority = TaskPriority.MEDIUM,
-                status = TaskStatus.DONE,
+                status = TaskStatus.DONE, isDemoData = true,
                 tags = listOf("Health", "Nutrition")
             )
         )
@@ -307,7 +310,7 @@ class LifeOsRepository(private val context: Context) {
                 streakCount = 14,
                 bestStreak = 21,
                 completedDates = listOf(mon, tue, wed, thu),
-                colorHex = "#10B981"
+                colorHex = "#10B981", isDemoData = true
             ),
             HabitItem(
                 id = "h2",
@@ -317,7 +320,7 @@ class LifeOsRepository(private val context: Context) {
                 streakCount = 12,
                 bestStreak = 18,
                 completedDates = listOf(mon, tue, wed, thu),
-                colorHex = "#F59E0B"
+                colorHex = "#F59E0B", isDemoData = true
             ),
             HabitItem(
                 id = "h3",
@@ -327,7 +330,7 @@ class LifeOsRepository(private val context: Context) {
                 streakCount = 8,
                 bestStreak = 12,
                 completedDates = listOf(mon, tue, thu),
-                colorHex = "#0EA5E9"
+                colorHex = "#0EA5E9", isDemoData = true
             ),
             HabitItem(
                 id = "h4",
@@ -337,7 +340,7 @@ class LifeOsRepository(private val context: Context) {
                 streakCount = 9,
                 bestStreak = 14,
                 completedDates = listOf(mon, wed, thu),
-                colorHex = "#10B981"
+                colorHex = "#10B981", isDemoData = true
             ),
             HabitItem(
                 id = "h5",
@@ -347,7 +350,7 @@ class LifeOsRepository(private val context: Context) {
                 streakCount = 19,
                 bestStreak = 30,
                 completedDates = listOf(mon, tue, wed, thu),
-                colorHex = "#06B6D4"
+                colorHex = "#06B6D4", isDemoData = true
             ),
             HabitItem(
                 id = "h6",
@@ -357,7 +360,7 @@ class LifeOsRepository(private val context: Context) {
                 streakCount = 6,
                 bestStreak = 10,
                 completedDates = listOf(tue, wed, thu),
-                colorHex = "#8B5CF6"
+                colorHex = "#8B5CF6", isDemoData = true
             ),
             HabitItem(
                 id = "h7",
@@ -837,12 +840,21 @@ class LifeOsRepository(private val context: Context) {
     }
 
     fun unlockGate(enteredPin: String): Boolean {
+        if (_pin.value.isEmpty()) {
+            _isLocked.value = false
+            return true
+        }
         return if (enteredPin == _pin.value) {
             _isLocked.value = false
             true
         } else {
             false
         }
+    }
+
+    fun removePin() {
+        _pin.value = ""
+        prefs.edit().remove("user_pin").apply()
     }
 
     fun setPin(newPin: String) {
@@ -917,6 +929,142 @@ class LifeOsRepository(private val context: Context) {
     }
 
     // Persistence helpers
+
+    // Pending sync queue
+    private val pendingOps = mutableListOf<SyncPendingOp>()
+    private val _pendingSyncCount = MutableStateFlow<Int>(0)
+    val pendingSyncCount: StateFlow<Int> = _pendingSyncCount.asStateFlow()
+
+    private fun enqueuePendingOp(entityType: String, entityId: String, opType: SyncQueueOp, payload: JSONObject) {
+        val op = SyncPendingOp(
+            id = UUID.randomUUID().toString(),
+            entityType = entityType,
+            entityId = entityId,
+            opType = opType,
+            payloadJson = payload.toString(),
+            timestamp = System.currentTimeMillis()
+        )
+        synchronized(pendingOps) {
+            if (opType == SyncQueueOp.DELETE) {
+                pendingOps.removeAll { it.entityId == entityId && it.opType != SyncQueueOp.CREATE }
+            }
+            pendingOps.add(op)
+            _pendingSyncCount.value = pendingOps.size
+            savePendingOps()
+        }
+    }
+
+    private fun dequeuePendingOp(entityId: String, opType: SyncQueueOp) {
+        synchronized(pendingOps) {
+            pendingOps.removeAll { it.entityId == entityId && it.opType == opType }
+            _pendingSyncCount.value = pendingOps.size
+            savePendingOps()
+        }
+    }
+
+    private fun markTaskSynced(taskId: String) {
+        val list = _tasks.value.toMutableList()
+        val idx = list.indexOfFirst { it.id == taskId }
+        if (idx != -1) {
+            list[idx] = list[idx].copy(isSynced = true)
+            _tasks.value = list
+            saveTasks()
+        }
+    }
+
+    private fun savePendingOps() {
+        val arr = JSONArray()
+        for (op in pendingOps) {
+            arr.put(JSONObject().apply {
+                put("id", op.id)
+                put("entityType", op.entityType)
+                put("entityId", op.entityId)
+                put("opType", op.opType.name)
+                put("payloadJson", op.payloadJson)
+                put("timestamp", op.timestamp)
+                put("retryCount", op.retryCount)
+            })
+        }
+        prefs.edit().putString("pending_ops_json", arr.toString()).apply()
+    }
+
+    private fun loadPendingOps() {
+        val str = prefs.getString("pending_ops_json", null) ?: return
+        try {
+            val arr = JSONArray(str)
+            synchronized(pendingOps) {
+                pendingOps.clear()
+                for (i in 0 until arr.length()) {
+                    val obj = arr.getJSONObject(i)
+                    pendingOps.add(
+                        SyncPendingOp(
+                            id = obj.getString("id"),
+                            entityType = obj.getString("entityType"),
+                            entityId = obj.getString("entityId"),
+                            opType = SyncQueueOp.valueOf(obj.getString("opType")),
+                            payloadJson = obj.getString("payloadJson"),
+                            timestamp = obj.optLong("timestamp", System.currentTimeMillis()),
+                            retryCount = obj.optInt("retryCount", 0)
+                        )
+                    )
+                }
+                _pendingSyncCount.value = pendingOps.size
+            }
+        } catch (_: Exception) {}
+    }
+
+    private suspend fun drainPendingQueue() {
+        val copyList = synchronized(pendingOps) { pendingOps.toList() }
+        for (op in copyList) {
+            try {
+                when (op.entityType) {
+                    "TASK" -> {
+                        when (op.opType) {
+                            SyncQueueOp.CREATE -> {
+                                val task = _tasks.value.find { it.id == op.entityId }
+                                if (task != null) {
+                                    val res = supabaseClient.createCloudTask(task, task.workspaceId)
+                                    if (res.isSuccess) {
+                                        markTaskSynced(op.entityId)
+                                        dequeuePendingOp(op.entityId, op.opType)
+                                    }
+                                } else {
+                                    dequeuePendingOp(op.entityId, op.opType)
+                                }
+                            }
+                            SyncQueueOp.UPDATE -> {
+                                val task = _tasks.value.find { it.id == op.entityId }
+                                if (task != null) {
+                                    val res = supabaseClient.updateCloudTask(task)
+                                    if (res.isSuccess) {
+                                        markTaskSynced(op.entityId)
+                                        dequeuePendingOp(op.entityId, op.opType)
+                                    }
+                                }
+                            }
+                            SyncQueueOp.DELETE -> {
+                                val res = supabaseClient.deleteCloudTask(op.entityId)
+                                if (res.isSuccess) {
+                                    dequeuePendingOp(op.entityId, op.opType)
+                                }
+                            }
+                        }
+                    }
+                    "HABIT_LOG" -> {
+                        val payload = JSONObject(op.payloadJson)
+                        val hId = payload.getString("habitId")
+                        val date = payload.getString("date")
+                        val completed = payload.getBoolean("completed")
+                        val res = supabaseClient.logHabitCompletionToCloud(hId, date, completed)
+                        if (res.isSuccess) {
+                            dequeuePendingOp(op.entityId, op.opType)
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
     private fun saveTasks() {
         val currentTasks = _tasks.value
         repoScope.launch {
@@ -953,6 +1101,28 @@ class LifeOsRepository(private val context: Context) {
                 arr.put(obj)
             }
             prefs.edit().putString("tasks_json", arr.toString()).apply()
+        } catch (_: Exception) {}
+    }
+
+
+    private fun saveNotes() {
+        try {
+            val arr = JSONArray()
+            for (n in _notes.value) {
+                val obj = JSONObject().apply {
+                    put("id", n.id)
+                    put("title", n.title)
+                    put("content", n.content)
+                    put("workspaceId", n.workspaceId)
+                    put("isPinned", n.isPinned)
+                    put("color", n.color)
+                    put("isArchived", n.isArchived)
+                    put("isSynced", n.isSynced)
+                    put("isDemoData", n.isDemoData)
+                }
+                arr.put(obj)
+            }
+            prefs.edit().putString("notes_json", arr.toString()).apply()
         } catch (_: Exception) {}
     }
 
@@ -994,6 +1164,11 @@ class LifeOsRepository(private val context: Context) {
         if (result.isSuccess) {
             _syncAccountEmail.value = supabaseClient.currentUserEmail
             _syncStatus.value = SupabaseSyncStatus.CONNECTED
+            _tasks.value = _tasks.value.filter { !it.isDemoData }
+            _habits.value = _habits.value.filter { !it.isDemoData }
+            supabaseClient.startRealtimeSubscription {
+                repoScope.launch { syncWithSupabase() }
+            }
             syncWithSupabase()
         } else {
             _syncStatus.value = SupabaseSyncStatus.SYNC_ERROR
@@ -1019,62 +1194,63 @@ class LifeOsRepository(private val context: Context) {
     suspend fun syncWithSupabase(): Result<String> {
         if (!supabaseClient.isAuthenticated) {
             _syncStatus.value = SupabaseSyncStatus.OFFLINE_LOCAL
-            _lastSyncTimeMessage.value = "Offline mode: local Room SQLite database active"
+            _lastSyncTimeMessage.value = "Offline mode: local SQLite database active"
             return Result.failure(Exception("Not authenticated with Supabase"))
         }
 
         _syncStatus.value = SupabaseSyncStatus.SYNCING
+
         try {
-            // 1. Fetch cloud habits
+            // 1. Drain pending queue operations first
+            drainPendingQueue()
+
+            // 2. Fetch cloud tasks with conflict resolution: never overwrite unsynced local edits
+            val cloudTasksResult = supabaseClient.fetchCloudTasks()
+            if (cloudTasksResult.isSuccess) {
+                val cloudTasks = cloudTasksResult.getOrNull() ?: emptyList()
+                val currentLocal = _tasks.value.filter { !it.isDemoData }
+                val unsyncedLocal = currentLocal.filter { !it.isSynced }
+                val deletedIds = synchronized(pendingOps) {
+                    pendingOps.filter { it.entityType == "TASK" && it.opType == SyncQueueOp.DELETE }.map { it.entityId }.toSet()
+                }
+
+                val merged = mutableListOf<TaskItem>()
+                for (ct in cloudTasks) {
+                    if (deletedIds.contains(ct.id)) continue
+                    val localUnsynced = unsyncedLocal.find { it.id == ct.id }
+                    if (localUnsynced != null) {
+                        merged.add(localUnsynced)
+                    } else {
+                        merged.add(ct)
+                    }
+                }
+                for (loc in unsyncedLocal) {
+                    if (merged.none { it.id == loc.id } && !deletedIds.contains(loc.id)) {
+                        merged.add(loc)
+                    }
+                }
+                _tasks.value = merged
+                saveTasks()
+            }
+
+            // 3. Fetch cloud habits & logs (no demo contamination)
             val cloudHabitsResult = supabaseClient.fetchCloudHabits()
             if (cloudHabitsResult.isSuccess) {
                 val cloudHabits = cloudHabitsResult.getOrNull() ?: emptyList()
                 if (cloudHabits.isNotEmpty()) {
-                    // Merge cloud habits without deleting locally created habits
-                    val localHabits = _habits.value
-                    val merged = mutableListOf<HabitItem>()
-                    merged.addAll(cloudHabits)
-                    for (loc in localHabits) {
-                        if (cloudHabits.none { it.id == loc.id }) {
-                            merged.add(loc)
-                        }
-                    }
-                    _habits.value = merged
-                    habitDao.insertHabits(merged.map { HabitEntity.fromDomainModel(it, isSynced = true) })
+                    _habits.value = cloudHabits
                     saveHabits()
                 }
             }
 
-            // 2. Fetch cloud tasks
-            val cloudTasksResult = supabaseClient.fetchCloudTasks()
-            if (cloudTasksResult.isSuccess) {
-                val cloudTasks = cloudTasksResult.getOrNull() ?: emptyList()
-                if (cloudTasks.isNotEmpty()) {
-                    val localTasks = _tasks.value
-                    val mergedTasks = mutableListOf<TaskItem>()
-                    mergedTasks.addAll(cloudTasks)
-                    for (loc in localTasks) {
-                        if (cloudTasks.none { it.id == loc.id }) {
-                            mergedTasks.add(loc)
-                        }
-                    }
-                    _tasks.value = mergedTasks
-                    taskDao.insertTasks(mergedTasks.map { TaskEntity.fromDomainModel(it, isSynced = true) })
-                    saveTasks()
+            // 4. Fetch cloud sticky notes (Vault)
+            val notesResult = supabaseClient.fetchCloudStickyNotes()
+            if (notesResult.isSuccess) {
+                val cloudNotes = notesResult.getOrNull() ?: emptyList()
+                if (cloudNotes.isNotEmpty()) {
+                    _notes.value = cloudNotes
+                    saveNotes()
                 }
-            }
-
-            // 3. Push any unsynced offline habit check-ins to Supabase cloud
-            try {
-                val unsyncedHabits = habitDao.getUnsyncedHabits()
-                for (unsynced in unsyncedHabits) {
-                    for (date in unsynced.completedDates) {
-                        supabaseClient.logHabitCompletionToCloud(unsynced.id, date, true)
-                    }
-                    habitDao.insertHabit(unsynced.copy(isSynced = true))
-                }
-            } catch (_: Exception) {
-                // Intermittent network during upstream sync: local changes stay safely in Room
             }
 
             val sdf = SimpleDateFormat("hh:mm a", Locale.getDefault())
@@ -1082,9 +1258,8 @@ class LifeOsRepository(private val context: Context) {
             _syncStatus.value = SupabaseSyncStatus.CONNECTED
             return Result.success("Synchronization successful")
         } catch (e: Exception) {
-            // Supabase network unreachable or intermittent - seamlessly fall back to local Room persistence
             _syncStatus.value = SupabaseSyncStatus.OFFLINE_LOCAL
-            _lastSyncTimeMessage.value = "Offline mode: habits & tasks secured in local Room database"
+            _lastSyncTimeMessage.value = "Offline mode: local changes secured"
             return Result.failure(e)
         }
     }
